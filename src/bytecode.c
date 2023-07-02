@@ -5,8 +5,8 @@
 void
 initBytecode(Bytecode *bytecode)
 {
-	bytecode->count;
-	bytecode->capacity;
+	bytecode->count = 0;
+	bytecode->capacity = 0;
 	bytecode->code = NULL;
 }
 

@@ -1,1 +1,6 @@
+#ifndef FUNVM_CONFIG_H
+#define FUNVM_CONFIG_H
+
 #cmakedefine FUNVM_DEBUG
+
+#endif // ! FUNVM_CONFIG_H
