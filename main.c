@@ -1,3 +1,4 @@
+#include "funvmConfig.h"
 #include "common.h"
 
 int

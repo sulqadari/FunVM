@@ -8,7 +8,7 @@
 #define INCREASE_CAPACITY(capacity) \
 	((capacity) < 8 ? 8 : (capacity) * 2)
 
-#define INCREASE_ARRAY(type, array, oldcap, newCap) \
+#define INCREASE_ARRAY(type, array, oldCap, newCap) \
 	(type*)reallocate(array, sizeof(type) * (oldCap), \
 						sizeof(type) * (newCap))
 
