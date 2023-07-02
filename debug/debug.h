@@ -5,6 +5,6 @@
 #include "bytecode.h"
 
 void disassembleBytecode(Bytecode *bytecode, const char *name);
-int disassembleInstruction(Bytecode *bytecode, int offset);
+int32_t disassembleInstruction(Bytecode *bytecode, int32_t offset);
 
 #endif // !FUNVM_DEBUG_H
