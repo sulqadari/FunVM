@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include "bytecode.h"
 #include "memory.h"
@@ -13,15 +14,37 @@ initBytecode(Bytecode *bytecode)
 }
 
 void
-writeBytecode(Bytecode *bytecode, uint8_t opcode, int32_t line)
+writeBytecodeLong(Bytecode *bytecode, uint32_t opcode, uint32_t line)
 {
 	/* Double bytecode array capacity if it doesn't have enough room. */
-	if (bytecode->capacity < bytecode->count + 1) {
-		int32_t oldCapacity = bytecode->capacity;
+	if (bytecode->capacity < bytecode->count + 3) {
+		uint32_t oldCapacity = bytecode->capacity;
 		bytecode->capacity = INCREASE_CAPACITY(oldCapacity);
 		bytecode->code = INCREASE_ARRAY(uint8_t, bytecode->code,
 										oldCapacity, bytecode->capacity);
-		bytecode->lines = INCREASE_ARRAY(int32_t, bytecode->lines,
+		bytecode->lines = INCREASE_ARRAY(uint32_t, bytecode->lines,
+										oldCapacity, bytecode->capacity);
+	}
+
+	uint32_t shift = 16;
+	for (int i = 0; i < 3; ++i) {
+		bytecode->code[bytecode->count] = (opcode >> shift);
+		shift -= 8;
+		bytecode->count++;
+	}
+	bytecode->lines[bytecode->count] = line;
+}
+
+void
+writeBytecode(Bytecode *bytecode, uint8_t opcode, uint32_t line)
+{
+	/* Double bytecode array capacity if it doesn't have enough room. */
+	if (bytecode->capacity < bytecode->count + 1) {
+		uint32_t oldCapacity = bytecode->capacity;
+		bytecode->capacity = INCREASE_CAPACITY(oldCapacity);
+		bytecode->code = INCREASE_ARRAY(uint8_t, bytecode->code,
+										oldCapacity, bytecode->capacity);
+		bytecode->lines = INCREASE_ARRAY(uint32_t, bytecode->lines,
 										oldCapacity, bytecode->capacity);
 	}
 
@@ -40,9 +63,9 @@ freeBytecode(Bytecode *bytecode)
 }
 
 /**
- * @returns int32_t - index where the constant was appended.
+ * @returns uint32_t - index where the constant was appended.
 */
-int32_t
+uint32_t
 addConstant(Bytecode *bytecode, Constant constant)
 {
 	writeConstantPool(&bytecode->const_pool, constant);

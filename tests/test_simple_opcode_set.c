@@ -6,25 +6,27 @@ main(int32_t argc, char *argv[])
 {
 	Bytecode bytecode;
 	initBytecode(&bytecode);
-	
-	writeBytecode(&bytecode, OP_CONSTANT, 1);
-	/* Write OP_CONSTANT operand which indicates the offset
-	 * of constant value 1.2 in constant pool. */
-	writeBytecode(&bytecode, addConstant(&bytecode, 1.2), 1);
+	int line = 1;
+	int i = 2;
+	for (i = 0; i < 256; ++i) {
+		writeBytecode(&bytecode, OP_CONSTANT, line);
+		writeBytecode(&bytecode, addConstant(&bytecode, i), line);
 
-	writeBytecode(&bytecode, OP_CONSTANT, 1);
-	writeBytecode(&bytecode, addConstant(&bytecode, 3.14), 1);
+		if (i != 0 && (i % 5) == 0) {
+			line++;
+		}
+	}
 
-	writeBytecode(&bytecode, OP_CONSTANT, 1);
-	writeBytecode(&bytecode, addConstant(&bytecode, 42), 1);
+	for ( ; i < 258; ++i) {
+		writeBytecode(&bytecode, OP_CONSTANT_LONG, line);
+		writeBytecodeLong(&bytecode, addConstant(&bytecode, i), line);
 
-	writeBytecode(&bytecode, OP_CONSTANT, 2);
-	writeBytecode(&bytecode, addConstant(&bytecode, 0.42), 2);
+		if (i != 0 && (i % 5) == 0) {
+			line++;
+		}
+	}
 
-	writeBytecode(&bytecode, OP_CONSTANT, 2);
-	writeBytecode(&bytecode, addConstant(&bytecode, 0.0012), 2);
-
-	writeBytecode(&bytecode, OP_RETURN, 3);
+	writeBytecode(&bytecode, OP_RETURN, line);
 	
 	disassembleBytecode(&bytecode, "Test chunk");
 	freeBytecode(&bytecode);

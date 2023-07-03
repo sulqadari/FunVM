@@ -23,7 +23,7 @@ writeConstantPool(ConstantPool *constantPool, Constant constant)
 {
 	/* Double constantPool array capacity if it doesn't have enough room. */
 	if (constantPool->capacity < constantPool->count + 1) {
-		int32_t oldCapacity = constantPool->capacity;
+		uint32_t oldCapacity = constantPool->capacity;
 		constantPool->capacity = INCREASE_CAPACITY(oldCapacity);
 		constantPool->pool = INCREASE_ARRAY(Constant, constantPool->pool,
 										oldCapacity, constantPool->capacity);
