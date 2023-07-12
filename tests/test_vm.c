@@ -8,17 +8,18 @@ void case_3(void);
 void case_4(void);
 void case_5(void);
 void case_6(void);
-
+void case_7(void);
 int
 main(int argc, char *argv[])
 {
 	
-	case_1();
-	case_2();
-	case_3();
-	case_4();
-	case_5();
-
+	// case_1();
+	// case_2();
+	// case_3();
+	// case_4();
+	// case_5();
+	// case_6();
+	case_7();
 	return (0);
 }
 
@@ -27,6 +28,8 @@ case_1(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
+
+	printf("*** 1.2 + 3.4 / 5.6 ***\n");
 
 	initVM();
 	initBytecode(&bytecode);
@@ -49,13 +52,14 @@ case_1(void)
 	freeBytecode(&bytecode);
 }
 
-/* 1 * 2 + 3 */
 void
 case_2(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
 
+	printf("*** 1 * 2 + 3 ***\n");
+
 	initVM();
 	initBytecode(&bytecode);
 
@@ -76,13 +80,14 @@ case_2(void)
 	freeBytecode(&bytecode);
 }
 
-/* 1 + 2 * 3 */
 void
 case_3(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
 
+	printf("*** 1 + 2 * 3 ***\n");
+
 	initVM();
 	initBytecode(&bytecode);
 
@@ -103,12 +108,13 @@ case_3(void)
 	freeBytecode(&bytecode);
 }
 
-/* 3 - 2 - 1 */
 void
 case_4(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
+
+	printf("*** 3 - 2 - 1 ***\n");
 
 	initVM();
 	initBytecode(&bytecode);
@@ -130,12 +136,13 @@ case_4(void)
 	freeBytecode(&bytecode);
 }
 
-/* 1 + 2 * 3 - 4 / 5 */
 void
 case_5(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
+
+	printf("*** 1 + 2 * 3 - 4 / 5 ***\n");
 
 	initVM();
 	initBytecode(&bytecode);
@@ -165,12 +172,13 @@ case_5(void)
 	freeBytecode(&bytecode);
 }
 
-/* 4 - 3 * -2 without using OP_NEGATE */
 void
 case_6(void)
 {
 	Bytecode bytecode;
 	uint32_t line = 1;
+
+	printf("*** 4 - 3 * - 2 (sans OP_NEGATE) ***\n");
 
 	initVM();
 	initBytecode(&bytecode);
@@ -185,6 +193,39 @@ case_6(void)
 	writeBytecode(&bytecode, addConstant(&bytecode, 4), line);
 	writeBytecode(&bytecode, OP_ADD, line);
 
+	writeBytecode(&bytecode, OP_RETURN, line++);
+
+	interpret(&bytecode);
+	freeVM();
+	freeBytecode(&bytecode);
+}
+
+void
+case_7(void)
+{
+	Bytecode bytecode;
+	uint32_t line = 1;
+
+	printf("*** Stack overflow. Pushing 257 bytes ***\n");
+
+	initVM();
+	initBytecode(&bytecode);
+
+	for (int i = 0; i < 257; ++i) {
+		writeBytecode(&bytecode, OP_CONSTANT, line);
+		writeBytecode(&bytecode, addConstant(&bytecode, i), line);
+	}
+
+	// writeBytecode(&bytecode, OP_CONSTANT, line);
+	// writeBytecode(&bytecode, addConstant(&bytecode, 3), line);
+	// writeBytecode(&bytecode, OP_CONSTANT, line);
+	// writeBytecode(&bytecode, addConstant(&bytecode, 2), line);
+	// writeBytecode(&bytecode, OP_SUBTRACT, line);
+	
+	// writeBytecode(&bytecode, OP_CONSTANT, line);
+	// writeBytecode(&bytecode, addConstant(&bytecode, 1), line);
+	// writeBytecode(&bytecode, OP_SUBTRACT, line);
+	
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
 	interpret(&bytecode);

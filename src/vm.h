@@ -4,13 +4,13 @@
 #include "funvmConfig.h"
 #include "bytecode.h"
 #include "constant_pool.h"
-
-#define STACK_MAX 256
+#include <stddef.h>
 
 typedef struct {
 	Bytecode *bytecode;	/* A chunk of bytecode to execute. */
 	uint8_t *ip;		/* InsPtr, points to the ins about to be executed. */
-	Value stack[STACK_MAX];
+	Value *stack;
+	uint32_t stackSize;
 	Value *stackTop;
 } VM;
 
@@ -23,6 +23,7 @@ typedef enum {
 void initVM(void);
 void freeVM(void);
 InterpretResult interpret(Bytecode *bytecode);
+void resizeStack(void);
 void push(Value value);
 Value pop(void);
 

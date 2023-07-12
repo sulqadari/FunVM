@@ -1,16 +1,35 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/endian.h>
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
+#include "memory.h"
 
 VM vm;
+
+void
+resizeStack(void)
+{
+	uint32_t oldSize = vm.stackSize;
+	vm.stackSize = INCREASE_CAPACITY(oldSize);
+	printf("new size: %d\n", vm.stackSize);
+	vm.stack = INCREASE_ARRAY(Value, vm.stack,
+							oldSize, vm.stackSize);
+}
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
 static void
 resetStack(void)
 {
+	vm.stackSize = 256;
+	vm.stack = malloc(vm.stackSize);
+	if (NULL == vm.stack) {
+		printf("ERROR: failed to allocate memory for VM stack.\n");
+		exit(1);
+	}
 	vm.stackTop = vm.stack;
 }
 
@@ -23,13 +42,19 @@ initVM(void)
 void
 freeVM(void)
 {
-
+	FREE_ARRAY(Value, vm.stack, vm.stackSize);
 }
 
 void
 push(Value value)
 {
 	*vm.stackTop = value;	/* push the value onto the stack. */
+	uint32_t temp = ((vm.stackTop + 1) - vm.stack);
+	printf("old size: %d\n", temp);
+
+	if (temp > vm.stackSize)
+		resizeStack();
+	
 	vm.stackTop++;				/* shift stackTop forward. */
 }
 
