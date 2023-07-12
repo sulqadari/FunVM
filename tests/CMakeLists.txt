@@ -4,7 +4,7 @@ include_directories(
 	${PROJECT_SOURCE_DIR}/debug)
 
 set(tests 
-	test_simple_opcode_set)
+	test_op_constant_long test_vm)
 
 foreach(test IN LISTS tests)
 	add_executable("${test}" "${test}.c")

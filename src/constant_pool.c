@@ -14,18 +14,18 @@ initConstantPool(ConstantPool *constantPool)
 void
 freeConstantPool(ConstantPool *constantPool)
 {
-	FREE_ARRAY(Constant, constantPool->pool, constantPool->capacity);
+	FREE_ARRAY(Value, constantPool->pool, constantPool->capacity);
 	initConstantPool(constantPool);
 }
 
 void
-writeConstantPool(ConstantPool *constantPool, Constant constant)
+writeConstantPool(ConstantPool *constantPool, Value constant)
 {
 	/* Double constantPool array capacity if it doesn't have enough room. */
 	if (constantPool->capacity < constantPool->count + 1) {
 		uint32_t oldCapacity = constantPool->capacity;
 		constantPool->capacity = INCREASE_CAPACITY(oldCapacity);
-		constantPool->pool = INCREASE_ARRAY(Constant, constantPool->pool,
+		constantPool->pool = INCREASE_ARRAY(Value, constantPool->pool,
 										oldCapacity, constantPool->capacity);
 	}
 
@@ -34,7 +34,7 @@ writeConstantPool(ConstantPool *constantPool, Constant constant)
 }
 
 void
-printValue(Constant value)
+printValue(Value value)
 {
 	printf("%g", value);
 }

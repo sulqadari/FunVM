@@ -8,9 +8,14 @@
  * designates a bytecode instruction we're dealing with -
  * add, subtract, look up variable, etc. */
 typedef enum {
-	OP_CONSTANT,		/* Load the constant from Constant pool (1 byte  offset). */
-	OP_CONSTANT_LONG,	/* Load the constant from Constant pool (3 bytes offset). */
-	OP_RETURN,			/* Return from the current function. */
+	OP_CONSTANT,		/* Load the constant from Value pool (1 byte  offset). */
+	OP_CONSTANT_LONG,	/* Load the constant from Value pool (3 bytes offset). */
+	OP_ADD,
+	OP_SUBTRACT,
+	OP_MULTIPLY,
+	OP_DIVIDE,
+	OP_NEGATE,			/* Negate operand value. */
+	OP_RETURN			/* Return from the current function. */
 } Opcode;
 
 /* Bytecode - a dynamic array of instructions (opcodes). */
@@ -26,6 +31,6 @@ void initBytecode(Bytecode *bytecode);
 void freeBytecode(Bytecode *bytecode);
 //void writeBytecode(Bytecode *bytecode, uint8_t opcode, uint32_t line);
 void writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line);
-uint32_t addConstant(Bytecode *bytecode, Constant constant);
+uint32_t addConstant(Bytecode *bytecode, Value constant);
 
 #endif // !FUNVM_BYTECODE_H

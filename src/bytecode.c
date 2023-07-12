@@ -59,7 +59,7 @@ freeBytecode(Bytecode *bytecode)
  * @returns uint32_t - index where the constant was appended.
 */
 uint32_t
-addConstant(Bytecode *bytecode, Constant constant)
+addConstant(Bytecode *bytecode, Value constant)
 {
 	writeConstantPool(&bytecode->const_pool, constant);
 	return (bytecode->const_pool.count - 1);

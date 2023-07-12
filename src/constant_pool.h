@@ -3,17 +3,17 @@
 
 #include "common.h"
 
-typedef double Constant;
+typedef double Value;
 
 typedef struct {
 	uint32_t capacity;
 	uint32_t count;
-	Constant *pool;
+	Value *pool;
 } ConstantPool;
 
 void initConstantPool(ConstantPool *constantPool);
-void writeConstantPool(ConstantPool *constantPool, Constant constant);
+void writeConstantPool(ConstantPool *constantPool, Value constant);
 void freeConstantPool(ConstantPool *constantPool);
-void printValue(Constant value);
+void printValue(Value value);
 
 #endif // !FUNVM_VALUE_H
