@@ -11,6 +11,7 @@ add_subdirectory(src)
 if(FUNVM_DEBUG)
 	add_subdirectory(debug)
 	add_subdirectory(tests)
+	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 	list(APPEND DEBUG_STUFF debug tests)
 endif()
 

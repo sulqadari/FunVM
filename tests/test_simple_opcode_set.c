@@ -1,13 +1,15 @@
 #include "funvmConfig.h"
 #include "debug.h"
 
-int32_t
+int
 main(int32_t argc, char *argv[])
 {
 	Bytecode bytecode;
+	uint32_t line = 1;
+	uint32_t i = 0;
+
 	initBytecode(&bytecode);
-	int line = 1;
-	int i = 2;
+
 	for (i = 0; i < 256; ++i) {
 		writeBytecode(&bytecode, OP_CONSTANT, line);
 		writeBytecode(&bytecode, addConstant(&bytecode, i), line);
@@ -17,9 +19,9 @@ main(int32_t argc, char *argv[])
 		}
 	}
 
-	for ( ; i < 258; ++i) {
+	for ( ; i < 513; ++i) {
 		writeBytecode(&bytecode, OP_CONSTANT_LONG, line);
-		writeBytecodeLong(&bytecode, addConstant(&bytecode, i), line);
+		writeBytecode(&bytecode, addConstant(&bytecode, i), line);
 
 		if (i != 0 && (i % 5) == 0) {
 			line++;

@@ -24,8 +24,8 @@ typedef struct {
 
 void initBytecode(Bytecode *bytecode);
 void freeBytecode(Bytecode *bytecode);
-void writeBytecode(Bytecode *bytecode, uint8_t opcode, uint32_t line);
-void writeBytecodeLong(Bytecode *bytecode, uint32_t opcode, uint32_t line);
+//void writeBytecode(Bytecode *bytecode, uint8_t opcode, uint32_t line);
+void writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line);
 uint32_t addConstant(Bytecode *bytecode, Constant constant);
 
 #endif // !FUNVM_BYTECODE_H
