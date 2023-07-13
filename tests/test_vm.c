@@ -9,16 +9,17 @@ void case_4(void);
 void case_5(void);
 void case_6(void);
 void case_7(void);
+
 int
 main(int argc, char *argv[])
 {
 	
-	// case_1();
-	// case_2();
-	// case_3();
-	// case_4();
-	// case_5();
-	// case_6();
+	case_1();
+	case_2();
+	case_3();
+	case_4();
+	case_5();
+	case_6();
 	case_7();
 	return (0);
 }
@@ -27,11 +28,12 @@ void
 case_1(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** 1.2 + 3.4 / 5.6 ***\n");
+	printf("*** 1.2 + (3.4 / 5.6) ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -47,8 +49,8 @@ case_1(void)
 	writeBytecode(&bytecode, OP_NEGATE, line++);
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -56,11 +58,12 @@ void
 case_2(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** 1 * 2 + 3 ***\n");
+	printf("*** (1 * 2) + 3 ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -75,8 +78,8 @@ case_2(void)
 	
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -84,11 +87,12 @@ void
 case_3(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** 1 + 2 * 3 ***\n");
+	printf("*** 1 + (2 * 3) ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -103,8 +107,8 @@ case_3(void)
 	
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -112,11 +116,12 @@ void
 case_4(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
 	printf("*** 3 - 2 - 1 ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -131,8 +136,8 @@ case_4(void)
 	
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -140,11 +145,12 @@ void
 case_5(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** 1 + 2 * 3 - 4 / 5 ***\n");
+	printf("*** 1 + ((2 * 3) - (4 / (-5))) ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -167,8 +173,8 @@ case_5(void)
 
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -176,11 +182,12 @@ void
 case_6(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** 4 - 3 * - 2 (sans OP_NEGATE) ***\n");
+	printf("*** 4 - (3 * (- 2)) (sans OP_NEGATE) ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
 	writeBytecode(&bytecode, OP_CONSTANT, line);
@@ -195,8 +202,8 @@ case_6(void)
 
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
 
@@ -204,31 +211,22 @@ void
 case_7(void)
 {
 	Bytecode bytecode;
+	VM vm;
 	uint32_t line = 1;
 
-	printf("*** Stack overflow. Pushing 257 bytes ***\n");
+	printf("*** Increasing stack size. ***\n");
 
-	initVM();
+	initVM(&vm);
 	initBytecode(&bytecode);
 
-	for (int i = 0; i < 257; ++i) {
+	for (int i = 0; i < 64; ++i) {
 		writeBytecode(&bytecode, OP_CONSTANT, line);
 		writeBytecode(&bytecode, addConstant(&bytecode, i), line);
 	}
-
-	// writeBytecode(&bytecode, OP_CONSTANT, line);
-	// writeBytecode(&bytecode, addConstant(&bytecode, 3), line);
-	// writeBytecode(&bytecode, OP_CONSTANT, line);
-	// writeBytecode(&bytecode, addConstant(&bytecode, 2), line);
-	// writeBytecode(&bytecode, OP_SUBTRACT, line);
-	
-	// writeBytecode(&bytecode, OP_CONSTANT, line);
-	// writeBytecode(&bytecode, addConstant(&bytecode, 1), line);
-	// writeBytecode(&bytecode, OP_SUBTRACT, line);
 	
 	writeBytecode(&bytecode, OP_RETURN, line++);
 
-	interpret(&bytecode);
-	freeVM();
+	interpret(&vm, &bytecode);
+	freeVM(&vm);
 	freeBytecode(&bytecode);
 }
