@@ -1,4 +1,7 @@
 #include "funvmConfig.h"
+
+#include <stdio.h>
+
 #include "debug.h"
 #include "vm.h"
 

@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include "memory.h"
 #include "constant_pool.h"
 

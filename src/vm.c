@@ -1,8 +1,10 @@
 #include "funvmConfig.h"
-#include <stdint.h>
 #include <stdio.h>
+<<<<<<< HEAD
 #include <stdlib.h>
 // #include <sys/endian.h>
+=======
+>>>>>>> 72a1365 (Chapter 16 "Scanning on Demand")
 #include "common.h"
 #include "debug.h"
 #include "vm.h"

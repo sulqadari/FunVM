@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdint.h>
+
 #include "debug.h"
 #include "constant_pool.h"
 

@@ -3,7 +3,6 @@
 
 #include "bytecode.h"
 #include "constant_pool.h"
-#include <stddef.h>
 
 typedef struct {
 	Bytecode *bytecode;	/* A chunk of bytecode to execute. */
