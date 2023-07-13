@@ -10,7 +10,6 @@
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
-
 static void
 resetStack(VM *vm)
 {
