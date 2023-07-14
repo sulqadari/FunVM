@@ -1,9 +1,12 @@
 #include "funvmConfig.h"
+
 #include <stdio.h>
+
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
 #include "memory.h"
+#include "compiler.h"
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
@@ -136,9 +139,9 @@ run(VM *vm)
 #undef BINARY_OP
 }
 
-InterpretResult interpret(VM *vm, Bytecode *bytecode)
+InterpretResult
+interpret(VM *vm, const char *source)
 {
-	vm->bytecode = bytecode;
-	vm->ip = vm->bytecode->code;
-	return run(vm);
+	compile(source);
+	return IR_OK;
 }

@@ -1,12 +1,11 @@
 #include "funvmConfig.h"
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
+#include "utils.h"
 
 static int
 case_1(int argc, char *argv[])
@@ -16,7 +15,7 @@ case_1(int argc, char *argv[])
 	initVM(&vm);
 	
 	if (1 == argc)
-		repl();
+		repl(&vm);
 	else if (2 == argc)
 		runFile(argv[1]);
 	else {
