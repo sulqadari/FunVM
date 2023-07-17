@@ -39,7 +39,7 @@ writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line)
 	}
 
 	for (int i = 0; i < additSpace; ++i) {
-		bytecode->code[bytecode->count] = (opcode >> shift);
+		bytecode->code[bytecode->count] = (uint8_t)((opcode >> shift) & 0x00FF);
 		bytecode->lines[bytecode->count] = line;
 		bytecode->count++;
 		shift -= 8;

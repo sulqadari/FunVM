@@ -1,3 +1,4 @@
+#include "bytecode.h"
 #include "funvmConfig.h"
 
 #include <stdio.h>
@@ -142,6 +143,28 @@ run(VM *vm)
 InterpretResult
 interpret(VM *vm, const char *source)
 {
-	compile(source);
-	return IR_OK;
+	Bytecode bytecode;
+	initBytecode(&bytecode);
+
+	/* Fill in the bytecode with the instructions retrieved
+	 * from source code. */
+	if (!compile(source, &bytecode)) {
+		freeBytecode(&bytecode);
+		return IR_COMPILE_ERROR;
+	}
+
+	/* Initialize VM with bytecode. */
+	vm->bytecode = &bytecode;
+
+	/* Assign VM a source code.
+	 * NOTE: current runtime highly depends on source code,
+	 * actually if we just remove it from the middle of execution,
+	 * the runtime will fail.
+	 * Next improvements shall eliminate this case. */
+	vm->ip = vm->bytecode->code;
+
+	InterpretResult result = run(vm);
+	freeBytecode(&bytecode);
+
+	return result;
 }
