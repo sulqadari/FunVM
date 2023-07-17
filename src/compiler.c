@@ -1,3 +1,5 @@
+#include "funvmConfig.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/endian.h>
@@ -7,6 +9,10 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+
+#ifdef FUNVM_DEBUG
+#include "debug.h"
+#endif
 
 typedef struct {
 	Token current;
@@ -29,6 +35,14 @@ typedef enum {
   	PREC_PRIMARY
 } Precedence;
 
+typedef void (*ParseFn)();
+
+typedef struct {
+	ParseFn prefix;
+	ParseFn infix;
+	Precedence precedence;
+} ParseRule;
+
 Parser parser;
 Bytecode *compilingBytecode;
 
@@ -37,9 +51,6 @@ currentBytecode(void)
 {
 	return compilingBytecode;
 }
-
-//	Compiler's Front End	//
-//							//
 
 static void
 errorAt(Token *token, const char *message)
@@ -93,7 +104,8 @@ advance(void)
 }
 
 /**
- * Reads and validates subsequent token. */
+ * Reads and validates subsequent token.
+ */
 static void
 consume(TokenType type, const char *message)
 {
@@ -104,13 +116,6 @@ consume(TokenType type, const char *message)
 
 	errorAtCurrent(message);
 }
-//							//
-// 	!Compiler's Front End	//
-
-
-
-//	Compiler's Back End		//
-//							//
 
 /**
  * Assigns a given value to the bytecode chunk.
@@ -136,7 +141,8 @@ emitReturn(void)
 
 /**
  * Push the given value into Constant Pool.
- * @returns uint32_t - an offset within Constant pool where the value is stored. */
+ * @returns uint32_t - an offset within Constant pool where the value is stored.
+ */
 static uint32_t
 makeConstant(Value value)
 {
@@ -157,22 +163,19 @@ emitConstant(Value value)
 }
 
 static void
-parsePrecedence(Precedence precedence)
-{
-
-}
-
-static void
-expression(void)
-{
-	parsePrecedence(PREC_ASSIGNMENT);
-}
-
-static void
 endCompiler(void)
 {
 	emitReturn();
+#ifdef FUNVM_DEBUG
+	if (parser.hadError) {
+		disassembleBytecode(currentBytecode(), "code");
+	}
+#endif // !FUNVM_DEBUG
 }
+
+static void expression(void);
+static ParseRule* getRule(TokenType type);
+static void parsePrecedence(Precedence precedence);
 
 static void
 binary(void)
@@ -210,6 +213,7 @@ grouping(void)
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
+
 /**
  * Compiles number literal. Assumes the token for the
  * number literal has already been consumed and is stored
@@ -221,6 +225,7 @@ number(void)
 	Value value = strtod(parser.previous.start, NULL);
 	emitConstant(value);
 }
+
 
 static void
 unary(void)
@@ -237,7 +242,87 @@ unary(void)
 	}
 }
 
-//	!Compiler's Back End	//
+ParseRule rules[] = {
+	[TOKEN_LEFT_PAREN]		= {grouping, NULL, PREC_NONE},
+	[TOKEN_RIGHT_PAREN]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_LEFT_BRACE]		= {NULL,     NULL,   PREC_NONE}, 
+	[TOKEN_RIGHT_BRACE]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_COMMA]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_DOT]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_MINUS]			= {unary,    binary, PREC_TERM},
+	[TOKEN_PLUS]			= {NULL,     binary, PREC_TERM},
+	[TOKEN_SEMICOLON]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_SLASH]			= {NULL,     binary, PREC_FACTOR},
+	[TOKEN_STAR]			= {NULL,     binary, PREC_FACTOR},
+	[TOKEN_BANG]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_BANG_EQUAL]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_EQUAL]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_EQUAL_EQUAL]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_GREATER]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_GREATER_EQUAL]	= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_LESS]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_LESS_EQUAL]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_IDENTIFIER]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_STRING]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
+	[TOKEN_AND]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_CLASS]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_ELSE]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_FALSE]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_FOR]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_FUN]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_IF]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_NIL]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_OR]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_PRINT]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_THIS]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_TRUE]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_VAR]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_WHILE]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_ERROR]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_EOF]				= {NULL,     NULL,   PREC_NONE},
+};
+
+/**
+ * The main function which orchestrates all of the parsing functions.
+ */
+static void
+parsePrecedence(Precedence precedence)
+{
+	advance();
+	/* Parsing prefix expressions. The first token is allways going to belong
+	 * to some kind of prefix expressions, by definition. */
+	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+	if (NULL == prefixRule) {
+		error("Expect expression.");
+		return;
+	}
+
+	prefixRule();
+
+	/* Parsing infix expressions. The prefix expression we already compiled
+	 * might be an operand for it if and only if the 'precedence' is low enough
+	 * to permit that infix operator. */
+	while (precedence <= getRule(parser.current.type)->precedence) {
+		advance();
+		ParseFn infixRule = getRule(parser.previous.type)->infix;
+		infixRule();
+	}
+}
+
+static ParseRule*
+getRule(TokenType type)
+{
+	return &rules[type];
+}
+
+static void
+expression(void)
+{
+	parsePrecedence(PREC_ASSIGNMENT);
+}
 
 bool
 compile(const char *source, Bytecode *bytecode)

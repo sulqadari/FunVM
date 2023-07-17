@@ -1,6 +1,7 @@
 #include "funvmConfig.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "debug.h"
@@ -17,7 +18,7 @@ case_1(int argc, char *argv[])
 	if (1 == argc)
 		repl(&vm);
 	else if (2 == argc)
-		runFile(argv[1]);
+		runFile(&vm, argv[1]);
 	else {
 		fprintf(stderr, "Usage: test_scanner.c [path/to/src]\n");
 		exit(64);

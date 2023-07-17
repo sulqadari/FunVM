@@ -1,13 +1,15 @@
-#include "bytecode.h"
 #include "funvmConfig.h"
 
 #include <stdio.h>
 
+#include "bytecode.h"
 #include "common.h"
-#include "debug.h"
 #include "vm.h"
 #include "memory.h"
 #include "compiler.h"
+#ifdef FUNVM_DEBUG
+#include "debug.h"
+#endif
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */

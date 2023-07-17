@@ -1,5 +1,11 @@
 add_library(funvm_sources STATIC 
-	bytecode.c constant_pool.c memory.c vm.c)
+	bytecode.c
+	compiler.c
+	constant_pool.c
+	memory.c
+	scanner.c
+	utils.c
+	vm.c)
 
 target_link_libraries(funvm_sources funvm_debug)
 

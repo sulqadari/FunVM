@@ -2,6 +2,6 @@
 #define FUNVM_REPL_H
 
 void repl(VM *vm);
-static char* runFile(const char *path);
+void runFile(VM *vm, const char *path);
 
 #endif // !FUNVM_REPL_H

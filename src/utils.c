@@ -58,10 +58,10 @@ readFile(const char *path)
 }
 
 void
-runFile(const char *path)
+runFile(VM *vm, const char *path)
 {
 	char *source = readFile(path);
-	InterpretResult result = interpret(source);
+	InterpretResult result = interpret(vm, source);
 	free(source);
 
 	if (IR_COMPILE_ERROR == result)
