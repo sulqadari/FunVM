@@ -5,7 +5,8 @@ add_library(funvm_sources STATIC
 	memory.c
 	scanner.c
 	utils.c
-	vm.c)
+	vm.c
+	object.c)
 
 target_link_libraries(funvm_sources funvm_debug)
 

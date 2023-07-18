@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <string.h>
+
+#include "object.h"
 #include "memory.h"
 #include "constant_pool.h"
 
@@ -39,6 +42,7 @@ printValue(Value value)
 		case VAL_BOOL:		printf(BOOL_UNPACK(value) ? "true" : "false"); break;
 		case VAL_NIL:		printf("nil"); break;
 		case VAL_NUMBER:	printf("%g", NUMBER_UNPACK(value)); break;
+		case VAL_OBJ:		printObject(value); break;
 	}
 }
 
@@ -55,6 +59,12 @@ valuesEqual(Value a, Value b)
 			return true;
 		case VAL_NUMBER:
 			return NUMBER_UNPACK(a) == NUMBER_UNPACK(b);
+		case VAL_OBJ: {
+			ObjString *aString = STRING_UNPACK(a);
+			ObjString *bString = STRING_UNPACK(b);
+			return (aString->length == bString->length) &&
+					(memcmp(aString->chars, bString->chars, aString->length) == 0);
+		}
 		default: return false; // Unreachable.
 	}
 }
