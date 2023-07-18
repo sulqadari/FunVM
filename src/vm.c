@@ -142,6 +142,9 @@ run(VM *vm)
 				Value constant = READ_CONSTANT();
 				push(constant, vm);
 			} break;
+			case OP_NIL:		push(NIL_PACK, vm);			break;
+			case OP_TRUE:		push(BOOL_PACK(true), vm);	break;
+			case OP_FALSE:		push(BOOL_PACK(false), vm);	break;
 			case OP_ADD:		BINARY_OP(NUMBER_PACK, +); break;
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -); break;
 			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *); break;

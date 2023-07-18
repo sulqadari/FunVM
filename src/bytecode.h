@@ -10,6 +10,9 @@
 typedef enum {
 	OP_CONSTANT,		/* Load the constant from Value pool (1 byte  offset). */
 	OP_CONSTANT_LONG,	/* Load the constant from Value pool (3 bytes offset). */
+	OP_NIL,				/* Push NIL value on the stack (dedicated ins). */
+	OP_TRUE,			/* Push TRUE value on the stack (dedicated ins). */
+	OP_FALSE,			/* Push FALSE value on the stack (dedicated ins). */
 	OP_ADD,
 	OP_SUBTRACT,
 	OP_MULTIPLY,

@@ -35,5 +35,9 @@ writeConstantPool(ConstantPool *constantPool, Value constant)
 void
 printValue(Value value)
 {
-	printf("%g", NUMBER_UNPACK(value));
+	switch (value.type) {
+		case VAL_BOOL:		printf(BOOL_UNPACK(value) ? "true" : "false"); break;
+		case VAL_NIL:		printf("nil"); break;
+		case VAL_NUMBER:	printf("%g", NUMBER_UNPACK(value)); break;
+	}
 }
