@@ -9,6 +9,8 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "object.h"
+#include "constant_pool.h"
 
 #ifdef FUNVM_DEBUG
 #include "debug.h"
@@ -196,7 +198,7 @@ binary(void)
 		case TOKEN_MINUS:	emitByte(OP_SUBTRACT);break;
 		case TOKEN_STAR:	emitByte(OP_MULTIPLY);break;
 		case TOKEN_SLASH:	emitByte(OP_DIVIDE);	break;
-		
+
 		default: return; // Unreachable
 	}
 }
@@ -244,6 +246,13 @@ number(void)
 	emitConstant(NUMBER_PACK(value));
 }
 
+static void
+string(void)
+{
+	emitConstant(OBJ_PACK(copyString(
+			parser.previous.start + 1,		/* Trip leading " */
+			parser.previous.length - 2)));	/* Trim the trailing " */
+}
 
 static void
 unary(void)
@@ -282,7 +291,7 @@ ParseRule rules[] = {
 	[TOKEN_LESS]			= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS_EQUAL]		= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_IDENTIFIER]		= {NULL,     NULL,   PREC_NONE},
-	[TOKEN_STRING]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
 	[TOKEN_AND]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_CLASS]			= {NULL,     NULL,   PREC_NONE},

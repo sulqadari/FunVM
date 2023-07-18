@@ -31,6 +31,8 @@ struct ObjString {
 	char *chars;
 };
 
+ObjString* copyString(const char *chars, int32_t length);
+
 static inline bool
 isObjType(Value value, ObjType type)
 {

@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+/* Allocate a space on the heap. */
+#define ALLOCATE(type, count)	\
+	(type*)reallocate(NULL, 0, sizeof(type) * (count))
+
 /* At the very first call (when the capacity of the bytecode array is zero),
  * this macro intializes the capacity vaiable with value '8'. */
 #define INCREASE_CAPACITY(capacity)				\
