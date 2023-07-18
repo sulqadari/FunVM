@@ -3,10 +3,15 @@
 
 #include "common.h"
 
+/** Forward declaration. */
+typedef struct Obj Obj;
+typedef struct ObjString ObjString;
+
 typedef enum {
 	VAL_BOOL,
 	VAL_NIL,
-	VAL_NUMBER
+	VAL_NUMBER,
+	VAL_OBJ
 } ValueType;
 
 /** Memory layout prepresentation is as follows:
@@ -26,19 +31,23 @@ typedef struct {
 	union {
 		bool boolean;
 		double number;
+		Obj *obj;
 	} as;
 } Value;
 
 #define IS_BOOL(value)		((value).type == VAL_BOOL)
 #define IS_NIL(value)		((value).type == VAL_NIL)
 #define IS_NUMBER(value)	((value).type == VAL_NUMBER)
+#define IS_OBJ(value)		((value).type == VAL_OBJ)
 
 #define BOOL_PACK(value)	((Value){VAL_BOOL,	 {.boolean = value}})
 #define NIL_PACK			((Value){VAL_NIL,	 {.number = 0}})
 #define NUMBER_PACK(value)	((Value){VAL_NUMBER, {.number = value}})
+#define OBJ_PACK(value)		((Value){VAL_OBJ, {.obj = (Obj*)object}})
 
 #define BOOL_UNPACK(value)		((value).as.boolean)
 #define NUMBER_UNPACK(value)	((value).as.number)
+#define OBJ_UNPACK(value)		((value).as.obj)
 
 typedef struct {
 	uint32_t capacity;
