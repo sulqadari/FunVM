@@ -10,16 +10,16 @@ typedef enum {
 } ValueType;
 
 /** Memory layout prepresentation is as follows:
- * ___________________type
- * |	  |
- * |	  |___________padding
- * |	  ||	  |
- * |	  ||	  |_________________as
- * |	  ||	  ||______________|
- * |	  ||	  ||__bool		  |
- * |	  ||	  || _____double__|
- * |	  ||	  || |			  |
- * [][][][][][][][][][][][][][][][]
+ *   ___________________type (4 bytes)
+ *  |	     |
+ *  |	     |   ___________padding (4 bytes)
+ *  |	     |  |	     |
+ *  |	     |  |	     |   
+ *  |	     |  |	     |   _________as_________
+ *  |	     |  |	     |  |_bool		  		 |
+ *  |	     |  |	     |  |   _____double______|
+ *  |	     |  |	     |  |  |			     |
+ * [ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]
  */
 typedef struct {
 	ValueType type;
@@ -46,6 +46,7 @@ typedef struct {
 	Value *pool;
 } ConstantPool;
 
+bool valuesEqual(Value a, Value b);
 void initConstantPool(ConstantPool *constantPool);
 void writeConstantPool(ConstantPool *constantPool, Value constant);
 void freeConstantPool(ConstantPool *constantPool);

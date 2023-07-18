@@ -13,6 +13,9 @@ typedef enum {
 	OP_NIL,				/* Push NIL value on the stack (dedicated ins). */
 	OP_TRUE,			/* Push TRUE value on the stack (dedicated ins). */
 	OP_FALSE,			/* Push FALSE value on the stack (dedicated ins). */
+	OP_EQUAL,
+	OP_GREATER,
+	OP_LESS,
 	OP_ADD,
 	OP_SUBTRACT,
 	OP_MULTIPLY,

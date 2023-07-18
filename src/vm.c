@@ -148,17 +148,27 @@ run(VM *vm)
 #endif // !FUNVM_DEBUG
 		uint8_t ins;
 		switch (ins = READ_BYTE()) {
-			case OP_CONSTANT: {
+			case OP_CONSTANT:
+			case OP_CONSTANT_LONG: {
 				Value constant = READ_CONSTANT();
 				push(constant, vm);
 			} break;
 			case OP_NIL:		push(NIL_PACK, vm);			break;
 			case OP_TRUE:		push(BOOL_PACK(true), vm);	break;
 			case OP_FALSE:		push(BOOL_PACK(false), vm);	break;
-			case OP_ADD:		BINARY_OP(NUMBER_PACK, +); break;
-			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -); break;
-			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *); break;
-			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /); break;
+
+			case OP_EQUAL: {
+				Value b = pop(vm);
+				Value a = pop(vm);
+				push(BOOL_PACK(valuesEqual(a, b)), vm);
+			} break;
+			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
+			case OP_LESS:		BINARY_OP(BOOL_PACK, >);	break;
+
+			case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
+			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -);	break;
+			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *);	break;
+			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /);	break;
 			case OP_NOT: {
 				//push(BOOL_PACK(isFalsey(pop(vm))), vm);
 				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));

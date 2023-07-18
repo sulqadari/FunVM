@@ -12,7 +12,7 @@ static int
 case_1(int argc, char *argv[])
 {
 	VM vm;
-	printf("*** Interpreter ***\n");
+	printf("\n*** Interpreter ***\n");
 	initVM(&vm);
 	
 	if (1 == argc)

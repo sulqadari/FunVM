@@ -41,3 +41,20 @@ printValue(Value value)
 		case VAL_NUMBER:	printf("%g", NUMBER_UNPACK(value)); break;
 	}
 }
+
+bool
+valuesEqual(Value a, Value b)
+{
+	if (a.type != b.type)	/* The values are of different types (e.g. number and string) */
+		return false;
+	
+	switch (a.type) {
+		case VAL_BOOL:
+			return BOOL_UNPACK(a) == BOOL_UNPACK(b);
+		case VAL_NIL:
+			return true;
+		case VAL_NUMBER:
+			return NUMBER_UNPACK(a) == NUMBER_UNPACK(b);
+		default: return false; // Unreachable.
+	}
+}
