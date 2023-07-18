@@ -35,5 +35,5 @@ writeConstantPool(ConstantPool *constantPool, Value constant)
 void
 printValue(Value value)
 {
-	printf("%g", value);
+	printf("%g", NUMBER_UNPACK(value));
 }

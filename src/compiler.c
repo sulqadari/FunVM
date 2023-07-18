@@ -222,8 +222,8 @@ grouping(void)
 static void
 number(void)
 {
-	Value value = strtod(parser.previous.start, NULL);
-	emitConstant(value);
+	double value = strtod(parser.previous.start, NULL);
+	emitConstant(NUMBER_PACK(value));
 }
 
 

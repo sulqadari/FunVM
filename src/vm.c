@@ -1,5 +1,7 @@
 #include "funvmConfig.h"
 
+#include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "bytecode.h"
@@ -17,6 +19,22 @@ static void
 resetStack(VM *vm)
 {
 	vm->stackTop = vm->stack;
+}
+
+static void
+runtimeError(VM *vm, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
+
+	size_t instruction = (vm->ip - (vm->bytecode->code - 1));
+	int line = vm->bytecode->lines[instruction];
+	fprintf(stderr, "[line %d] in script\n", line);
+	resetStack(vm);
 }
 
 void
@@ -55,7 +73,7 @@ push(Value value, VM *vm)
 		 * Also we mind the correct offset within new block. */
 		vm->stackTop = (vm->stack + stackOffset);
 #ifdef FUNVM_DEBUG
-		printf("old: %d\nnew: %d\nstackTop: %.2f\n", oldSize, vm->stackSize, *vm->stackTop);
+		printf("old: %d\nnew: %d\nstackTop: %.2f\n", oldSize, vm->stackSize, NUMBER_UNPACK(*vm->stackTop));
 #endif	// !FUNVM_DEBUG
 	}
 	
@@ -70,7 +88,10 @@ pop(VM *vm)
 	return *vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
-
+static Value peek(VM *vm, int32_t offset)
+{
+	return vm->stackTop[((-1) - offset)];
+}
 
 /**
  * Reads and executes a single bytecode instruction.
@@ -82,7 +103,7 @@ pop(VM *vm)
 static InterpretResult
 run(VM *vm)
 {
-/* Read current byte, then advance ip. */
+/* Read current byte, then advance istruction pointer. */
 #define READ_BYTE() (*vm->ip++)
 
 /* Read the next byte from the bytecode, treat it as an index,
@@ -90,11 +111,16 @@ run(VM *vm)
 #define READ_CONSTANT() (vm->bytecode->const_pool.pool[READ_BYTE()])
 
 
-#define BINARY_OP(op)		\
-	do {					\
-		Value b = pop(vm);	\
-		Value a = pop(vm);	\
-		push(a op b, vm);	\
+#define BINARY_OP(valueType, op)									\
+	do {															\
+		if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1)))	{	\
+			runtimeError(vm, "Operands must be numbers.");			\
+			return IR_RUNTIME_ERROR;								\
+		}															\
+																	\
+		double b = NUMBER_UNPACK(pop(vm));							\
+		double a = NUMBER_UNPACK(pop(vm));							\
+		push(valueType(a op b), vm);								\
 	} while(false)
 
 	for (;;) {
@@ -116,21 +142,28 @@ run(VM *vm)
 				Value constant = READ_CONSTANT();
 				push(constant, vm);
 			} break;
-			case OP_ADD:		BINARY_OP(+); break;
-			case OP_SUBTRACT:	BINARY_OP(-); break;
-			case OP_MULTIPLY:	BINARY_OP(*); break;
-			case OP_DIVIDE:		BINARY_OP(/); break;
-//			case OP_NEGATE:		push(-pop()); break;
+			case OP_ADD:		BINARY_OP(NUMBER_PACK, +); break;
+			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -); break;
+			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *); break;
+			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /); break;
 
 			/* vm->stackTop points to the next free block in stack,
 			 * while a value to be negated resides one step back. */
 			case OP_NEGATE: {
-				*(vm->stackTop - 1) = -(*(vm->stackTop - 1));
+				if (!IS_NUMBER(peek(vm, 0))) {
+					runtimeError(vm, "Operand must be a number.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				double temp = NUMBER_UNPACK(vm->stackTop[-1]);
+				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
 			case OP_RETURN: {
 #ifdef FUNVM_DEBUG
 				printValue(pop(vm));
 				printf("\n");
+#else
+				pop(vm);
 #endif // !FUNVM_DEBUG
 				return IR_OK;
 			}
