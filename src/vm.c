@@ -88,11 +88,21 @@ pop(VM *vm)
 	return *vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
-static Value peek(VM *vm, int32_t offset)
+static Value
+peek(VM *vm, int32_t offset)
 {
 	return vm->stackTop[((-1) - offset)];
 }
 
+/** The 'falsiness' rule.
+ * 'nil' and 'false' are falsey and any other value behaves like a true.
+ */
+static bool
+isFalsey(Value value)
+{
+	return IS_NIL(value) ||
+			(IS_BOOL(value) && !BOOL_UNPACK(value));
+}
 /**
  * Reads and executes a single bytecode instruction.
  * This function is highly performance critical.
@@ -149,7 +159,10 @@ run(VM *vm)
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -); break;
 			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *); break;
 			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /); break;
-
+			case OP_NOT: {
+				//push(BOOL_PACK(isFalsey(pop(vm))), vm);
+				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));
+			} break;
 			/* vm->stackTop points to the next free block in stack,
 			 * while a value to be negated resides one step back. */
 			case OP_NEGATE: {

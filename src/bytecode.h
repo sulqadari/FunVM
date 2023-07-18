@@ -17,6 +17,7 @@ typedef enum {
 	OP_SUBTRACT,
 	OP_MULTIPLY,
 	OP_DIVIDE,
+	OP_NOT,				/* Logical inversion. */
 	OP_NEGATE,			/* Negate operand value. */
 	OP_RETURN			/* Return from the current function. */
 } Opcode;
