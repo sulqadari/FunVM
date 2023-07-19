@@ -119,7 +119,7 @@ run(VM *vm)
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's const_pool. */
 #define READ_CONSTANT() (vm->bytecode->const_pool.pool[READ_BYTE()])
-
+#define READ_CONSTANT_LONG(offset) (vm->bytecode->const_pool.pool[offset])
 
 #define BINARY_OP(valueType, op)									\
 	do {															\
@@ -148,12 +148,19 @@ run(VM *vm)
 #endif // !FUNVM_DEBUG
 		uint8_t ins;
 		switch (ins = READ_BYTE()) {
-			case OP_CONSTANT:
-			case OP_CONSTANT_LONG: {
+			case OP_CONSTANT: {
 				Value constant = READ_CONSTANT();
 				push(constant, vm);
 			} break;
-			case OP_NIL:		push(NIL_PACK, vm);			break;
+			case OP_CONSTANT_LONG: {
+				uint32_t offset = 0;
+				offset |= (READ_BYTE() << 16);
+				offset |= (READ_BYTE() << 8);
+				offset |=  READ_BYTE();
+				Value constant = READ_CONSTANT_LONG(offset);
+				push(constant, vm);
+			} break;
+			case OP_NIL:		push(NIL_PACK(), vm);		break;
 			case OP_TRUE:		push(BOOL_PACK(true), vm);	break;
 			case OP_FALSE:		push(BOOL_PACK(false), vm);	break;
 
@@ -163,7 +170,7 @@ run(VM *vm)
 				push(BOOL_PACK(valuesEqual(a, b)), vm);
 			} break;
 			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
-			case OP_LESS:		BINARY_OP(BOOL_PACK, >);	break;
+			case OP_LESS:		BINARY_OP(BOOL_PACK, <);	break;
 
 			case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -);	break;
@@ -173,7 +180,7 @@ run(VM *vm)
 				//push(BOOL_PACK(isFalsey(pop(vm))), vm);
 				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));
 			} break;
-			/* vm->stackTop points to the next free block in stack,
+			/* vm->stackTop points to the next free block in the stack,
 			 * while a value to be negated resides one step back. */
 			case OP_NEGATE: {
 				if (!IS_NUMBER(peek(vm, 0))) {
@@ -198,6 +205,7 @@ run(VM *vm)
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_CONSTANT_LONG
 #undef BINARY_OP
 }
 

@@ -1,5 +1,9 @@
-echo on
-if exist build rmdir /s /q build
+echo off
+if exist build (
+	echo Removind build dir
+	rmdir /s /q build
+)
+
 mkdir build
 cd build
 cmake -GNinja ../

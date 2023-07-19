@@ -4,7 +4,6 @@
 #include "common.h"
 #include "constant_pool.h"
 #include <stddef.h>
-#include <sys/_stdint.h>
 
 /* Helper macro to obtain Obj's type. */
 #define OBJ_TYPE(value)		(OBJ_UNPACK(value)->type)

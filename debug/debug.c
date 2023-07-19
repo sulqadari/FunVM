@@ -37,9 +37,9 @@ static uint32_t
 constantLongInstruction(const char *name, Bytecode *bytecode, int32_t offset)
 {
 	uint32_t constant = 0;
-	constant =	(((int32_t)bytecode->code[offset + 1] << 16) |
-				( (int32_t)bytecode->code[offset + 2] <<  8) |
-				( (int32_t)bytecode->code[offset + 3] <<  0));
+	constant =	((((int32_t)bytecode->code[offset + 1] & 0xFF) << 16) |
+				( ((int32_t)bytecode->code[offset + 2] & 0xFF) <<  8) |
+				( ((int32_t)bytecode->code[offset + 3] & 0xFF) <<  0));
 	
 	printf("	%-16s %4d : '", name, constant);
 	printValue(bytecode->const_pool.pool[constant]);
@@ -72,9 +72,9 @@ disassembleInstruction(Bytecode *bytecode, int32_t offset)
 		case OP_NIL:
 			return simpleInstruction("OP_NIL", offset);
 		case OP_TRUE:
-			return simpleInstruction("OP_NIL", offset);
+			return simpleInstruction("OP_TRUE", offset);
 		case OP_FALSE:
-			return simpleInstruction("OP_NIL", offset);
+			return simpleInstruction("OP_FALSE", offset);
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:

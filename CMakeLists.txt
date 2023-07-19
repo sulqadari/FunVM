@@ -5,7 +5,10 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Ofast")
 
 option(FUNVM_DEBUG "Debug mode and unit tests" ON)
 configure_file(funvmConfig.h.in funvmConfig.h)
-file(GENERATE OUTPUT Arithmetic.fvm INPUT Arithmetic.fvm)
+file(GENERATE 
+	OUTPUT Arithmetic.fvm
+	INPUT ${PROJECT_SOURCE_DIR}/tests/Arithmetic.fvm)
+
 add_subdirectory(src)
 
 if(FUNVM_DEBUG)

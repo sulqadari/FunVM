@@ -15,15 +15,14 @@ typedef enum {
 } ValueType;
 
 /** Memory layout prepresentation is as follows:
- *   ___________________type (4 bytes)
+ *   ___________type (4 bytes)
  *  |	     |
  *  |	     |   ___________padding (4 bytes)
- *  |	     |  |	     |
  *  |	     |  |	     |   
- *  |	     |  |	     |   _________as_________
- *  |	     |  |	     |  |_bool		  		 |
- *  |	     |  |	     |  |   _____double______|
- *  |	     |  |	     |  |  |			     |
+ *  |	     |  |	     |   _______________________as
+ *  |	     |  |	     |  |__bool		  		 |
+ *  |	     |  |	     |  |_______double_______|
+ *  |	     |  |	     |  |  			         |
  * [ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]
  */
 typedef struct {
@@ -40,14 +39,21 @@ typedef struct {
 #define IS_NUMBER(value)	((value).type == VAL_NUMBER)
 #define IS_OBJ(value)		((value).type == VAL_OBJ)
 
-#define BOOL_PACK(value)	((Value){VAL_BOOL,	 {.boolean = value}})
-#define NIL_PACK			((Value){VAL_NIL,	 {.number = 0}})
-#define NUMBER_PACK(value)	((Value){VAL_NUMBER, {.number = value}})
-#define OBJ_PACK(value)		((Value){VAL_OBJ, {.obj = (Obj*)object}})
-
+/* C <- Value.obj */
 #define BOOL_UNPACK(value)		((value).as.boolean)
+/* C <- Value.number */
 #define NUMBER_UNPACK(value)	((value).as.number)
+/* C <- Value.obj */
 #define OBJ_UNPACK(value)		((value).as.obj)
+
+/* C -> Value.boolean */
+#define BOOL_PACK(value)	((Value){VAL_BOOL,	 {.boolean = value}})
+/* C -> Value.nil */
+#define NIL_PACK()			((Value){VAL_NIL,	 {.number = 0}})
+/* C -> Value.number */
+#define NUMBER_PACK(value)	((Value){VAL_NUMBER, {.number = value}})
+/* C -> Value.obj */
+#define OBJ_PACK(value)		((Value){VAL_OBJ, {.obj = (Obj*)object}})
 
 typedef struct {
 	uint32_t capacity;

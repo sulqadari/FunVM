@@ -21,7 +21,7 @@ writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line)
 	uint32_t shift = 0;
 
 	/* Here we a about to prepare control variables to 
-	 * store opcode (opcode's operand) in three bytes
+	 * store opcode's operand in three bytes
 	 * in case its value exeeds 255. */
 	if (opcode > 255) {
 		additSpace = 3;
@@ -39,7 +39,7 @@ writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line)
 	}
 
 	for (int i = 0; i < additSpace; ++i) {
-		bytecode->code[bytecode->count] = (uint8_t)((opcode >> shift) & 0x00FF);
+		bytecode->code[bytecode->count] = (uint8_t)((opcode >> shift) & 0x000000FF);
 		bytecode->lines[bytecode->count] = line;
 		bytecode->count++;
 		shift -= 8;

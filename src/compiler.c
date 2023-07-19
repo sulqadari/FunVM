@@ -2,8 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/endian.h>
-#include <x86/_stdint.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -49,7 +47,7 @@ Parser parser;
 Bytecode *compilingBytecode;
 
 static Bytecode*
-currentBytecode(void)
+currentContext(void)
 {
 	return compilingBytecode;
 }
@@ -125,7 +123,7 @@ consume(TokenType type, const char *message)
 static void
 emitByte(uint32_t byte)
 {
-	writeBytecode(currentBytecode(), byte, parser.previous.line);
+	writeBytecode(currentContext(), byte, parser.previous.line);
 }
 
 static void
@@ -148,7 +146,7 @@ emitReturn(void)
 static uint32_t
 makeConstant(Value value)
 {
-	uint32_t offset = addConstant(currentBytecode(), value);
+	uint32_t offset = addConstant(currentContext(), value);
 	return offset;
 }
 
@@ -158,8 +156,13 @@ emitConstant(Value value)
 	uint32_t offset = makeConstant(value);
 	uint8_t opcode = OP_CONSTANT;
 
+	/* If the total number of constants in constant pool
+	 * exceeds 255 elements, then instead of OP_CONSTANT which
+	 * occupes two bytes [OP_CONSTANT, offset], the OP_CONSTANT_LONG
+	 * comes into play, which spawns over four bytes:
+	 * [OP_CONSTANT_LONG, offset1, offset2, offset3]*/
 	if (offset > UINT8_MAX)
-		opcode++;	/* Write OP_CONSTANT_LONG */
+		opcode = OP_CONSTANT_LONG;
 	
 	emitBytes(opcode, offset);
 }
@@ -170,7 +173,7 @@ endCompiler(void)
 	emitReturn();
 #ifdef FUNVM_DEBUG
 	if (parser.hadError) {
-		disassembleBytecode(currentBytecode(), "code");
+		disassembleBytecode(currentContext(), "code");
 	}
 #endif // !FUNVM_DEBUG
 }
@@ -195,8 +198,8 @@ binary(void)
 		case TOKEN_LESS_EQUAL:		emitBytes(OP_GREATER, OP_NOT); break;
 
 		case TOKEN_PLUS:	emitByte(OP_ADD);		break;
-		case TOKEN_MINUS:	emitByte(OP_SUBTRACT);break;
-		case TOKEN_STAR:	emitByte(OP_MULTIPLY);break;
+		case TOKEN_MINUS:	emitByte(OP_SUBTRACT);	break;
+		case TOKEN_STAR:	emitByte(OP_MULTIPLY);	break;
 		case TOKEN_SLASH:	emitByte(OP_DIVIDE);	break;
 
 		default: return; // Unreachable
@@ -208,7 +211,7 @@ literal(void)
 {
 	switch (parser.previous.type) {
 		case TOKEN_FALSE:	emitByte(OP_FALSE);	break;
-		case TOKEN_NIL:		emitByte(OP_NIL);		break;
+		case TOKEN_NIL:		emitByte(OP_NIL);	break;
 		case TOKEN_TRUE:	emitByte(OP_TRUE);	break;
 		default: return;	// Unreachable
 	}
