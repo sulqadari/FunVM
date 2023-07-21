@@ -252,9 +252,10 @@ number(void)
 static void
 string(void)
 {
-	emitConstant(OBJ_PACK(copyString(
-			parser.previous.start + 1,		/* Trip leading " */
-			parser.previous.length - 2)));	/* Trim the trailing " */
+	/* Trim the leading double quote and exclude
+	 * from the length both leading and trailing ones. */
+	emitConstant(OBJECT_PACK(copyString(parser.previous.start + 1,
+								parser.previous.length - 2)));
 }
 
 static void

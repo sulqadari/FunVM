@@ -5,27 +5,37 @@
 #include "constant_pool.h"
 #include <stddef.h>
 
-/* Helper macro to obtain Obj's type. */
-#define OBJ_TYPE(value)		(OBJ_UNPACK(value)->type)
+/* Helper macro to obtain Object's type. */
+#define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
-/* Downcast from 'Obj*' to 'ObjString*' safety check macro. */
+/* Safety check macro for downcasting from 'Object*' to 'ObjString*'. */
 #define IS_STRING(value)	isObjType(value, OBJ_STRING)
 
 /* Returns the (ObjString*) from the heap. */
-#define STRING_UNPACK(value)	((ObjString*)OBJ_UNPACK(value))
+#define STRING_UNPACK(value)	((ObjString*)OBJECT_UNPACK(value))
+
 /* Returns the (ObjString*).chars from the heap. */
-#define CSTRING_UNPACK(value)	(((ObjString*)OBJ_UNPACK(value))->chars)
+#define CSTRING_UNPACK(value)	(((ObjString*)OBJECT_UNPACK(value))->chars)
 
 typedef enum {
 	OBJ_STRING,
 } ObjType;
 
-struct Obj {
+/**
+ * The root object of the overall object's hierarchy.
+ * 
+ * Each object type shall declare this struct as the very first
+ * field, making it possible to use a 'type punning' pattern: a king of
+ * single-inheritance in object-oriented languages.
+ * Providing that, it's possible to convert, say, a pointer to ObjString
+ * to Object and get access to its fields.
+ */
+struct Object {
 	ObjType type;
 };
 
 struct ObjString {
-	Obj obj;
+	Object object;
 	int32_t length;
 	char *chars;
 };
@@ -36,7 +46,7 @@ void printObject(Value value);
 static inline bool
 isObjType(Value value, ObjType type)
 {
-	return IS_OBJ(value) && OBJ_UNPACK(value)->type == type;
+	return IS_OBJECT(value) && OBJECT_UNPACK(value)->type == type;
 }
 
 #endif // !FUNVM_OBJECT_H

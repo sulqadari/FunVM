@@ -42,7 +42,7 @@ printValue(Value value)
 		case VAL_BOOL:		printf(BOOL_UNPACK(value) ? "true" : "false"); break;
 		case VAL_NIL:		printf("nil"); break;
 		case VAL_NUMBER:	printf("%g", NUMBER_UNPACK(value)); break;
-		case VAL_OBJ:		printObject(value); break;
+		case VAL_OBJECT:	printObject(value); break;
 	}
 }
 
@@ -59,11 +59,11 @@ valuesEqual(Value a, Value b)
 			return true;
 		case VAL_NUMBER:
 			return NUMBER_UNPACK(a) == NUMBER_UNPACK(b);
-		case VAL_OBJ: {
+		case VAL_OBJECT: {
 			ObjString *aString = STRING_UNPACK(a);
 			ObjString *bString = STRING_UNPACK(b);
-			return (aString->length == bString->length) &&
-					(memcmp(aString->chars, bString->chars, aString->length) == 0);
+			return ((aString->length == bString->length) &&
+					(memcmp(aString->chars, bString->chars, aString->length) == 0));
 		}
 		default: return false; // Unreachable.
 	}
