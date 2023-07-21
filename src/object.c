@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -35,6 +36,12 @@ allocateString(char *chars, int32_t length)
 	string->length = length;
 	string->chars = chars;
 	return string;
+}
+
+ObjString*
+takeString(char *chars, int32_t length)
+{
+	return allocateString(chars, length);
 }
 
 ObjString*

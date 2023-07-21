@@ -3,12 +3,15 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "bytecode.h"
 #include "common.h"
 #include "vm.h"
 #include "memory.h"
 #include "compiler.h"
+#include "object.h"
+
 #ifdef FUNVM_DEBUG
 #include "debug.h"
 #endif
@@ -103,6 +106,22 @@ isFalsey(Value value)
 	return IS_NIL(value) ||
 			(IS_BOOL(value) && !BOOL_UNPACK(value));
 }
+
+static void concatenate(VM *vm)
+{
+	ObjString *b = STRING_UNPACK(pop(vm));
+	ObjString *a = STRING_UNPACK(pop(vm));
+
+	int32_t length = a->length + b->length;
+	char *chars = ALLOCATE(char, length + 1);
+	memcpy(chars, a->chars, a->length);
+	memcpy(chars + a->length, b->chars, b->length);
+	chars[length] = '\0';
+
+	ObjString *result = takeString(chars, length);
+	push(OBJECT_PACK(result), vm);
+}
+
 /**
  * Reads and executes a single bytecode instruction.
  * This function is highly performance critical.
@@ -172,7 +191,19 @@ run(VM *vm)
 			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
 			case OP_LESS:		BINARY_OP(BOOL_PACK, <);	break;
 
-			case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
+			//case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
+			case OP_ADD: {
+				if (IS_STRING(peek(vm, 0)) && IS_STRING(peek(vm, 1))) {
+					concatenate(vm);
+				} else if (IS_NUMBER(peek(vm, 0)) && IS_NUMBER(peek(vm, 1))) {
+					double b = NUMBER_UNPACK(pop(vm));
+					double a = NUMBER_UNPACK(pop(vm));
+					push(NUMBER_PACK(a + b), vm);
+				} else {
+					runtimeError(vm,
+						"Operands must be two numbers or two strings.");
+				}
+			} break;
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -);	break;
 			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *);	break;
 			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /);	break;
