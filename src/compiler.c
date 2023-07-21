@@ -45,6 +45,7 @@ typedef struct {
 
 Parser parser;
 Bytecode *compilingBytecode;
+static VM *vm;
 
 static Bytecode*
 currentContext(void)
@@ -163,7 +164,7 @@ emitConstant(Value value)
 	 * [OP_CONSTANT_LONG, offset1, offset2, offset3]*/
 	if (offset > UINT8_MAX)
 		opcode = OP_CONSTANT_LONG;
-	
+
 	emitBytes(opcode, offset);
 }
 
@@ -252,10 +253,13 @@ number(void)
 static void
 string(void)
 {
+	ObjString *str = copyString(parser.previous.start + 1,
+								parser.previous.length - 2);
+	insertObject(vm, (Object*)str);
+	
 	/* Trim the leading double quote and exclude
 	 * from the length both leading and trailing ones. */
-	emitConstant(OBJECT_PACK(copyString(parser.previous.start + 1,
-								parser.previous.length - 2)));
+	emitConstant(OBJECT_PACK(str));
 }
 
 static void
@@ -357,12 +361,13 @@ expression(void)
 }
 
 bool
-compile(const char *source, Bytecode *bytecode)
+compile(const char *source, Bytecode *bytecode, VM *_vm)
 {
 	initScanner(source);
 	compilingBytecode = bytecode;
 	parser.hadError = false;
 	parser.panicMode = false;
+	vm = _vm;
 
 	/* Start up the scanner. */
 	advance();

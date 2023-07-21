@@ -43,8 +43,9 @@ struct ObjString {
 	char *chars;
 };
 
-ObjString* takeString(char *chars, int32_t length, VM *vm);
-ObjString* copyString(const char *chars, int32_t length, VM *vm);
+void insertObject(VM *vm, Object* object);
+ObjString* takeString(char *chars, int32_t length);
+ObjString* copyString(const char *chars, int32_t length);
 void printObject(Value value);
 
 static inline bool

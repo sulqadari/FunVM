@@ -48,6 +48,7 @@ initVM(VM *vm)
 	vm->stack = NULL;
 	vm->stackTop = NULL;
 	vm->stackSize = 0;
+	vm->objects = NULL;
 	resetStack(vm);
 }
 
@@ -249,7 +250,7 @@ interpret(VM *vm, const char *source)
 
 	/* Fill in the bytecode with the instructions retrieved
 	 * from source code. */
-	if (!compile(source, &bytecode)) {
+	if (!compile(source, &bytecode, vm)) {
 		freeBytecode(&bytecode);
 		return IR_COMPILE_ERROR;
 	}

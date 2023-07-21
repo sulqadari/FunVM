@@ -10,7 +10,7 @@
 /* call to ALLOCATE_OBJ() is kind of calling the "base class" constructor
  * to initialize the Object state. */
 #define ALLOCATE_OBJ(type, objectType)	\
-	(type*)allocateObject(sizeof(type), objectType, vm)
+	(type*)allocateObject(sizeof(type), objectType)
 
 /**
  * Allocates an object of the given type.
@@ -22,17 +22,19 @@
  * @returns Object*: pointer to the object allocated on the heap.
  */
 static Object*
-allocateObject(size_t size, ObjType type, VM *vm)
+allocateObject(size_t size, ObjType type)
 {
 	Object *object = (Object*)reallocate(NULL, 0, size);
 	object->type = type;
-	object->next = vm->objects;
-	vm->objects = object;
+
+	// object->next = vm->objects;
+	// vm->objects = object;
+
 	return object;
 }
 
 static ObjString*
-allocateString(char *chars, int32_t length, VM *vm)
+allocateString(char *chars, int32_t length)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
 	string->length = length;
@@ -40,19 +42,26 @@ allocateString(char *chars, int32_t length, VM *vm)
 	return string;
 }
 
-ObjString*
-takeString(char *chars, int32_t length, VM *vm)
+void
+insertObject(VM *vm, Object* object)
 {
-	return allocateString(chars, length, vm);
+	object->next = vm->objects;
+	vm->objects = object;
 }
 
 ObjString*
-copyString(const char *chars, int32_t length, VM *vm)
+takeString(char *chars, int32_t length)
+{
+	return allocateString(chars, length);
+}
+
+ObjString*
+copyString(const char *chars, int32_t length)
 {
 	char *heapChars = ALLOCATE(char, length + 1);
 	memcpy(heapChars, chars, length);
 	heapChars[length] = '\0';
-	return allocateString(heapChars, length, vm);
+	return allocateString(heapChars, length);
 }
 
 void printObject(Value value)
