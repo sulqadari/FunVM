@@ -5,6 +5,7 @@
 #include "constant_pool.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "vm.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
@@ -33,6 +34,7 @@ typedef enum {
  */
 struct Object {
 	ObjType type;
+	struct Object *next;
 };
 
 struct ObjString {
@@ -41,8 +43,8 @@ struct ObjString {
 	char *chars;
 };
 
-ObjString* takeString(char *chars, int32_t length);
-ObjString* copyString(const char *chars, int32_t length);
+ObjString* takeString(char *chars, int32_t length, VM *vm);
+ObjString* copyString(const char *chars, int32_t length, VM *vm);
 void printObject(Value value);
 
 static inline bool

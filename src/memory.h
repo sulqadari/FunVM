@@ -2,10 +2,14 @@
 #define FUNVM_MEMORY_H
 
 #include "common.h"
+#include "object.h"
+#include "vm.h"
 
 /* Allocate a space on the heap. */
 #define ALLOCATE(type, count)	\
 	(type*)reallocate(NULL, 0, sizeof(type) * (count))
+
+#define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 /* At the very first call (when the capacity of the bytecode array is zero),
  * this macro intializes the capacity vaiable with value '8'. */
@@ -20,5 +24,6 @@
 	reallocate(array, sizeof(type) * (oldCap), 0)
 
 void* reallocate(void *array, size_t oldCap, size_t newCap);
+void freeObjects(VM *vm);
 
 #endif // !FUNVM_MEMORY_H

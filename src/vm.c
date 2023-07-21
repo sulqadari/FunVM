@@ -55,6 +55,7 @@ void
 freeVM(VM *vm)
 {
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
+	freeObjects(vm);
 }
 
 void

@@ -10,6 +10,7 @@ typedef struct {
 	Value *stack;
 	Value *stackTop;
 	uint32_t stackSize;
+	Object *objects;
 } VM;
 
 typedef enum {
