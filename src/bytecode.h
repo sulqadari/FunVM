@@ -2,7 +2,7 @@
 #define FUNVM_BYTECODE_H
 
 #include "common.h"
-#include "constant_pool.h"
+#include "value.h"
 
 /* Opcode - a one-byte operation code which
  * designates a bytecode instruction we're dealing with -

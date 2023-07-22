@@ -11,7 +11,7 @@ typedef enum {
 	VAL_BOOL,
 	VAL_NIL,
 	VAL_NUMBER,
-	VAL_OBJECT		/* Each FunVM value whose state lives on the heap is an Object */
+	VAL_OBJECT		/* Heap-allocated types. */
 } ValueType;
 
 /** Memory layout prepresentation is as follows:

@@ -1,7 +1,7 @@
 add_library(funvm_sources STATIC 
 	bytecode.c
 	compiler.c
-	constant_pool.c
+	value.c
 	memory.c
 	scanner.c
 	utils.c

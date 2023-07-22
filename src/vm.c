@@ -55,7 +55,9 @@ initVM(VM *vm)
 void
 freeVM(VM *vm)
 {
+	/* Release stack. */
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
+	/* Release heap. */
 	freeObjects(vm);
 }
 
@@ -109,7 +111,8 @@ isFalsey(Value value)
 			(IS_BOOL(value) && !BOOL_UNPACK(value));
 }
 
-static void concatenate(VM *vm)
+static void
+concatenate(VM *vm)
 {
 	ObjString *b = STRING_UNPACK(pop(vm));
 	ObjString *a = STRING_UNPACK(pop(vm));
@@ -121,19 +124,10 @@ static void concatenate(VM *vm)
 	chars[length] = '\0';
 
 	ObjString *result = takeString(chars, length);
+
 	push(OBJECT_PACK(result), vm);
 }
 
-/**
- * Reads and executes a single bytecode instruction.
- * This function is highly performance critical.
- * The best practices of dispatching the instrucitons
- * are: 'binary search', 'direct threaded code', 'jump table'
- * and 'computed goto'.
- */
-static InterpretResult
-run(VM *vm)
-{
 /* Read current byte, then advance istruction pointer. */
 #define READ_BYTE() (*vm->ip++)
 
@@ -154,19 +148,37 @@ run(VM *vm)
 		push(valueType(a op b), vm);								\
 	} while(false)
 
-	for (;;) {
-#ifdef FUNVM_DEBUG
-		printf("		");
-		for (Value *slot = vm->stack; slot < vm->stackTop; slot++) {
-			printf("[ ");
-			printValue(*slot);
-			printf(" ]");
-		}
-		printf("\n");
+static void
+logRun(VM *vm)
+{
+	printf("		");
+	for (Value *slot = vm->stack; slot < vm->stackTop; slot++) {
+		printf("[ ");
+		printValue(*slot);
+		printf(" ]");
+	}
+	printf("\n");
 
-		disassembleInstruction(vm->bytecode,
-				(int32_t)(vm->ip - vm->bytecode->code));
+	disassembleInstruction(vm->bytecode,
+			(int32_t)(vm->ip - vm->bytecode->code));
+}
+
+/**
+ * Reads and executes a single bytecode instruction.
+ * This function is highly performance critical.
+ * The best practices of dispatching the instrucitons
+ * are: 'binary search', 'direct threaded code', 'jump table'
+ * and 'computed goto'.
+ */
+static InterpretResult
+run(VM *vm)
+{
+	for (;;) {
+
+#ifdef FUNVM_DEBUG
+		logRun(vm);
 #endif // !FUNVM_DEBUG
+
 		uint8_t ins;
 		switch (ins = READ_BYTE()) {
 			case OP_CONSTANT: {
@@ -213,6 +225,7 @@ run(VM *vm)
 				//push(BOOL_PACK(isFalsey(pop(vm))), vm);
 				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));
 			} break;
+
 			/* vm->stackTop points to the next free block in the stack,
 			 * while a value to be negated resides one step back. */
 			case OP_NEGATE: {
@@ -226,20 +239,15 @@ run(VM *vm)
 			} break;
 			case OP_RETURN: {
 #ifdef FUNVM_DEBUG
-				printValue(pop(vm));
-				printf("\n");
+			printValue(pop(vm));
+			printf("\n");
 #else
-				pop(vm);
+			pop(vm);
 #endif // !FUNVM_DEBUG
 				return IR_OK;
 			}
 		}
 	}
-
-#undef READ_BYTE
-#undef READ_CONSTANT
-#undef READ_CONSTANT_LONG
-#undef BINARY_OP
 }
 
 InterpretResult
@@ -250,7 +258,7 @@ interpret(VM *vm, const char *source)
 
 	/* Fill in the bytecode with the instructions retrieved
 	 * from source code. */
-	if (!compile(source, &bytecode, vm)) {
+	if (!compile(source, &bytecode)) {
 		freeBytecode(&bytecode);
 		return IR_COMPILE_ERROR;
 	}
@@ -264,7 +272,7 @@ interpret(VM *vm, const char *source)
 	 * the runtime will fail.
 	 * Next improvements shall eliminate this case. */
 	vm->ip = vm->bytecode->code;
-
+	initHeap(vm);
 	InterpretResult result = run(vm);
 	freeBytecode(&bytecode);
 

@@ -3,7 +3,7 @@
 
 #include "object.h"
 #include "memory.h"
-#include "constant_pool.h"
+#include "value.h"
 
 void
 initConstantPool(ConstantPool *constantPool)

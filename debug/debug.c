@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 #include "debug.h"
-#include "constant_pool.h"
+#include "value.h"
 
 void
 disassembleBytecode(Bytecode *bytecode, const char *name)

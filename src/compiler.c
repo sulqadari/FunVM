@@ -8,7 +8,7 @@
 #include "compiler.h"
 #include "scanner.h"
 #include "object.h"
-#include "constant_pool.h"
+#include "value.h"
 
 #ifdef FUNVM_DEBUG
 #include "debug.h"
@@ -45,7 +45,6 @@ typedef struct {
 
 Parser parser;
 Bytecode *compilingBytecode;
-static VM *vm;
 
 static Bytecode*
 currentContext(void)
@@ -250,12 +249,19 @@ number(void)
 	emitConstant(NUMBER_PACK(value));
 }
 
+/**
+ * Takes the string's characters directly from the lexeme,
+ * trims surrounding double quotes and then creates a string object,
+ * wraps it in a 'Value' and stores in into the constant pool.
+ * 
+ * Also makes VM track the new object in the VM's linked list so that,
+ * it can be tracked and deleted before interpreter terminates.
+*/
 static void
 string(void)
 {
 	ObjString *str = copyString(parser.previous.start + 1,
 								parser.previous.length - 2);
-	insertObject(vm, (Object*)str);
 	
 	/* Trim the leading double quote and exclude
 	 * from the length both leading and trailing ones. */
@@ -361,13 +367,12 @@ expression(void)
 }
 
 bool
-compile(const char *source, Bytecode *bytecode, VM *_vm)
+compile(const char *source, Bytecode *bytecode)
 {
 	initScanner(source);
 	compilingBytecode = bytecode;
 	parser.hadError = false;
 	parser.panicMode = false;
-	vm = _vm;
 
 	/* Start up the scanner. */
 	advance();

@@ -4,6 +4,6 @@
 #include "bytecode.h"
 #include "vm.h"
 
-bool compile(const char *source, Bytecode *bytecode, VM *vm);
+bool compile(const char *source, Bytecode *bytecode);
 
 #endif // !FUNVM_COMPILER_H
