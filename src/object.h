@@ -1,10 +1,11 @@
 #ifndef FUNVM_OBJECT_H
 #define FUNVM_OBJECT_H
 
-#include "common.h"
-#include "value.h"
 #include <stddef.h>
 #include <stdint.h>
+
+#include "common.h"
+#include "value.h"
 #include "vm.h"
 
 /* Helper macro to obtain Object's type. */
@@ -38,7 +39,7 @@ typedef enum {
  * Object's implementation differs from Value one in that, there is no
  * single structure gathering all types in union. Instead, each type
  * has its own structure with the 'Object object' as the first field.
- */
+*/
 struct Object {
 	ObjType type;
 	struct Object *next;
@@ -49,6 +50,11 @@ struct ObjString {
 	Object object;
 	int32_t length;
 	char *chars;
+	
+	/* The cached hash code of the 'chars'.
+	 * Used in hash table to avoid redundant hash computing every time
+	 * we lookig for a given key. */
+	uint32_t hash;
 };
 
 void initHeap(VM *_vm);

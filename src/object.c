@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <x86/_stdint.h>
 
 #include "memory.h"
 #include "object.h"
@@ -43,14 +44,28 @@ allocateObject(size_t size, ObjType type)
 }
 
 static ObjString*
-allocateString(char *chars, int32_t length)
+allocateString(char *chars, int32_t length, uint32_t hash)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
 	/* Initialize the ObjString class */
 	string->length = length;
 	string->chars = chars;
+	string->hash = hash;
 
 	return string;
+}
+
+static uint32_t
+hashString(const char *key, int32_t length)
+{
+	uint32_t hash = 2166136261U;	// 81 1C 9D C5
+	
+	for (int32_t i = 0; i < length; ++i) {
+		hash ^= (uint8_t)key[i];
+		hash *= 16777619;			// 01 00 01 93
+	}
+
+	return hash;
 }
 
 /**
@@ -62,7 +77,8 @@ allocateString(char *chars, int32_t length)
 ObjString*
 takeString(char *chars, int32_t length)
 {
-	return allocateString(chars, length);
+	uint32_t hash = hashString(chars, length);
+	return allocateString(chars, length, hash);
 }
 
 /**
@@ -74,10 +90,12 @@ takeString(char *chars, int32_t length)
 ObjString*
 copyString(const char *chars, int32_t length)
 {
+	uint32_t hash = hashString(chars, length);
 	char *heapChars = ALLOCATE(char, length + 1);
+
 	memcpy(heapChars, chars, length);
 	heapChars[length] = '\0';
-	return allocateString(heapChars, length);
+	return allocateString(heapChars, length, hash);
 }
 
 void printObject(Value value)
