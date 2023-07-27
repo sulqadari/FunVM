@@ -51,6 +51,37 @@ findEntry(Entry *entries, int32_t capacity, const ObjString *key)
 	}
 }
 
+static void
+adjustCapacity(Table *table, int32_t capacity)
+{
+	Entry *entries = ALLOCATE(Entry, capacity);
+
+	for (int32_t i = 0; i < capacity; ++i) {
+		entries[i].key = NULL;
+		entries[i].value = NIL_PACK();
+	}
+
+	/* Simple realloc() and subsequent copying elements doesn't
+	 * work for hash table because to choose the bucket for each
+	 * entry, we take its hash key module the array size, which means
+	 * that when the array size changes, entries may end up in
+	 * different buckets. Thus, we have to rebuild the table
+	 * from scratch. */
+	for (int32_t i = 0; i < table->capacity; ++i) {
+		
+		Entry *entry = &table->entries[i];
+		if (NULL == entry->key)
+			continue;
+		
+		Entry *dest = findEntry(entries, capacity, entry->key);
+		dest->key = entry->key;
+		dest->value = entry->value;
+	}
+	
+	FREE_ARRAY(Entry, table->entries, table->capacity);
+	table->entries = entries;
+	table->capacity = capacity;
+}
 /**
  * Adds the given key/value pair to the given hash table.
  * If an bucket for that key is already present, the new value
@@ -76,4 +107,17 @@ tableSet(Table *table, ObjString *key, Value value)
 	bucket->value = value;
 
 	return isEmpty;
+}
+
+/**
+ * Used in method inheritance.
+*/
+void tableAddAll(Table *from, Table *to)
+{
+	for (int32_t i = 0; i < from->capacity; ++i) {
+
+		Entry *entry = &from->entries[i];
+		if (NULL != entry->key)
+			tableSet(to, entry->key, entry->value);
+	}	
 }
