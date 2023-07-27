@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 #include <stdint.h>
->>>>>>> 399805188e85a29b8182adf5c176ecb0ed8243ee
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,11 +7,8 @@
 #include "table.h"
 #include "value.h"
 
-<<<<<<< HEAD
-=======
 #define TABLE_MAX_LOAD 0.75
 
->>>>>>> 399805188e85a29b8182adf5c176ecb0ed8243ee
 void
 initTable(Table *table)
 {
@@ -23,12 +17,6 @@ initTable(Table *table)
 	table->entries = NULL;
 }
 
-<<<<<<< HEAD
-void freeTable(Table *table)
-{
-	FREE_ARRAY(Entry, table->entries, table->capacity);
-	initTable(table);
-=======
 void
 freeTable(Table *table)
 {
@@ -88,5 +76,4 @@ tableSet(Table *table, ObjString *key, Value value)
 	bucket->value = value;
 
 	return isEmpty;
->>>>>>> 399805188e85a29b8182adf5c176ecb0ed8243ee
 }
