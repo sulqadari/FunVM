@@ -4,6 +4,7 @@ add_library(funvm_sources STATIC
 	value.c
 	memory.c
 	scanner.c
+	table.c
 	utils.c
 	vm.c
 	object.c)

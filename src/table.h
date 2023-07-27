@@ -1,16 +1,17 @@
 #ifndef FUNVM_TABLE_H
 #define FUNVM_TABLE_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "common.h"
 #include "value.h"
 
-/* The Entry - a simple key:value pair. */
 typedef struct {
 	ObjString *key;
 	Value value;
 } Entry;
 
-/* The HashTable - an array of entries. */
 typedef struct {
 	int32_t count;
 	int32_t capacity;
@@ -19,5 +20,6 @@ typedef struct {
 
 void initTable(Table *table);
 void freeTable(Table *table);
+bool tableSet(Table *table, ObjString *key, Value value);
 
 #endif // !FUNVM_TABLE_H
