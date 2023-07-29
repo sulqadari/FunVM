@@ -45,15 +45,15 @@ struct Object {
 	struct Object *next;
 };
 
-/* String object aimed to keep payload. */
+/**
+ * String object aimed to keep payload. 
+ * The cached hash code of the 'chars' is used in hash table
+ * to avoid redundant hash computation every time we lookig for a given key.
+ */
 struct ObjString {
 	Object object;
 	int32_t length;
 	char *chars;
-	
-	/* The cached hash code of the 'chars'.
-	 * Used in hash table to avoid redundant hash computing every time
-	 * we lookig for a given key. */
 	uint32_t hash;
 };
 
