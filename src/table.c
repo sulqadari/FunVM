@@ -207,3 +207,41 @@ tableAddAll(Table *from, Table *to)
 			tableSet(to, bucket->key, bucket->value);
 	}	
 }
+
+ObjString*
+tableFindString(Table *table, const char *chars, int32_t length, uint32_t hash)
+{
+	if (0 == table->count)
+		return NULL;
+	
+	uint32_t index = hash % table->capacity;
+	for (;;) {
+		Entry *entry = &table->entries[index];
+		// if (NULL == entry->key) {
+		// 	// Stop if we find an empty non-tombstone entry
+		// 	if (IS_NIL(entry->value))
+		// 		return NULL;
+		// } else if (	entry->key->length == length &&
+		// 			entry->key->hash == hash &&
+		// 			memcmp(entry->key->chars, chars, length) == 0) {
+		// 	// We found it
+		// 	return entry->key;
+		// }
+
+		if ((entry->key->hash == hash) &&
+			(entry->key->length == length) &&
+			(memcmp(entry->key->chars, chars, length) == 0)) {
+			// We found it
+			return entry->key;
+		}
+
+		if (NULL != entry->key)
+			goto _skip;
+		
+		if (IS_NIL(entry->value))
+			return NULL;
+
+_skip:
+		index = (index + 1) % table->capacity;
+	}
+}

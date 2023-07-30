@@ -2,6 +2,7 @@
 #define FUNVM_VM_H
 
 #include "bytecode.h"
+#include "table.h"
 #include "value.h"
 
 typedef struct {
@@ -10,6 +11,7 @@ typedef struct {
 	Value *stack;
 	Value *stackTop;
 	uint32_t stackSize;
+	Table strings;		/* String interning (see  section 20.5). */
 	Object *objects;
 } VM;
 

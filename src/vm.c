@@ -49,6 +49,7 @@ initVM(VM *vm)
 	vm->stackTop = NULL;
 	vm->stackSize = 0;
 	vm->objects = NULL;
+	initTable(&vm->strings);
 	resetStack(vm);
 }
 
@@ -57,6 +58,7 @@ freeVM(VM *vm)
 {
 	/* Release stack. */
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
+	freeTable(&vm->strings);
 	/* Release heap. */
 	freeObjects(vm);
 }

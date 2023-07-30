@@ -1,10 +1,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <x86/_stdint.h>
 
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "value.h"
 #include "vm.h"
 
@@ -52,6 +52,7 @@ allocateString(char *chars, int32_t length, uint32_t hash)
 	string->chars = chars;
 	string->hash = hash;
 
+	tableSet(&vm->strings, string, NIL_PACK());
 	return string;
 }
 
@@ -78,6 +79,12 @@ ObjString*
 takeString(char *chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
+	ObjString *interned = tableFindString(&vm->strings, chars, length, hash);
+	if (NULL != interned) {
+		FREE_ARRAY(char, chars, length + 1);	// Free the memory before
+		return interned;						// returning interned string
+	}
+
 	return allocateString(chars, length, hash);
 }
 
@@ -91,6 +98,10 @@ ObjString*
 copyString(const char *chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
+	ObjString *interned = tableFindString(&vm->strings, chars, length, hash);
+	if (NULL != interned)
+		return interned;
+	
 	char *heapChars = ALLOCATE(char, length + 1);
 
 	memcpy(heapChars, chars, length);
