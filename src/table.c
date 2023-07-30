@@ -41,41 +41,33 @@ findEntry(Entry *entries, int32_t capacity, const ObjString *key)
 	uint32_t index = key->hash % capacity;
 	Entry *tombstone = NULL;
 
-	// for (;;) {
-
-	// 	Entry *bucket = &entries[index];
-	// 	/* BUGFIX: instead of comparing values at a given memory locations
-	// 	 * pointed by 'bucket->key' and 'key' pointers, the values (addresses)
-	// 	 * of pointers are being compared. This must be fixed.*/
-	// 	if ((key == bucket->key) || (NULL == bucket->key))
-	// 		return bucket;
-
-	// 	/* Well, seems like a collision accured. Let linear probing
-	// 	 * do its work. */
-	// 	index = (index + 1) % capacity;
-	// }
-
 	for (;;) {
 
 		Entry *bucket = &entries[index];
 		if (key == bucket->key)
-			return bucket;			// We found the key.
+			return bucket;	// We've found the key we have been looking for.
 		
+		// The key isn't NULL and didn't pass the previous check point.
+		// If this check returns "true" then the current bucket is occupied.
+		// Skip it and iterate again.
 		if (NULL != bucket->key)
 			goto _skip;
 
-		if (IS_NIL(bucket->value))	// empty entry.
+		// The key is NULL, then it is likely it might be the tombstone.
+		// Check the value, if it's NULL too, then return either current
+		// (empty) bucket or the last encountered tombstone.
+		if (IS_NIL(bucket->value))
 			return (tombstone != NULL) ? tombstone : bucket;
 
-		if (NULL == tombstone)		// We found a tombstone.
-			tombstone = bucket;
-		
+		// Well, the key is NULL, but value isn't. This is the tombstone.
+		if (NULL == tombstone)
+			tombstone = bucket;		// Store it in local variable.
+
 _skip:
 		/* Well, seems like a collision accured. Let linear probing
 		 * do its work. */
 		index = (index + 1) % capacity;
 	}
-
 }
 
 /**
@@ -111,6 +103,11 @@ adjustCapacity(Table *table, int32_t capacity)
 		newTable[i].value = NIL_PACK();
 	}
 
+	/* WE don't copy the tombstones left unused (i.e. not substituted
+	 * with new values), thus we need to recalculate the count since
+	 * it may change during a resize.*/
+	table->count = 0;
+
 	/* Simple realloc() and subsequent copying elements doesn't
 	 * work for hash table because to choose the entry for each
 	 * bucket we take its hash key module the array size, which means
@@ -135,6 +132,8 @@ adjustCapacity(Table *table, int32_t capacity)
 		 * pointed by 'bucket' which refers to the previous hash table entry. */
 		dest->key = bucket->key;
 		dest->value = bucket->value;
+		/* Increment count each time we find a non-tombstone entry. */
+		table->count++;
 	}
 
 	/* Release the memory for the old array. */
@@ -162,8 +161,15 @@ tableSet(Table *table, ObjString *key, Value value)
 
 	Entry *bucket = findEntry(table->entries, table->capacity, key);
 	
-	bool isEmpty = (NULL == bucket->key);
-	if (isEmpty && IS_NIL(bucket->value))
+	/* Current tableDelete() implementation implies that count is no
+	 * longer the number of entries in the hash table, it's the number
+	 * of entries plus tombstones.  Thus, increment the count during
+	 * insertion only if the new entry goes into an entirely nepty bucket. */
+	bool isEmpty = ((NULL == bucket->key) && IS_NIL(bucket->value));
+
+	/* Increase counter if and only if we occupy a brand new bucket, not one
+	 * containing tombstone (where the only key has NULL value). */
+	if (isEmpty)
 		table->count++;
 	
 	bucket->key = key;
@@ -181,7 +187,7 @@ bool tableDelete(Table *table, ObjString *key)
 	if (NULL == entry->key)
 		return false;
 	
-	/* Place a tomstone in the entry. */
+	/* Place the entry with a tombstone. */
 	entry->key = NULL;
 	entry->value = BOOL_PACK(true);
 
