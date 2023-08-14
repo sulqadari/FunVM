@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "vm.h"
 #include "common.h"
 #include "value.h"
-#include "vm.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)

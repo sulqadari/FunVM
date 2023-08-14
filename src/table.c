@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "memory.h"
@@ -7,6 +7,9 @@
 #include "table.h"
 #include "value.h"
 
+/* Used in table's load factor management.
+ * The hash table's size shall be increased
+ * when it becomes at least 75% full. */
 #define TABLE_MAX_LOAD 0.75
 
 void
@@ -14,234 +17,234 @@ initTable(Table *table)
 {
 	table->count = 0;
 	table->capacity = 0;
-	table->entries = NULL;
+	table->buckets = NULL;
 }
 
 void
 freeTable(Table *table)
 {
-	FREE_ARRAY(Entry, table->entries, table->capacity);
+	FREE_ARRAY(Bucket, table->buckets, table->capacity);
 	initTable(table);
 }
 
 /**
  * The core function of the hash table.
- * It takes a key and an array of buckets and figures out which bucket
- * the entry belongs in.
- * This function is also where linear probing and collision handling come
- * into play.
- * Because the array is grow every time it gets close to being full,
- * we know there will always be empty bucket.
- * @returns Entry* a pointer to bucket or NULL.
- */
-static Entry*
-findEntry(Entry *entries, int32_t capacity, const ObjString *key)
+ * It accepts an array of buckets and a key and figures out
+ * which bucket the entry belongs in.
+ * This function is also where linear probing and collision handling
+ * come into play.
+ * It's used both to lookup existing intries in the hash table and to
+ * decide where to insert new ones.
+ * 
+ * The for loop is used to perform the linear probing, which
+ * eventualy ends up with finding an empty bucket. It will never fall into
+ * infinite loop because load factor of the hash table insists that there is
+ * always be at least 25% of unused indexes in the array.
+ * Thus, the assumption is we'll eventually hit an empty bucket.
+ * 
+*/
+static Bucket*
+findEntry(Bucket *buckets, int32_t capacity, const ObjString *key)
 {
-	/* Map the key's hash code to an index within the array's bounds. */
+	/* Use key's hash code module the array size to choose the bucket for the
+	 * given entry. */
 	uint32_t index = key->hash % capacity;
-	Entry *tombstone = NULL;
+	Bucket *tombstone = NULL;
 
 	for (;;) {
-
-		Entry *bucket = &entries[index];
-		if (key == bucket->key)
-			return bucket;	// We've found the key we have been looking for.
+		Bucket *bucket = &buckets[index];
 		
-		// The key isn't NULL and didn't pass the previous check point.
-		// If this check returns "true" then the current bucket is occupied.
-		// Skip it and iterate again.
+		/* we've found the entry, just return it. */
+		if (key == bucket->key)
+			return bucket;
+		
+		/* Bucket isn't empty, skip this iteration and manage
+		 * collision issues. */
 		if (NULL != bucket->key)
-			goto _skip;
+			goto _collision;
 
-		// The key is NULL, then it is likely it might be the tombstone.
-		// Check the value, if it's NULL too, then return either current
-		// (empty) bucket or the last encountered tombstone.
+		/* So, the key is NULL. If it contains no value, then return the bucket.
+		 * Special case: if this is not the first iteration, i.e. bucket->key was NULL,
+		 * but bucket->value contained a value, then we had been encountered a tombstone.
+		 * Thus, return the latter. */
 		if (IS_NIL(bucket->value))
-			return (tombstone != NULL) ? tombstone : bucket;
+			return NULL != tombstone ? tombstone : bucket;
 
-		// Well, the key is NULL, but value isn't. This is the tombstone.
+		/* bucket->key wasn't NULL, but bucket->value contained a value (true).
+		 * This is the fingerprint of tombstone. Store the first encountered one. */
 		if (NULL == tombstone)
-			tombstone = bucket;		// Store it in local variable.
+			tombstone = bucket;
 
-_skip:
-		/* Well, seems like a collision accured. Let linear probing
-		 * do its work. */
+		// if (NULL == bucket->key) {
+		// 	if (IS_NIL(bucket->value)) {
+		// 		return NULL != tombstone ? tombstone : bucket;
+		// 	} else {
+		// 		if (NULL == tombstone)
+		// 			tombstone = bucket;
+		// 	}
+		// } else if (key == bucket->key)
+		// 	return bucket;
+_collision:
+		/* Manage collisions by means of linear probing algorithm. */
 		index = (index + 1) % capacity;
 	}
 }
 
 /**
- * Looks up an entry in the given table using a key.
- * @param Table*: hash table to look up in.
- * @param ObjString*: the key value used in matching
- * @param Value*: points to the resulting value
- * @returns bool: true if entry is found. False otherwise.
+ * Search in hash table a value assosiated with the key.
+ * @param Table*: hash table to search key-value pair into;
+ * @param ObjString*: a key to perform a search;
+ * @param Value*: points to the value being found
+ * @return bool: true if value is found. False otherwise.
+ * 
 */
 bool
 tableGet(Table *table, ObjString *key, Value *value)
 {
 	if (0 == table->count)
 		return false;
-
-	Entry *entry = findEntry(table->entries, table->capacity, key);
-	if (NULL == entry->key)
+	
+	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
+	if (NULL == bucket->key)
 		return false;
-
-	*value = entry->value;
+	
+	*value = bucket->value;
 	return true;
 }
 
+/**
+ * Creates a bucket array with 'capacity' entries. After array allocation,
+ * it initializes every element to be an empty bucket and then stores the array
+ * in the hash table's main struct.
+ * 
+ * When this function is about to reallocate the existing hash table, it rebuilds
+ * it from scratch and inserts entries under new indexes.
+ * Note that we don't copy tombstones over.
+*/
 static void
 adjustCapacity(Table *table, int32_t capacity)
 {
-	/* Create a bucket array of size 'capacity'. */
-	Entry *newTable = ALLOCATE(Entry, capacity);
+	/* Create new array. */
+	Bucket *newTable = ALLOCATE(Bucket, capacity);
 
-	/* Initialize every element in hash table with NULL values. */
+	/* Reset */
 	for (int32_t i = 0; i < capacity; ++i) {
 		newTable[i].key = NULL;
 		newTable[i].value = NIL_PACK();
 	}
 
-	/* WE don't copy the tombstones left unused (i.e. not substituted
-	 * with new values), thus we need to recalculate the count since
-	 * it may change during a resize.*/
+	/* During resizing we discard the tombstones and take into
+	 * account only those buckets, containing active key:value pairs. */
 	table->count = 0;
-
-	/* Simple realloc() and subsequent copying elements doesn't
-	 * work for hash table because to choose the entry for each
-	 * bucket we take its hash key module the array size, which means
-	 * that when the array size changes, entries may end up in
-	 * different buckets. Thus, we have to rebuild the table
-	 * from scratch and rearrange positions of the entries in that
-	 * new hash table. */
 	for (int32_t i = 0; i < table->capacity; ++i) {
-		
-		/* Walk through the old array front to back, searching
-		 * non-empty bucket. */
-		Entry *bucket = &table->entries[i];
-		if (NULL == bucket->key)
-			continue;			/* Skip empty bucket. */
-		
-		/* Passing to findEntry() the below mentioned arguments
-		 * results in storing in 'dest' variable a pointer to the index
-		 * in newTable.*/
-		Entry *dest = findEntry(newTable, capacity, bucket->key);
-		
-		/* Fill in the pointer to the index in newTable with the values
-		 * pointed by 'bucket' which refers to the previous hash table entry. */
-		dest->key = bucket->key;
-		dest->value = bucket->value;
-		/* Increment count each time we find a non-tombstone entry. */
+
+		/* Get subsequent entry from the OLD array. */
+		Bucket *oldBucket = &table->buckets[i];
+
+		/* Just skip current iteration if the key in OLD entry is NULL. */
+		if (NULL == oldBucket->key)
+			continue;
+
+		/* Otherwise, calculate the index for the key:value in the NEW Table. */
+		Bucket *newBucket = findEntry(newTable, capacity, oldBucket->key);
+
+		/* perform the assignment. */
+		newBucket->key = oldBucket->key;
+		newBucket->value = oldBucket->value;
 		table->count++;
 	}
 
-	/* Release the memory for the old array. */
-	FREE_ARRAY(Entry, table->entries, table->capacity);
-
-	/* Store new array of buckets and its capacity in Table struct. */
-	table->entries = newTable;
+	FREE_ARRAY(Bucket, table->buckets, table->capacity);
+	table->buckets = newTable;
 	table->capacity = capacity;
 }
 
 /**
- * Adds the given key/value pair to the given hash table.
- * If an bucket for that key is already present, the new value
- * overwrites the old one.
- * @returns bool: TRUE if the given key is the new one. False if
- * key is already present (only the value field will be updated).
- */
+ * Insert a key/value pair into hash table.
+ * If an entry for the given key is already present,
+ * the new value overwrites previous one.
+ * @return bool - true if a new entry was added. False otherwise, i.e.
+ * key is already present and the only thing is done - its value has
+ * been overwritten.
+*/
 bool
 tableSet(Table *table, ObjString *key, Value value)
 {
-	if ((table->count + 1) > (table->capacity * TABLE_MAX_LOAD)) {
+	if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
 		int32_t capacity = INCREASE_CAPACITY(table->capacity);
 		adjustCapacity(table, capacity);
 	}
 
-	Entry *bucket = findEntry(table->entries, table->capacity, key);
+	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
 	
-	/* Current tableDelete() implementation implies that count is no
-	 * longer the number of entries in the hash table, it's the number
-	 * of entries plus tombstones.  Thus, increment the count during
-	 * insertion only if the new entry goes into an entirely nepty bucket. */
-	bool isEmpty = ((NULL == bucket->key) && IS_NIL(bucket->value));
-
-	/* Increase counter if and only if we occupy a brand new bucket, not one
-	 * containing tombstone (where the only key has NULL value). */
-	if (isEmpty)
+	/* Increment the count only if the new entry goes into an entirely empty
+	 * bucket. */
+	bool isNewKey = ((NULL == bucket->key) && IS_NIL(bucket->value));
+	if (isNewKey)
 		table->count++;
 	
 	bucket->key = key;
 	bucket->value = value;
 
-	return isEmpty;
+	return isNewKey;
 }
 
-bool tableDelete(Table *table, ObjString *key)
+/**
+ * Deletes the key-value pair from the given hash table.
+ * Instead of actual removing an entry, this function simply
+ * substitutes its value with the 'tombstone'.
+*/
+bool
+tableDelete(Table *table, ObjString *key)
 {
 	if (0 == table->count)
 		return false;
 	
-	Entry *entry = findEntry(table->entries, table->capacity, key);
-	if (NULL == entry->key)
+	/* Find the entry to delete. */
+	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
+	if (NULL == bucket->key)
 		return false;
 	
-	/* Place the entry with a tombstone. */
-	entry->key = NULL;
-	entry->value = BOOL_PACK(true);
-
+	/* Replace the entry with the tombstone. */
+	bucket->key = NULL;
+	bucket->value = BOOL_PACK(true);
 	return true;
 }
 
-/**
- * Used in method inheritance.
-*/
 void
 tableAddAll(Table *from, Table *to)
 {
 	for (int32_t i = 0; i < from->capacity; ++i) {
 
-		Entry *bucket = &from->entries[i];
-		if (NULL != bucket->key)
+		Bucket *bucket = &from->buckets[i];
+		if (NULL != bucket->key) {
 			tableSet(to, bucket->key, bucket->value);
-	}	
+		}
+	}
 }
 
 ObjString*
-tableFindString(Table *table, const char *chars, int32_t length, uint32_t hash)
+tableFindString(Table *table, const char *chars,
+							const int32_t length, const uint32_t hash)
 {
 	if (0 == table->count)
 		return NULL;
 	
 	uint32_t index = hash % table->capacity;
-	for (;;) {
-		Entry *entry = &table->entries[index];
-		// if (NULL == entry->key) {
-		// 	// Stop if we find an empty non-tombstone entry
-		// 	if (IS_NIL(entry->value))
-		// 		return NULL;
-		// } else if (	entry->key->length == length &&
-		// 			entry->key->hash == hash &&
-		// 			memcmp(entry->key->chars, chars, length) == 0) {
-		// 	// We found it
-		// 	return entry->key;
-		// }
 
-		if ((entry->key->hash == hash) &&
-			(entry->key->length == length) &&
-			(memcmp(entry->key->chars, chars, length) == 0)) {
-			// We found it
-			return entry->key;
+	for (;;) {
+		Bucket *bucket = &table->buckets[index];
+
+		if (NULL == bucket->key) {
+			/* Stop if an empty non-tombstone entry is found. */
+			if (IS_NIL(bucket->value))
+					return NULL;
+		}
+		else if ((length == bucket->key->length) && (hash == bucket->key->hash) &&
+						(memcmp(bucket->key->chars, chars, length) == 0)) {
+			return bucket->key;
 		}
 
-		if (NULL != entry->key)
-			goto _skip;
-		
-		if (IS_NIL(entry->value))
-			return NULL;
-
-_skip:
 		index = (index + 1) % table->capacity;
 	}
 }

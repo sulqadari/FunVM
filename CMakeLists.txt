@@ -15,12 +15,12 @@ if(FUNVM_DEBUG)
 	add_subdirectory(debug)
 	add_subdirectory(tests)
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
-	list(APPEND DEBUG_STUFF debug tests funvm_debug)
+	list(APPEND DEBUG_STUFF debug tests FUNVM_DEBUGGING)
 endif()
 
 add_executable(FunVM main.c)
 
-target_link_libraries(FunVM PUBLIC funvm_sources ${DEBUG_STUFF})
+target_link_libraries(FunVM PUBLIC FunVM_SRC ${DEBUG_STUFF})
 
 target_include_directories(FunVM PUBLIC
 							"${PROJECT_BINARY_DIR}"

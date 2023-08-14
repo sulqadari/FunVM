@@ -6,7 +6,6 @@
 #include "object.h"
 #include "table.h"
 #include "value.h"
-#include "vm.h"
 
 static VM *vm;
 
@@ -52,7 +51,12 @@ allocateString(char *chars, int32_t length, uint32_t hash)
 	string->chars = chars;
 	string->hash = hash;
 
-	tableSet(&vm->strings, string, NIL_PACK());
+	/* The keys are the strings we are care about, so just
+	 * uses NIL for the values. 
+	 * Note: here we're using the table more like 'hash set',
+	 * rather than 'hash table'. */
+	tableSet(&vm->interns, string, NIL_PACK());
+
 	return string;
 }
 
@@ -79,10 +83,12 @@ ObjString*
 takeString(char *chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
-	ObjString *interned = tableFindString(&vm->strings, chars, length, hash);
+
+	/* Before taking the ownership over the string, look it up in the string set first. */
+	ObjString *interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned) {
-		FREE_ARRAY(char, chars, length + 1);	// Free the memory before
-		return interned;						// returning interned string
+		FREE_ARRAY(char, chars, length + 1);	/* Free memory for the passed in string. */
+		return interned;						/* return interned string. */
 	}
 
 	return allocateString(chars, length, hash);
@@ -98,7 +104,9 @@ ObjString*
 copyString(const char *chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
-	ObjString *interned = tableFindString(&vm->strings, chars, length, hash);
+
+	/* Before copying the string, look it up in the string set first. */
+	ObjString *interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
 	

@@ -6,22 +6,19 @@
 
 #include "common.h"
 #include "value.h"
+#include "object.h"
 
-/* The current implementation assumes that the 
- * key is always the string, but this restriction
- * might be loosened. */
+/* Since the key is always a string, we store the ObjString
+ * pointer directly instead of wrapping it in a Value. */
 typedef struct {
 	ObjString *key;
 	Value value;
-} Entry;
+} Bucket;
 
-/* The hash table is represented as an array of entries.
- * The ratio of count to capacity is exactly the load factor
- * of the hash table. */
 typedef struct {
 	int32_t count;
 	int32_t capacity;
-	Entry *entries;
+	Bucket *buckets;
 } Table;
 
 void initTable(Table *table);
@@ -31,5 +28,6 @@ bool tableSet(Table *table, ObjString *key, Value value);
 bool tableDelete(Table *table, ObjString *key);
 void tableAddAll(Table *from, Table *to);
 ObjString* tableFindString(Table *table, const char *chars,
-							int32_t length, uint32_t hash);
+							const int32_t length, const uint32_t hash);
+
 #endif // !FUNVM_TABLE_H
