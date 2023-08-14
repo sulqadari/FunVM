@@ -1,7 +1,7 @@
 #ifndef FUNVM_MEMORY_H
 #define FUNVM_MEMORY_H
 
-#include "common.h"
+#include "value.h"
 #include "object.h"
 #include "vm.h"
 

@@ -1,7 +1,6 @@
 #ifndef FUNVM_BYTECODE_H
 #define FUNVM_BYTECODE_H
 
-#include "common.h"
 #include "value.h"
 
 /* Opcode - a one-byte operation code which

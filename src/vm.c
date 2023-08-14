@@ -11,10 +11,13 @@
 #include "memory.h"
 #include "compiler.h"
 #include "object.h"
+#include "table.h"
 
 #ifdef FUNVM_DEBUG
 #include "debug.h"
 #endif
+
+extern Table interns;
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
@@ -49,7 +52,7 @@ initVM(VM *vm)
 	vm->stackTop = NULL;
 	vm->stackSize = 0;
 	vm->objects = NULL;
-	initTable(&vm->interns);
+	initTable(&interns);
 	resetStack(vm);
 }
 
@@ -58,7 +61,7 @@ freeVM(VM *vm)
 {
 	/* Release stack. */
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
-	freeTable(&vm->interns);
+	freeTable(&interns);
 
 	/* Release heap. */
 	freeObjects(vm);

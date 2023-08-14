@@ -12,6 +12,8 @@
  * when it becomes at least 75% full. */
 #define TABLE_MAX_LOAD 0.75
 
+Table interns;
+
 void
 initTable(Table *table)
 {

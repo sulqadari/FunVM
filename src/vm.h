@@ -1,17 +1,17 @@
 #ifndef FUNVM_VM_H
 #define FUNVM_VM_H
 
-#include "table.h"
 #include "value.h"
+// #include "table.h"
 #include "bytecode.h"
 
-typedef struct {
+typedef struct VM {
 	Bytecode *bytecode;	/* A chunk of bytecode to execute. */
 	uint8_t *ip;		/* InsPtr, points to the ins about to be executed. */
 	Value *stack;
 	Value *stackTop;
 	uint32_t stackSize;
-	Table interns;		/* String interning (see  section 20.5). */
+//	Table interns;		/* String interning (see  section 20.5). */
 	Object *objects;
 } VM;
 
