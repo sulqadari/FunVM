@@ -20,7 +20,7 @@ case_1(int argc, char *argv[])
 	else if (2 == argc)
 		runFile(&vm, argv[1]);
 	else {
-		fprintf(stderr, "Usage: test_scanner.c [path/to/src]\n");
+		fprintf(stderr, "Usage: FunVM.exe [path/to/src]\n");
 		exit(64);
 	}
 

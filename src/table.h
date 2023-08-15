@@ -14,13 +14,13 @@ typedef struct {
 	Value value;
 } Bucket;
 
-typedef struct {
+typedef struct Table {
 	int32_t count;
 	int32_t capacity;
 	Bucket *buckets;
 } Table;
 
-void initTable(Table *table);
+void initTable(Table **table);
 void freeTable(Table *table);
 bool tableGet(Table *table, ObjString *key, Value *value);
 bool tableSet(Table *table, ObjString *key, Value value);

@@ -56,7 +56,7 @@ struct ObjString {
 	uint32_t hash;
 };
 
-void initHeap(VM *_vm);
+void initLocalVmReference(VM *_vm);
 ObjString* takeString(char *chars, int32_t length);
 ObjString* copyString(const char *chars, int32_t length);
 void printObject(Value value);

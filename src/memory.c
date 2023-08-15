@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+
 #include "memory.h"
 #include "object.h"
 #include "vm.h"
@@ -18,8 +20,10 @@ reallocate(void *array, size_t oldCap, size_t newCap)
 	}
 
 	void *result = realloc(array, newCap);
-	if (NULL == result)
+	if (NULL == result) {
+		printf("in reallocate(): failed to allocate memory.\n");
 		exit(1);
+	}
 
 	return result;
 }

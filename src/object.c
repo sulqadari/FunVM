@@ -7,11 +7,11 @@
 #include "table.h"
 #include "value.h"
 
-extern Table interns;		/* String interning (see  section 20.5). */
+//extern Table interns;		/* String interning (see  section 20.5). */
 static VM *vm;
 
 void
-initHeap(VM *_vm)
+initLocalVmReference(VM *_vm)
 {
 	vm = _vm;
 }
@@ -56,7 +56,7 @@ allocateString(char *chars, int32_t length, uint32_t hash)
 	 * uses NIL for the values. 
 	 * Note: here we're using the table more like 'hash set',
 	 * rather than 'hash table'. */
-	tableSet(&interns, string, NIL_PACK());
+	tableSet(vm->interns, string, NIL_PACK());
 
 	return string;
 }
@@ -86,7 +86,7 @@ takeString(char *chars, int32_t length)
 	uint32_t hash = hashString(chars, length);
 
 	/* Before taking the ownership over the string, look it up in the string set first. */
-	ObjString *interned = tableFindString(&interns, chars, length, hash);
+	ObjString *interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned) {
 		FREE_ARRAY(char, chars, length + 1);	/* Free memory for the passed in string. */
 		return interned;						/* return interned string. */
@@ -107,7 +107,7 @@ copyString(const char *chars, int32_t length)
 	uint32_t hash = hashString(chars, length);
 
 	/* Before copying the string, look it up in the string set first. */
-	ObjString *interned = tableFindString(&interns, chars, length, hash);
+	ObjString *interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
 	

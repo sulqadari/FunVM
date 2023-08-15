@@ -12,21 +12,22 @@
  * when it becomes at least 75% full. */
 #define TABLE_MAX_LOAD 0.75
 
-Table interns;
+// Table interns;
 
 void
-initTable(Table *table)
+initTable(Table **table)
 {
-	table->count = 0;
-	table->capacity = 0;
-	table->buckets = NULL;
+	*table = ALLOCATE(Table, 1);
+	(*table)->count = 0;
+	(*table)->capacity = 0;
+	(*table)->buckets = NULL;
 }
 
 void
 freeTable(Table *table)
 {
 	FREE_ARRAY(Bucket, table->buckets, table->capacity);
-	initTable(table);
+	FREE(Table, table);
 }
 
 /**
