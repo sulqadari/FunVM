@@ -16,7 +16,7 @@
 /* Returns the (ObjString*) from the heap. */
 #define STRING_UNPACK(value)	((ObjString*)OBJECT_UNPACK(value))
 
-/* Returns the (ObjString*).chars from the heap. */
+/* Returns the (ObjString*).chars field from the heap. */
 #define CSTRING_UNPACK(value)	(((ObjString*)OBJECT_UNPACK(value))->chars)
 
 typedef enum {
@@ -56,7 +56,7 @@ struct ObjString {
 	uint32_t hash;
 };
 
-void initLocalVmReference(VM *_vm);
+void objModuleVmRef(VM *_vm);
 ObjString* takeString(char *chars, int32_t length);
 ObjString* copyString(const char *chars, int32_t length);
 void printObject(Value value);

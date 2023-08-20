@@ -112,7 +112,7 @@ static bool
 isFalsey(Value value)
 {
 	return IS_NIL(value) ||
-			(IS_BOOL(value) && !BOOL_UNPACK(value));
+		(IS_BOOL(value) && !BOOL_UNPACK(value));
 }
 
 static void
@@ -128,7 +128,6 @@ concatenate(VM *vm)
 	chars[length] = '\0';
 
 	ObjString *result = takeString(chars, length);
-
 	push(OBJECT_PACK(result), vm);
 }
 
@@ -220,6 +219,7 @@ run(VM *vm)
 				} else {
 					runtimeError(vm,
 						"Operands must be two numbers or two strings.");
+					return IR_RUNTIME_ERROR;
 				}
 			} break;
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -);	break;
@@ -259,6 +259,7 @@ interpret(VM *vm, const char *source)
 {
 	Bytecode bytecode;
 	initBytecode(&bytecode);
+	objModuleVmRef(vm);
 
 	/* Fill in the bytecode with the instructions retrieved
 	 * from source code. */
@@ -276,7 +277,7 @@ interpret(VM *vm, const char *source)
 	 * the runtime will fail.
 	 * Next improvements shall eliminate this case. */
 	vm->ip = vm->bytecode->code;
-	initLocalVmReference(vm);
+	
 	InterpretResult result = run(vm);
 	freeBytecode(&bytecode);
 

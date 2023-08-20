@@ -12,8 +12,6 @@
  * when it becomes at least 75% full. */
 #define TABLE_MAX_LOAD 0.75
 
-// Table interns;
-
 void
 initTable(Table **table)
 {
@@ -230,6 +228,7 @@ ObjString*
 tableFindString(Table *table, const char *chars,
 							const int32_t length, const uint32_t hash)
 {
+
 	if (0 == table->count)
 		return NULL;
 	

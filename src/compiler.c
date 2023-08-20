@@ -44,12 +44,12 @@ typedef struct {
 } ParseRule;
 
 Parser parser;
-Bytecode *compilingBytecode;
+Bytecode *currentCtx;
 
 static Bytecode*
 currentContext(void)
 {
-	return compilingBytecode;
+	return currentCtx;
 }
 
 static void
@@ -334,6 +334,7 @@ static void
 parsePrecedence(Precedence precedence)
 {
 	advance();
+
 	/* Parsing prefix expressions. The first token is allways going to belong
 	 * to some kind of prefix expressions, by definition. */
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
@@ -370,14 +371,16 @@ bool
 compile(const char *source, Bytecode *bytecode)
 {
 	initScanner(source);
-	compilingBytecode = bytecode;
+	currentCtx = bytecode;
 	parser.hadError = false;
 	parser.panicMode = false;
 
 	/* Start up the scanner. */
 	advance();
+
 	/* Parse the single expression. */
 	expression();
+
 	/* Check for the sentinel OEF token. */
 	consume(TOKEN_EOF, "Expect end of expression.");
 	endCompiler();

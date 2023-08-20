@@ -11,7 +11,7 @@
 static VM *vm;
 
 void
-initLocalVmReference(VM *_vm)
+objModuleVmRef(VM *_vm)
 {
 	vm = _vm;
 }
@@ -34,6 +34,8 @@ initLocalVmReference(VM *_vm)
 static Object*
 allocateObject(size_t size, ObjType type)
 {
+	/* Note the size which encompasses not only Object type,
+	 * but extra bytes for ObjString struct. */
 	Object *object = (Object*)reallocate(NULL, 0, size);
 	/* Initialize the base class */
 	object->type = type;
@@ -110,7 +112,7 @@ copyString(const char *chars, int32_t length)
 	ObjString *interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
-	
+
 	char *heapChars = ALLOCATE(char, length + 1);
 
 	memcpy(heapChars, chars, length);
