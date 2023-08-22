@@ -75,6 +75,8 @@ disassembleInstruction(Bytecode *bytecode, int32_t offset)
 			return simpleInstruction("OP_TRUE", offset);
 		case OP_FALSE:
 			return simpleInstruction("OP_FALSE", offset);
+		case OP_POP:
+			return simpleInstruction("OP_POP", offset);
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:

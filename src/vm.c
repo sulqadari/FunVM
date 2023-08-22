@@ -199,7 +199,7 @@ run(VM *vm)
 			case OP_NIL:		push(NIL_PACK(), vm);		break;
 			case OP_TRUE:		push(BOOL_PACK(true), vm);	break;
 			case OP_FALSE:		push(BOOL_PACK(false), vm);	break;
-
+			case OP_POP:		pop(vm);					break;
 			case OP_EQUAL: {
 				Value b = pop(vm);
 				Value a = pop(vm);

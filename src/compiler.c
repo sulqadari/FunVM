@@ -394,6 +394,17 @@ expression(void)
 	parsePrecedence(PREC_ASSIGNMENT);
 }
 
+/**
+ * An expression followed by a semicolon.
+*/
+static void
+expressionStatement(void)
+{
+	expression();
+	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+	emitByte(OP_POP);
+}
+
 static void
 printStatement(void)
 {
@@ -402,10 +413,48 @@ printStatement(void)
 	emitByte(OP_PRINT);
 }
 
+/**
+ * Panic mode error recovery function aimed to minimize the
+ * number of cascaded compile errors that it reports.
+ * The compiler exits the panic mode when it reaches a synchronization
+ * point, which is statement boundaries.
+*/
+static void
+synchronize(void)
+{
+	parser.panicMode = false;	/* Reset panic mode. */
+
+	/* Skip tokens until reach domething that looks like a
+	 * statement boundary. */
+	while (TOKEN_EOF != parser.current.type) {
+		if (TOKEN_SEMICOLON == parser.previous.type)
+			return;
+		
+		switch (parser.current.type) {
+			case TOKEN_CLASS:
+			case TOKEN_FUN:
+			case TOKEN_VAR:
+			case TOKEN_FOR:
+			case TOKEN_IF:
+			case TOKEN_WHILE:
+			case TOKEN_PRINT:
+			case TOKEN_RETURN:
+				return;
+			
+			default:/* Do nothing. */;
+		}
+
+		advance();
+	}
+}
+
 static void
 declaration(void)
 {
 	statement();
+
+	if (parser.panicMode)
+		synchronize();
 }
 
 static void
@@ -413,6 +462,8 @@ statement(void)
 {
 	if (match(TOKEN_PRINT)) {
 		printStatement();
+	} else {
+		expressionStatement();
 	}
 }
 
