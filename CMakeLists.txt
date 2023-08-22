@@ -6,8 +6,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast")
 option(FUNVM_DEBUG "Debug mode and unit tests" ON)
 configure_file(funvmConfig.h.in funvmConfig.h)
 file(GENERATE 
-	OUTPUT Arithmetic.fvm
-	INPUT ${PROJECT_SOURCE_DIR}/tests/Arithmetic.fvm)
+	OUTPUT Arithmetic.fn
+	INPUT ${PROJECT_SOURCE_DIR}/tests/Arithmetic.fn)
 
 add_subdirectory(src)
 

@@ -241,13 +241,11 @@ run(VM *vm)
 				double temp = NUMBER_UNPACK(vm->stackTop[-1]);
 				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
+			case OP_PRINT: {
+				printValue(pop(vm));
+				printf("\n");
+			} break;
 			case OP_RETURN: {
-#ifdef FUNVM_DEBUG
-			printValue(pop(vm));
-			printf("\n");
-#else
-			pop(vm);
-#endif // !FUNVM_DEBUG
 				return IR_OK;
 			}
 		}

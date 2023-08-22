@@ -117,6 +117,26 @@ consume(TokenType type, const char *message)
 	errorAtCurrent(message);
 }
 
+static bool
+check(const TokenType type)
+{
+	return type == parser.current.type;
+}
+
+/**
+ * Consumes the current token if it has the given type.
+ * @returns bool: true if match, false otherwise.
+*/
+static bool
+match(TokenType type)
+{
+	if (!check(type))
+		return false;
+
+	advance();
+	return true;
+}
+
 /**
  * Assigns a given value to the bytecode chunk.
  */
@@ -179,6 +199,13 @@ endCompiler(void)
 }
 
 static void expression(void);
+
+/* Blocks can contain declaration, and control flow statements
+ * can contain other statements, which means these two functions
+ * will eventually be recursive. */
+static void statement(void);
+static void declaration(void);
+
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
@@ -367,6 +394,28 @@ expression(void)
 	parsePrecedence(PREC_ASSIGNMENT);
 }
 
+static void
+printStatement(void)
+{
+	expression();
+	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+	emitByte(OP_PRINT);
+}
+
+static void
+declaration(void)
+{
+	statement();
+}
+
+static void
+statement(void)
+{
+	if (match(TOKEN_PRINT)) {
+		printStatement();
+	}
+}
+
 bool
 compile(const char *source, Bytecode *bytecode)
 {
@@ -378,11 +427,12 @@ compile(const char *source, Bytecode *bytecode)
 	/* Start up the scanner. */
 	advance();
 
-	/* Parse the single expression. */
-	expression();
+	/* Keep compiling declarations until hit the end
+	 * of the source file. */
+	while (!match(TOKEN_EOF)) {
+		declaration();
+	}
 
-	/* Check for the sentinel OEF token. */
-	consume(TOKEN_EOF, "Expect end of expression.");
 	endCompiler();
 
 	return !parser.hadError;

@@ -228,7 +228,6 @@ ObjString*
 tableFindString(Table *table, const char *chars,
 							const int32_t length, const uint32_t hash)
 {
-
 	if (0 == table->count)
 		return NULL;
 	
@@ -242,8 +241,9 @@ tableFindString(Table *table, const char *chars,
 			if (IS_NIL(bucket->value))
 					return NULL;
 		}
-		else if ((length == bucket->key->length) && (hash == bucket->key->hash) &&
-						(memcmp(bucket->key->chars, chars, length) == 0)) {
+		else if ((length == bucket->key->length) &&
+				 (hash == bucket->key->hash) &&
+				 (memcmp(bucket->key->chars, chars, length) == 0)) {
 			return bucket->key;
 		}
 
