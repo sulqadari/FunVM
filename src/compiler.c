@@ -1,5 +1,6 @@
 #include "funvmConfig.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -382,6 +383,35 @@ parsePrecedence(Precedence precedence)
 	}
 }
 
+/**
+ * Takes the given token and adds its lexeme to the bytecode's constant pool
+ * as a string.
+ * @returns uint8_t: an index of the constant in the constant pool.
+ */
+static uint8_t
+identifierConstant(Token *name)
+{
+	ObjString *str = copyString(name->start, name->length);
+	return makeConstant(OBJECT_PACK(str));
+}
+
+static uint8_t
+parseVariable(const char *errorMessage)
+{
+	consume(TOKEN_IDENTIFIER, errorMessage);
+	return identifierConstant(&parser.previous);
+}
+
+/**
+ * Produces the bytecode instruction that defines the new
+ * global variable's index in its operand.
+ */
+static void
+defineVariable(uint8_t global)
+{
+	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
 static ParseRule*
 getRule(TokenType type)
 {
@@ -392,6 +422,23 @@ static void
 expression(void)
 {
 	parsePrecedence(PREC_ASSIGNMENT);
+}
+
+static void
+varDeclaration(void)
+{
+	// Manage variable name (which follows right after the 'var' keyword)
+	uint8_t global = parseVariable("Expect variable name.");
+
+	if (match(TOKEN_EQUAL)) {	// is variable initialized?
+		expression();				// Handle an initialization expression
+	} else { 						// No?.
+		emitByte(OP_NIL);		// Initialize with NIL value
+	}
+
+	consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+	defineVariable(global);
 }
 
 /**
@@ -451,7 +498,11 @@ synchronize(void)
 static void
 declaration(void)
 {
-	statement();
+	if (match(TOKEN_VAR)) {
+		varDeclaration();
+	} else {
+		statement();
+	}
 
 	if (parser.panicMode)
 		synchronize();

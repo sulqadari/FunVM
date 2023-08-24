@@ -12,6 +12,7 @@ typedef struct VM {
 	Value *stack;
 	Value *stackTop;
 	uint32_t stackSize;
+	Table *globals;
 	Table *interns;		/* String interning (see  section 20.5). */
 	Object *objects;
 } VM;

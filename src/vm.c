@@ -50,6 +50,7 @@ initVM(VM *vm)
 	vm->stackTop = NULL;
 	vm->stackSize = 0;
 	vm->objects = NULL;
+	initTable(&vm->globals);
 	initTable(&vm->interns);
 	resetStack(vm);
 }
@@ -59,6 +60,7 @@ freeVM(VM *vm)
 {
 	/* Release stack. */
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
+	freeTable(vm->globals);
 	freeTable(vm->interns);
 
 	/* Release heap. */
@@ -137,7 +139,10 @@ concatenate(VM *vm)
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's const_pool. */
 #define READ_CONSTANT() (vm->bytecode->const_pool.pool[READ_BYTE()])
+
 #define READ_CONSTANT_LONG(offset) (vm->bytecode->const_pool.pool[offset])
+
+#define READ_STRING() STRING_UNPACK(READ_CONSTANT())
 
 #define BINARY_OP(valueType, op)									\
 	do {															\
@@ -198,10 +203,24 @@ run(VM *vm)
 				Value constant = READ_CONSTANT_LONG(offset);
 				push(constant, vm);
 			} break;
-			case OP_NIL:		push(NIL_PACK(), vm);		break;
-			case OP_TRUE:		push(BOOL_PACK(true), vm);	break;
-			case OP_FALSE:		push(BOOL_PACK(false), vm);	break;
-			case OP_POP:		pop(vm);					break;
+			case OP_NIL:	push(NIL_PACK(), vm);		break;
+			case OP_TRUE:	push(BOOL_PACK(true), vm);	break;
+			case OP_FALSE:	push(BOOL_PACK(false), vm);	break;
+			case OP_POP:	pop(vm);							break;
+			case OP_DEFINE_GLOBAL: {
+				
+				// get the name of the variable from the constant pool
+				ObjString *name = READ_STRING();
+
+				// Take the value from the top of the stack and
+				// store it in a hash table with that name as the key
+				// NOTE: there is no check to see if the key is already in the
+				// table. This allows redefine global variables without error.
+				tableSet(vm->globals, name, peek(vm, 0));
+				
+				// In the end, pop the value from the stack.
+				pop(vm);
+			} break;
 			case OP_EQUAL: {
 				Value b = pop(vm);
 				Value a = pop(vm);

@@ -13,6 +13,7 @@ typedef enum {
 	OP_TRUE,			/* Push TRUE value on the stack (dedicated ins). */
 	OP_FALSE,			/* Push FALSE value on the stack (dedicated ins). */
 	OP_POP,				/* Pops the top value off the stack and forgets it. */
+	OP_DEFINE_GLOBAL,
 	OP_EQUAL,
 	OP_GREATER,
 	OP_LESS,
