@@ -9,7 +9,9 @@ add_library(FunVM_SRC STATIC
 	value.c
 	vm.c)
 
-target_link_libraries(FunVM_SRC FUNVM_DEBUGGING)
+if(FUNVM_DEBUG)
+	target_link_libraries(FunVM_SRC FUNVM_DEBUGGING)
+endif()
 
 # NOTE: 
 # PUBLIC/INTERFACE modificator affects visibility.

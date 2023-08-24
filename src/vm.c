@@ -151,6 +151,7 @@ concatenate(VM *vm)
 		push(valueType(a op b), vm);								\
 	} while(false)
 
+#ifdef FUNVM_DEBUG
 static void
 logRun(VM *vm)
 {
@@ -165,6 +166,7 @@ logRun(VM *vm)
 	disassembleInstruction(vm->bytecode,
 			(int32_t)(vm->ip - vm->bytecode->code));
 }
+#endif // !FUNVM_DEBUG
 
 /**
  * Reads and executes a single bytecode instruction.

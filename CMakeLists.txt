@@ -3,7 +3,8 @@ project(FunVM VERSION 0.2)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast")
 
-option(FUNVM_DEBUG "Debug mode and unit tests" ON)
+option(FUNVM_DEBUG "Debug mode and unit tests" OFF)
+
 configure_file(funvmConfig.h.in funvmConfig.h)
 file(GENERATE 
 	OUTPUT main.fn
@@ -19,7 +20,6 @@ if(FUNVM_DEBUG)
 endif()
 
 add_executable(FunVM main.c)
-
 target_link_libraries(FunVM PUBLIC FunVM_SRC ${DEBUG_STUFF})
 
 target_include_directories(FunVM PUBLIC
