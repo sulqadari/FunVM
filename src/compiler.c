@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -209,6 +210,7 @@ static void declaration(void);
 
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static uint8_t identifierConstant(Token *name);
 
 static void
 binary(void)
@@ -296,6 +298,23 @@ string(void)
 	emitConstant(OBJECT_PACK(str));
 }
 
+/**
+ * Passes the given identifier token and adds its lexeme to the bytecode's
+ * constant table as a string.
+ */
+static void
+namedVariable(Token name)
+{
+	uint8_t arg = identifierConstant(&name);
+	emitBytes(OP_GET_GLOBAL, arg);
+}
+
+static void
+variable(void)
+{
+	namedVariable(parser.previous);
+}
+
 static void
 unary(void)
 {
@@ -332,7 +351,7 @@ ParseRule rules[] = {
 	[TOKEN_GREATER_EQUAL]	= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS]			= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS_EQUAL]		= {NULL,     binary,   PREC_COMPARISON},
-	[TOKEN_IDENTIFIER]		= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_IDENTIFIER]		= {variable,     NULL,   PREC_NONE},
 	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
 	[TOKEN_AND]				= {NULL,     NULL,   PREC_NONE},

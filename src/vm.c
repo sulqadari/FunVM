@@ -207,6 +207,16 @@ run(VM *vm)
 			case OP_TRUE:	push(BOOL_PACK(true), vm);	break;
 			case OP_FALSE:	push(BOOL_PACK(false), vm);	break;
 			case OP_POP:	pop(vm);							break;
+			case OP_GET_GLOBAL: {
+				// get the name of the variable from the constant pool
+				ObjString *name = READ_STRING();
+				Value value;
+				if (!tableGet(vm->globals, name, &value)) {
+					runtimeError(vm, "Undefined variable '%s'.", name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+				push(value, vm);
+			} break;
 			case OP_DEFINE_GLOBAL: {
 				
 				// get the name of the variable from the constant pool
