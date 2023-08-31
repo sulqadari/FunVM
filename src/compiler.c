@@ -37,7 +37,7 @@ typedef enum {
   	PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)();
+typedef void (*ParseFn)(bool canAssign);
 
 typedef struct {
 	ParseFn prefix;
@@ -213,7 +213,7 @@ static void parsePrecedence(Precedence precedence);
 static uint8_t identifierConstant(Token *name);
 
 static void
-binary(void)
+binary(bool canAssign)
 {
 	TokenType operatorType = parser.previous.type;
 	ParseRule *rule = getRule(operatorType);
@@ -237,7 +237,7 @@ binary(void)
 }
 
 static void
-literal(void)
+literal(bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TOKEN_FALSE:	emitByte(OP_FALSE);	break;
@@ -261,7 +261,7 @@ literal(void)
  * any bytecode.
  */
 static void
-grouping(void)
+grouping(bool canAssign)
 {
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
@@ -273,7 +273,7 @@ grouping(void)
  * in 'parser.previous' field.
  */
 static void
-number(void)
+number(bool canAssign)
 {
 	double value = strtod(parser.previous.start, NULL);
 	emitConstant(NUMBER_PACK(value));
@@ -288,7 +288,7 @@ number(void)
  * it can be tracked and deleted before interpreter terminates.
 */
 static void
-string(void)
+string(bool canAssign)
 {
 	ObjString *str = copyString(parser.previous.start + 1,
 								parser.previous.length - 2);
@@ -303,20 +303,26 @@ string(void)
  * constant table as a string.
  */
 static void
-namedVariable(Token name)
+namedVariable(Token name, bool canAssign)
 {
 	uint8_t arg = identifierConstant(&name);
-	emitBytes(OP_GET_GLOBAL, arg);
+
+	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
+		expression();				// ..evaluate the expression and..
+		emitBytes(OP_SET_GLOBAL, arg);	// ..set the value
+	} else {						// Otherwise
+		emitBytes(OP_GET_GLOBAL, arg);	// get the variable's value.
+	}
 }
 
 static void
-variable(void)
+variable(bool canAssign)
 {
-	namedVariable(parser.previous);
+	namedVariable(parser.previous, canAssign);
 }
 
 static void
-unary(void)
+unary(bool canAssign)
 {
 	TokenType operatorType = parser.previous.type;
 	
@@ -390,7 +396,8 @@ parsePrecedence(Precedence precedence)
 		return;
 	}
 
-	prefixRule();
+	bool canAssign = precedence <= PREC_ASSIGNMENT;
+	prefixRule(canAssign);
 
 	/* Parsing infix expressions. The prefix expression we already compiled
 	 * might be an operand for it if and only if the 'precedence' is low enough
@@ -398,7 +405,11 @@ parsePrecedence(Precedence precedence)
 	while (precedence <= getRule(parser.current.type)->precedence) {
 		advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
-		infixRule();
+		infixRule(canAssign);
+	}
+
+	if (canAssign && match(TOKEN_EQUAL)) {
+		error("Invalid assignment target.");
 	}
 }
 

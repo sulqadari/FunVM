@@ -208,6 +208,7 @@ run(VM *vm)
 			case OP_FALSE:	push(BOOL_PACK(false), vm);	break;
 			case OP_POP:	pop(vm);							break;
 			case OP_GET_GLOBAL: {
+
 				// get the name of the variable from the constant pool
 				ObjString *name = READ_STRING();
 				Value value;
@@ -230,6 +231,26 @@ run(VM *vm)
 				
 				// In the end, pop the value from the stack.
 				pop(vm);
+			} break;
+			case OP_SET_GLOBAL: {
+				// get the name of the variable from the constant pool
+				ObjString *name = READ_STRING();
+
+				/* Assign a value to an existing variable.
+				 * If tableSet() returns TRUE, than mean that we didn't overwrite
+				 * an existing variable, but have created a new one.
+				 * Thus, delete it and throw the runtime error, because current
+				 * implementation doesn't support implicit variable declarations. */
+				if (tableSet(vm->globals, name, peek(vm, 0))) {
+					tableDelete(vm->globals, name);
+					runtimeError(vm, "Undefined variable '%s'.", name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+
+				/* The pop() function is not called due to assignment is an expression,
+				 * so it needs to leave that value on the stack in case the assignment
+				 * is nested inside some larger expression.
+				 */
 			} break;
 			case OP_EQUAL: {
 				Value b = pop(vm);

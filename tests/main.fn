@@ -5,3 +5,15 @@ print "con" + "cat";
 var beverage = "cafe au lait";
 var breakfast = "beignets with " + beverage;
 print breakfast;
+
+var a = 2;
+var b = 3;
+var c = 4;
+var d = 5;
+var result;
+
+var breakfast = "beignets";
+var beverage = "cafe au lait";
+breakfast = "beignets with " + beverage;
+
+print breakfast;

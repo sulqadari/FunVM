@@ -15,6 +15,7 @@ typedef enum {
 	OP_POP,				/* Pops the top value off the stack and forgets it. */
 	OP_GET_GLOBAL,
 	OP_DEFINE_GLOBAL,
+	OP_SET_GLOBAL,
 	OP_EQUAL,
 	OP_GREATER,
 	OP_LESS,

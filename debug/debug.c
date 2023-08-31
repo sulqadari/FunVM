@@ -81,6 +81,8 @@ disassembleInstruction(Bytecode *bytecode, int32_t offset)
 			return constantInstruction("OP_GET_GLOBAL", bytecode, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", bytecode, offset);
+		case OP_SET_GLOBAL:
+			return constantInstruction("OP_SET_GLOBAL", bytecode, offset);
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:
