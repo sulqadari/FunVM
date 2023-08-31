@@ -142,6 +142,7 @@ checkKeyword(int start, int length,
 	return TOKEN_IDENTIFIER;
 }
 
+/** The 'trie' algorithm. */
 static TokenType
 identifierType(void)
 {

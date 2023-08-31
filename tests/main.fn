@@ -1,19 +1,18 @@
-print !(5 - 4 > 3 * 2 == !nil);
-print (((1 + 2 + 3 + 4 + 5) - 3) * 4) / 5;
-print "con" + "cat";
-
-var beverage = "cafe au lait";
-var breakfast = "beignets with " + beverage;
-print breakfast;
-
-var a = 2;
-var b = 3;
-var c = 4;
-var d = 5;
+var a = 1;
+var b = 2;
+var c = 3;
+var d = 4;
 var result;
 
-var breakfast = "beignets";
-var beverage = "cafe au lait";
-breakfast = "beignets with " + beverage;
+result = !(a - b > c * d == !nil);
+print(result);
 
-print breakfast;
+result = (((a + b + c + d + 5) - c) * d) / 5;
+print(result);
+print("con" + "cat");
+
+var breakfast = "beignets";
+var beverage = "with cafe au lait";
+breakfast = "beignets " + beverage;
+
+print(breakfast);

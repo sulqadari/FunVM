@@ -17,10 +17,10 @@
 #endif
 
 typedef struct {
-	Token current;
-	Token previous;
-	bool hadError;
-	bool panicMode;
+	Token current;	/* current token */
+	Token previous;	/* previous token */
+	bool hadError;	/* records a errors occured during compilation. */
+	bool panicMode;	/* avoids error cascades. */
 } Parser;
 
 typedef enum {
@@ -54,9 +54,16 @@ currentContext(void)
 	return currentCtx;
 }
 
+/**
+ * Base error handling function.
+ * It prints the line of error occurence, the exact lexeme
+ * and the error message itself.
+ */
 static void
 errorAt(Token *token, const char *message)
 {
+	/* Once we've encountered a error in the source code,
+	 * here is no reason to print out further ones. */
 	if (true == parser.panicMode)
 		return;
 	
@@ -64,24 +71,42 @@ errorAt(Token *token, const char *message)
 
 	fprintf(stderr, "[line %d] Error", token->line);
 
-	if (TOKEN_EOF == token->type) {
-		fprintf(stderr, " at end");
-	} else if (TOKEN_ERROR == token->type) {
-		// Nothing to do.
-	} else {	// Print out lexeme (in case it's human-readable).
-		fprintf(stderr, " at '%.*s'", token->length, token->start);
+	switch (token->type) {
+		case TOKEN_ERROR:
+			// Nothing to do.
+		break;
+		case TOKEN_EOF:
+			// Error occured at the very end of a file.
+			fprintf(stderr, " at end");
+		break;
+		default:
+			// Print out lexeme (in case it's human-readable).
+			fprintf(stderr, " at '%.*s'", token->length, token->start);
 	}
 
 	fprintf(stderr, ": %s\n", message);
 	parser.hadError = true;
 }
 
+/**
+ * Passes the previous token followed by error message
+ * to the errorAt() function.
+ * Compared to errorAtCurrent() function, this one is used more
+ * frequently, when either consume() or advance() functions
+ * have returned from the call.
+ */
 static void
 error(const char *message)
 {
 	errorAt(&parser.previous, message);
 }
 
+/**
+ * Passes the current token followed by error message
+ * to the errorAt() function.
+ * This function is primarily used in a functions that
+ * handles current token, e.g. advance() and consume().
+ */
 static void
 errorAtCurrent(const char *message)
 {
@@ -89,7 +114,17 @@ errorAtCurrent(const char *message)
 }
 
 /**
- * Steps forward through the token stream. */
+ * Steps forward through the token stream.
+ * Calling scanToken() it asks the scanner for the
+ * next token and stores it for later use.
+ * The 'parser.previous' field is initialized with the
+ * current token so that we can track the beginning
+ * of the lexeme's name.
+ *
+ * NOTE: the scanToken() doesn't report lexical errors, instead
+ * it creates special error token and leaves it up to the scanner
+ * to report them.
+ */
 static void
 advance(void)
 {
@@ -100,7 +135,8 @@ advance(void)
 		parser.current = scanToken();
 		if (parser.current.type != TOKEN_ERROR)
 			break;
-		
+		/* The beginning of the lexeme of error token is
+		 * passed to t*/
 		errorAtCurrent(parser.current.start);
 	}
 }
@@ -140,14 +176,26 @@ match(TokenType type)
 }
 
 /**
- * Assigns a given value to the bytecode chunk.
+ * Assigns a given byte to the bytecode chunk which
+ * can be an opcode or an operand to an instruction.
+ * This function also writes the previous token's line number
+ * so that runtime errors are associated with that line.
+ *
+ * QUESTION: why do we pass in the previous token, not current?
+ * ANSWER: because a bytecode to be written is the result of
+ * token being consumed, whilst the 'current' token is still
+ * waiting its turn to be processed. 
  */
 static void
 emitByte(uint32_t byte)
 {
-	writeBytecode(currentContext(), byte, parser.previous.line);
+	Bytecode* ctx = currentContext();
+	writeBytecode(ctx, byte, parser.previous.line);
 }
 
+/**
+ * Writes an opcode followed by a one-byte operand.
+ */
 static void
 emitBytes(uint32_t byte1, uint32_t byte2)
 {
@@ -534,6 +582,9 @@ declaration(void)
 		statement();
 	}
 
+	/* If the source code has a syntax error then we have to
+	 * prevent compiler from further processing to avoid
+	 * from producing meaningless errors. */
 	if (parser.panicMode)
 		synchronize();
 }
@@ -548,6 +599,10 @@ statement(void)
 	}
 }
 
+/**
+ * Produces the bytecode from the source file and
+ * stores it in 'Bytecode bytecode' output parameter.
+ */
 bool
 compile(const char *source, Bytecode *bytecode)
 {
