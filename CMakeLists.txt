@@ -3,7 +3,7 @@ project(FunVM VERSION 0.2)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast")
 
-option(FUNVM_DEBUG "Debug mode and unit tests" ON)
+option(FUNVM_DEBUG "Debug mode and unit tests" OFF)
 
 configure_file(funvmConfig.h.in funvmConfig.h)
 

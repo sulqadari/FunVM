@@ -306,10 +306,49 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static uint8_t identifierConstant(Token *name);
 
+/**
+ * Infix expressions parser.
+ * This function compiles the right operands and emits the bytecode instruction
+ * for the operator.
+ * The fact that the left operang e.g. '= 1 +...' or '= (1 + 2 * 3) +...' gets
+ * compiled first, means that at runtime that code gets executed first.
+ * When it runs, the value it produces will end up on the stack, which the
+ * right where the infix operator is going to need it.
+ * Then this function handles the rest of the arithmetic operators, e.g.
+ * '...2;' or '...(4 / 5);'.
+*/
 static void
 binary(bool canAssign)
 {
+	/* The leading operand's token has already been comsumed, as well as
+	 * infix operator. Thus, take it back so that we can get to know
+	 * what king of arithmetic operation we're dealing with. */
 	TokenType operatorType = parser.previous.type;
+	
+	/* Consider the expression: '2 * 3 + 4'.
+	 * when we parse the right operand of the '*' expression, we need to
+	 * just capture '3', and not '3 + 4', because '+' is lower precedence
+	 * than '*'.
+	 * Each binary operator's right-hand operand precedence is one level
+	 * higher than its own. Using getRule() we lookup operator's precedence
+	 * and call parsePrecedence() with one level higher than this
+	 * operator's level. This hack allows us to use the single binary()
+	 * function instead of declaring a separate function set for each king
+	 * of operators.
+	 * One higher level of precedence is used because the binary operators
+	 * are lef-associative. Given a series of the same operators, like:
+	 * 1 + 2 + 3 + 4,
+	 * we want to parse it like:
+	 * (((1 + 2) + 3) + 4),
+	 * Thus, when parsing the right-hand operand to the first '+', we want
+	 * to consume the '2', but not the rest, so we use one level
+	 * above addition's precedence.
+	 * Calling parsePrecedence() with the same precedence as the current
+	 * operator is essential for right-associative operators like assignment:
+	 * a = b = c = d,
+	 * must be parsed as:
+	 * (a = (b = (c = d))),
+	 * */
 	ParseRule *rule = getRule(operatorType);
 	parsePrecedence((Precedence)(rule->precedence + 1));
 
@@ -659,9 +698,7 @@ declaration(void)
 		statement();
 	}
 
-	/* If the source code has a syntax error then we have to
-	 * prevent compiler from further processing to avoid
-	 * it from producing meaningless errors. */
+	/* The synchronization point. */
 	if (parser.panicMode)
 		synchronize();
 }
