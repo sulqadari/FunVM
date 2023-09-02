@@ -5,7 +5,7 @@
 #include "vm.h"
 
 void
-repl(VM *vm)
+repl(void)
 {
 	char line[1024];
 	for (;;) {
@@ -16,7 +16,7 @@ repl(VM *vm)
 			break;
 		}
 
-		interpret(vm, line);
+		interpret(line);
 	}
 }
 
@@ -58,10 +58,10 @@ readFile(const char *path)
 }
 
 void
-runFile(VM *vm, const char *path)
+runFile(const char *path)
 {
 	char *source = readFile(path);
-	InterpretResult result = interpret(vm, source);
+	InterpretResult result = interpret(source);
 	free(source);
 
 	if (IR_COMPILE_ERROR == result)

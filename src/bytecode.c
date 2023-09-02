@@ -56,6 +56,7 @@ freeBytecode(Bytecode *bytecode)
 }
 
 /**
+ * Inserts the given Value into the constant pool of the bytecode chunk.
  * @returns uint32_t - index where the constant was appended.
 */
 uint32_t

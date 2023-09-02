@@ -17,16 +17,18 @@
 #include "debug.h"
 #endif
 
+static VM *vm;
+
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
 static void
-resetStack(VM *vm)
+resetStack(void)
 {
 	vm->stackTop = vm->stack;
 }
 
 static void
-runtimeError(VM *vm, const char *format, ...)
+runtimeError(const char *format, ...)
 {
 	va_list args;
 
@@ -38,12 +40,13 @@ runtimeError(VM *vm, const char *format, ...)
 	size_t instruction = (vm->ip - (vm->bytecode->code - 1));
 	int line = vm->bytecode->lines[instruction];
 	fprintf(stderr, "[line %d] in script\n", line);
-	resetStack(vm);
+	resetStack();
 }
 
 void
-initVM(VM *vm)
+initVM(VM *_vm)
 {
+	vm = _vm;
 	vm->bytecode = NULL;
 	vm->ip = NULL;
 	vm->stack = NULL;
@@ -52,7 +55,7 @@ initVM(VM *vm)
 	vm->objects = NULL;
 	initTable(&vm->globals);
 	initTable(&vm->interns);
-	resetStack(vm);
+	resetStack();
 }
 
 void
@@ -67,8 +70,8 @@ freeVM(VM *vm)
 	freeObjects(vm);
 }
 
-void
-push(Value value, VM *vm)
+static void
+push(Value value)
 {
 	uint32_t stackOffset = ((vm->stackTop) - vm->stack);
 
@@ -95,14 +98,14 @@ push(Value value, VM *vm)
 }
 
 Value
-pop(VM *vm)
+pop(void)
 {
 	vm->stackTop--;			/* move stack ptr back to the recent used slot. */
 	return *vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
 static Value
-peek(VM *vm, int32_t offset)
+peek(int32_t offset)
 {
 	return vm->stackTop[((-1) - offset)];
 }
@@ -118,10 +121,10 @@ isFalsey(Value value)
 }
 
 static void
-concatenate(VM *vm)
+concatenate()
 {
-	ObjString *b = STRING_UNPACK(pop(vm));
-	ObjString *a = STRING_UNPACK(pop(vm));
+	ObjString *b = STRING_UNPACK(pop());
+	ObjString *a = STRING_UNPACK(pop());
 
 	int32_t length = a->length + b->length;
 	char *chars = ALLOCATE(char, length + 1);
@@ -130,7 +133,7 @@ concatenate(VM *vm)
 	chars[length] = '\0';
 
 	ObjString *result = takeString(chars, length);
-	push(OBJECT_PACK(result), vm);
+	push(OBJECT_PACK(result));
 }
 
 /* Read current byte, then advance istruction pointer. */
@@ -146,19 +149,19 @@ concatenate(VM *vm)
 
 #define BINARY_OP(valueType, op)									\
 	do {															\
-		if (!IS_NUMBER(peek(vm, 0)) || !IS_NUMBER(peek(vm, 1)))	{	\
-			runtimeError(vm, "Operands must be numbers.");			\
+		if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))	{	\
+			runtimeError("Operands must be numbers.");			\
 			return IR_RUNTIME_ERROR;								\
 		}															\
 																	\
-		double b = NUMBER_UNPACK(pop(vm));							\
-		double a = NUMBER_UNPACK(pop(vm));							\
-		push(valueType(a op b), vm);								\
+		double b = NUMBER_UNPACK(pop());							\
+		double a = NUMBER_UNPACK(pop());							\
+		push(valueType(a op b));								\
 	} while(false)
 
 #ifdef FUNVM_DEBUG
 static void
-logRun(VM *vm)
+logRun()
 {
 	printf("		");
 	for (Value *slot = vm->stack; slot < vm->stackTop; slot++) {
@@ -181,19 +184,19 @@ logRun(VM *vm)
  * and 'computed goto'.
  */
 static InterpretResult
-run(VM *vm)
+run()
 {
 	for (;;) {
 
 #ifdef FUNVM_DEBUG
-		logRun(vm);
+		logRun();
 #endif // !FUNVM_DEBUG
 
 		uint8_t ins;
 		switch (ins = READ_BYTE()) {
 			case OP_CONSTANT: {
 				Value constant = READ_CONSTANT();
-				push(constant, vm);
+				push(constant);
 			} break;
 			case OP_CONSTANT_LONG: {
 				uint32_t offset = 0;
@@ -201,22 +204,22 @@ run(VM *vm)
 				offset |= (READ_BYTE() << 8);
 				offset |=  READ_BYTE();
 				Value constant = READ_CONSTANT_LONG(offset);
-				push(constant, vm);
+				push(constant);
 			} break;
-			case OP_NIL:	push(NIL_PACK(), vm);		break;
-			case OP_TRUE:	push(BOOL_PACK(true), vm);	break;
-			case OP_FALSE:	push(BOOL_PACK(false), vm);	break;
-			case OP_POP:	pop(vm);							break;
+			case OP_NIL:	push(NIL_PACK());		break;
+			case OP_TRUE:	push(BOOL_PACK(true));	break;
+			case OP_FALSE:	push(BOOL_PACK(false));	break;
+			case OP_POP:	pop();					break;
 			case OP_GET_GLOBAL: {
 
 				// get the name of the variable from the constant pool
 				ObjString *name = READ_STRING();
 				Value value;
 				if (!tableGet(vm->globals, name, &value)) {
-					runtimeError(vm, "Undefined variable '%s'.", name->chars);
+					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
-				push(value, vm);
+				push(value);
 			} break;
 			case OP_DEFINE_GLOBAL: {
 				
@@ -227,10 +230,10 @@ run(VM *vm)
 				// store it in a hash table with that name as the key
 				// NOTE: there is no check to see if the key is already in the
 				// table. This allows redefine global variables without error.
-				tableSet(vm->globals, name, peek(vm, 0));
+				tableSet(vm->globals, name, peek(0));
 				
 				// In the end, pop the value from the stack.
-				pop(vm);
+				pop();
 			} break;
 			case OP_SET_GLOBAL: {
 				// get the name of the variable from the constant pool
@@ -241,9 +244,9 @@ run(VM *vm)
 				 * an existing variable, but have created a new one.
 				 * Thus, delete it and throw the runtime error, because current
 				 * implementation doesn't support implicit variable declarations. */
-				if (tableSet(vm->globals, name, peek(vm, 0))) {
+				if (tableSet(vm->globals, name, peek(0))) {
 					tableDelete(vm->globals, name);
-					runtimeError(vm, "Undefined variable '%s'.", name->chars);
+					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
 
@@ -253,24 +256,23 @@ run(VM *vm)
 				 */
 			} break;
 			case OP_EQUAL: {
-				Value b = pop(vm);
-				Value a = pop(vm);
-				push(BOOL_PACK(valuesEqual(a, b)), vm);
+				Value b = pop();
+				Value a = pop();
+				push(BOOL_PACK(valuesEqual(a, b)));
 			} break;
 			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
 			case OP_LESS:		BINARY_OP(BOOL_PACK, <);	break;
 
 			//case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
 			case OP_ADD: {
-				if (IS_STRING(peek(vm, 0)) && IS_STRING(peek(vm, 1))) {
+				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
 					concatenate(vm);
-				} else if (IS_NUMBER(peek(vm, 0)) && IS_NUMBER(peek(vm, 1))) {
-					double b = NUMBER_UNPACK(pop(vm));
-					double a = NUMBER_UNPACK(pop(vm));
-					push(NUMBER_PACK(a + b), vm);
+				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+					double b = NUMBER_UNPACK(pop());
+					double a = NUMBER_UNPACK(pop());
+					push(NUMBER_PACK(a + b));
 				} else {
-					runtimeError(vm,
-						"Operands must be two numbers or two strings.");
+					runtimeError("Operands must be two numbers or two strings.");
 					return IR_RUNTIME_ERROR;
 				}
 			} break;
@@ -278,15 +280,15 @@ run(VM *vm)
 			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *);	break;
 			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /);	break;
 			case OP_NOT: {
-				//push(BOOL_PACK(isFalsey(pop(vm))), vm);
+				//push(BOOL_PACK(isFalsey(pop())), vm);
 				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));
 			} break;
 
 			/* vm->stackTop points to the next free block in the stack,
 			 * while a value to be negated resides one step back. */
 			case OP_NEGATE: {
-				if (!IS_NUMBER(peek(vm, 0))) {
-					runtimeError(vm, "Operand must be a number.");
+				if (!IS_NUMBER(peek(0))) {
+					runtimeError("Operand must be a number.");
 					return IR_RUNTIME_ERROR;
 				}
 
@@ -294,7 +296,7 @@ run(VM *vm)
 				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
 			case OP_PRINT: {
-				printValue(pop(vm));
+				printValue(pop());
 				printf("\n");
 			} break;
 			case OP_RETURN: {
@@ -305,7 +307,7 @@ run(VM *vm)
 }
 
 InterpretResult
-interpret(VM *vm, const char *source)
+interpret(const char *source)
 {
 	Bytecode bytecode;
 	initBytecode(&bytecode);
@@ -313,7 +315,7 @@ interpret(VM *vm, const char *source)
 
 	/* Fill in the bytecode with the instructions retrieved
 	 * from source code. */
-	if (!compile(source, &bytecode)) {
+	if (compile(source, &bytecode)) {
 		freeBytecode(&bytecode);
 		return IR_COMPILE_ERROR;
 	}

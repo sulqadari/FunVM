@@ -1,0 +1,9 @@
+var result = 0;
+
+result => 1;
+print("result: ");
+print(result);
+
+result 4;
+print("result: ");
+print(result);

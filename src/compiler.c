@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -23,6 +22,18 @@ typedef struct {
 	bool panicMode;	/* avoids error cascades. */
 } Parser;
 
+/**
+ * The enumeration of all precedence levels in order from
+ * lowest to highest.
+ * Using this precedence order, consider the following example:
+ * say, the compiler is sitting on a chunk of code like:
+ * -a.b + c;
+ * if we call parsePrecedence(PREC_ASSIGNMENT), then it will parse the
+ * entire expression because '+' has highest precedence than assignment.
+ * If instead we call parsePrecedence(PREC_UNARY), it will compile the '-a.b'
+ * and stop there. It doesn't keep going through the '+' because the addition
+ * has lower precedence than unary operators.
+*/
 typedef enum {
 	PREC_NONE,
 	PREC_ASSIGNMENT,	// =
@@ -55,22 +66,54 @@ currentContext(void)
 }
 
 /**
- * Base error handling function.
- * It prints the line of error occurence, the exact lexeme
- * and the error message itself.
+ * The top-level error handling function.
+ * 
+ * When an error occurs, all available information (line, lexeme and message)
+ * will be printed out. Before function returns to the caller, it will
+ * cock the 'panic mode' flag. This is done to prevent compiler from outputing
+ * the rest messages about the errors which are the result of the first
+ * one in the series of the errors. Consider the following:
+ * if (& > idx) idx + 2;
+ * Right after compiler processes '(& >' expression, the remaining is nothing but
+ * meaningless blob of code.
+ * Thus, when the compiler encounteres subsequent error it just returns without
+ * annoying user with useless information.
+ * This 'silent mode' will end after the compiler reaches a synchronization
+ * point.
+ * Consider the following code:
+ * if (& > idx)
+ * 		idx + 2;
+ * else if (7 => idx)
+ * 		idx + 3;
+ * else
+ * 		idx++;
+ * 
+ * Right after compiler throws the error message in 'if' statement it will
+ * suppress any other error messages until after reaches the ';' token.
+ * This ';' is the excact synchronization point.
+ * After that it proceeds to 'else if' statement and will send the error
+ * message about incorrent 'greater or equal' expression syntax, but silently
+ * walk through until encounter ';' token, passing over other probable errors.
+ * This way the compiler will process and print all errors in the single pass.
  */
 static void
 errorAt(Token *token, const char *message)
 {
-	/* Once we've encountered a error in the source code,
-	 * here is no reason to print out further ones. */
+	/* Once we've encountered an error in the source code,
+	 * there is no reason to print out further messages. */
 	if (true == parser.panicMode)
 		return;
 	
+	/* If we are here, then it's mean that the compiler have encountered
+	 * the first error in the code. Print all relative information. */
 	parser.panicMode = true;
 
+	/* Print the line number of error occurence. */
 	fprintf(stderr, "[line %d] Error", token->line);
 
+	/* First, process the corner cases: either the current
+	 * token is of type error, or designates end of file.
+	 * Neither TOKEN_ERROR, nor TOKEN_EOF have human-readable lexeme. */
 	switch (token->type) {
 		case TOKEN_ERROR:
 			// Nothing to do.
@@ -105,7 +148,7 @@ error(const char *message)
  * Passes the current token followed by error message
  * to the errorAt() function.
  * This function is primarily used in a functions that
- * handles current token, e.g. advance() and consume().
+ * in the middle of token processing, e.g. advance() and consume().
  */
 static void
 errorAtCurrent(const char *message)
@@ -136,7 +179,7 @@ advance(void)
 		if (parser.current.type != TOKEN_ERROR)
 			break;
 		/* The beginning of the lexeme of error token is
-		 * passed to t*/
+		 * passed to it*/
 		errorAtCurrent(parser.current.start);
 	}
 }
@@ -147,11 +190,14 @@ advance(void)
 static void
 consume(TokenType type, const char *message)
 {
+	/* Ensure that the current token's type matchs
+	 * expected value. If this is the case,
+	 * then consume it return. */
 	if (type == parser.current.type) {
 		advance();
 		return;
 	}
-
+	/* Throw error otherwise. */
 	errorAtCurrent(message);
 }
 
@@ -228,9 +274,9 @@ emitConstant(Value value)
 
 	/* If the total number of constants in constant pool
 	 * exceeds 255 elements, then instead of OP_CONSTANT which
-	 * occupes two bytes [OP_CONSTANT, offset], the OP_CONSTANT_LONG
+	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
 	 * comes into play, which spawns over four bytes:
-	 * [OP_CONSTANT_LONG, offset1, offset2, offset3]*/
+	 * [OP_CONSTANT_LONG, operand1, operand2, operand3]*/
 	if (offset > UINT8_MAX)
 		opcode = OP_CONSTANT_LONG;
 
@@ -369,15 +415,37 @@ variable(bool canAssign)
 	namedVariable(parser.previous, canAssign);
 }
 
+/**
+ * Processes 'negation' and 'not' operations.
+ * This function takes into account the expressions with the certain
+ * precedence, so that, the '-a.b + c' expression will be parsed as follows:
+ * 1. The '.' operator calls 'b' field of the 'a' structure;
+ * 2. negation is performed on 'b' field;
+ * 3. the rest of the expression will be parsed in the appropriate
+ * part of the compiler, not being chewed through in this function, 
+ * including '+ c'.
+*/
 static void
 unary(bool canAssign)
 {
+	/* Grab the token type to note which unary operator we're
+	 * dealing with. Note that it has already been consumed,
+	 * that's why we are addressing previous token, not the current one. */
 	TokenType operatorType = parser.previous.type;
 	
-	// Compile the operand
+	/* Compile the operand. Note that we write the target expression
+	 * (either negation or not) *before* operand's bytecode. This is
+	 * because of order of execution:
+	 * 1. We evaluate the operand first which leaves its value on the stack.
+	 * 2. Then we pop that value (negate or NOT'ing it) and push the result.
+	 * 
+	 * NOTE: passing PREC_UNARY means, that this call to parsePrecedence()
+	 * will consume the only part of the expression, whom precedence is equal
+	 * or greater than PREC_UNARY.
+	 * */
 	parsePrecedence(PREC_UNARY);
 
-	// Emit the operator instruction
+	/* Emit the operator instruction */
 	switch (operatorType) {
 		case TOKEN_BANG:	emitByte(OP_NOT);		break;
 		case TOKEN_MINUS:	emitByte(OP_NEGATE);	break;
@@ -385,6 +453,9 @@ unary(bool canAssign)
 	}
 }
 
+/* The table of expressions parsing functions.
+ * Each type of expression is processed by a specified function
+ * that outputs the appropriate bytecode. */
 ParseRule rules[] = {
 	[TOKEN_LEFT_PAREN]		= {grouping, NULL, PREC_NONE},
 	[TOKEN_RIGHT_PAREN]		= {NULL,     NULL,   PREC_NONE},
@@ -430,6 +501,8 @@ ParseRule rules[] = {
 
 /**
  * The main function which orchestrates all of the parsing functions.
+ * It starts at the current token and parses any expression at the given
+ * precedence level or higher.
  */
 static void
 parsePrecedence(Precedence precedence)
@@ -496,6 +569,10 @@ getRule(TokenType type)
 	return &rules[type];
 }
 
+/**
+ * Simply parses the lowest precedence level, which subsumes all of the
+ * higher-precedence expressions too.
+*/
 static void
 expression(void)
 {
@@ -584,7 +661,7 @@ declaration(void)
 
 	/* If the source code has a syntax error then we have to
 	 * prevent compiler from further processing to avoid
-	 * from producing meaningless errors. */
+	 * it from producing meaningless errors. */
 	if (parser.panicMode)
 		synchronize();
 }
@@ -602,6 +679,9 @@ statement(void)
 /**
  * Produces the bytecode from the source file and
  * stores it in 'Bytecode bytecode' output parameter.
+ * @param
+ * @param
+ * @returns bool: TRUE if an error occured. FALSE otherwise.
  */
 bool
 compile(const char *source, Bytecode *bytecode)
@@ -622,5 +702,5 @@ compile(const char *source, Bytecode *bytecode)
 
 	endCompiler();
 
-	return !parser.hadError;
+	return parser.hadError;
 }

@@ -16,9 +16,9 @@ case_1(int argc, char *argv[])
 	initVM(&vm);
 	
 	if (1 == argc)
-		repl(&vm);
+		repl();
 	else if (2 == argc)
-		runFile(&vm, argv[1]);
+		runFile(argv[1]);
 	else {
 		fprintf(stderr, "Usage: test_scanner.c [path/to/src]\n");
 		exit(64);

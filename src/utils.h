@@ -3,7 +3,7 @@
 
 #include "vm.h"
 
-void repl(VM *vm);
-void runFile(VM *vm, const char *path);
+void repl(void);
+void runFile(const char *path);
 
 #endif // !FUNVM_REPL_H
