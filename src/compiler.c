@@ -50,6 +50,7 @@ typedef enum {
 
 typedef void (*ParseFn)(bool canAssign);
 
+/* Represents a single row in the parser table. */
 typedef struct {
 	ParseFn prefix;
 	ParseFn infix;
@@ -288,7 +289,7 @@ endCompiler(void)
 {
 	emitReturn();
 #ifdef FUNVM_DEBUG
-	if (parser.hadError) {
+	if (!parser.hadError) {
 		disassembleBytecode(currentContext(), "code");
 	}
 #endif // !FUNVM_DEBUG
@@ -494,7 +495,14 @@ unary(bool canAssign)
 
 /* The table of expressions parsing functions.
  * Each type of expression is processed by a specified function
- * that outputs the appropriate bytecode. */
+ * that outputs the appropriate bytecode.
+ * Given a token type, this table lets us find:
+ * - the function to compile a prefix expression starting with a token of
+ * that type;
+ * - the function to compile an infix expression whose left operand is
+ * followed by a token of that type;
+ * - the precedence of an infix expression that uses that token as ann operator.
+ *  */
 ParseRule rules[] = {
 	[TOKEN_LEFT_PAREN]		= {grouping, NULL, PREC_NONE},
 	[TOKEN_RIGHT_PAREN]		= {NULL,     NULL,   PREC_NONE},
@@ -546,9 +554,11 @@ ParseRule rules[] = {
 static void
 parsePrecedence(Precedence precedence)
 {
+	/* Read the next token. */
 	advance();
 
-	/* Parsing prefix expressions. The first token is allways going to belong
+	/* Look up the corresponding ParseRule. 
+	 * Parsing prefix expressions. The first token is always going to belong
 	 * to some kind of prefix expressions, by definition. */
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
 	if (NULL == prefixRule) {
@@ -556,12 +566,15 @@ parsePrecedence(Precedence precedence)
 		return;
 	}
 
+	/* Handle the assignment. */
 	bool canAssign = precedence <= PREC_ASSIGNMENT;
+	/* Compile the prefix expression. */
 	prefixRule(canAssign);
 
 	/* Parsing infix expressions. The prefix expression we already compiled
-	 * might be an operand for it if and only if the 'precedence' is low enough
-	 * to permit that infix operator. */
+	 * might be an left-hand operand for it if and only if the 'precedence'
+	 * argument passed to this function is low enough to permit
+	 * the infix operator or compiler hit a token that isn't an infix. */
 	while (precedence <= getRule(parser.current.type)->precedence) {
 		advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
@@ -602,6 +615,9 @@ defineVariable(uint8_t global)
 	emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+/**
+ * Returns the rule at the given index.
+*/
 static ParseRule*
 getRule(TokenType type)
 {
