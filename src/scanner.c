@@ -259,12 +259,12 @@ scanToken(void)
 			if (match('&'))
 				return makeToken(TOKEN_AND);
 			else
-				return errorToken("Expect '&' character.");
+				return errorToken("Expect the second '&' character.");
 		} case '|': {
 			if (match('|'))
 				return makeToken(TOKEN_OR);
 			else
-				return errorToken("Expect '|' character.");
+				return errorToken("Expect the second '|' character.");
 		} case '!': {
 			return makeToken(
 				match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
