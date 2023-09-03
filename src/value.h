@@ -7,6 +7,8 @@
 typedef struct Object Object;
 typedef struct ObjString ObjString;
 
+/* Value's type enumeration.
+ * This is the VM's notion of "type", not the user's. */
 typedef enum {
 	VAL_BOOL,
 	VAL_NIL,
@@ -14,7 +16,12 @@ typedef enum {
 	VAL_OBJECT		/* Heap-allocated types. */
 } ValueType;
 
-/** Memory layout prepresentation is as follows:
+/**
+ * Value representation using 'tagged union'.
+ * This structure contains two parts: a type "tag", and a payload
+ * for the actual value.
+ *  
+ * Memory layout prepresentation in 64-bit architecture is as follows:
  *   ___________type (4 bytes)
  *  |	     |
  *  |	     |   ___________padding (4 bytes)
@@ -34,26 +41,23 @@ typedef struct {
 	} as;
 } Value;
 
+/* Value's type checking macros. */
 #define IS_BOOL(value)		((value).type == VAL_BOOL)
-#define IS_NIL(value)		((value).type == VAL_NIL)
 #define IS_NUMBER(value)	((value).type == VAL_NUMBER)
 #define IS_OBJECT(value)	((value).type == VAL_OBJECT)
+#define IS_NIL(value)		((value).type == VAL_NIL)
 
-/* C <- Value.object */
-#define BOOL_UNPACK(value)		((value).as.boolean)
-/* C <- Value.number */
-#define NUMBER_UNPACK(value)	((value).as.number)
-/* C <- Value.object */
-#define OBJECT_UNPACK(value)		((value).as.object)
 
-/* C -> Value.boolean */
+/* The four macros below promote a native 'C' value to FunVM's 'Value' represenation */
 #define BOOL_PACK(value)	((Value){VAL_BOOL,	 {.boolean = value}})
-/* C -> Value.nil */
-#define NIL_PACK()			((Value){VAL_NIL,	 {.number = 0}})
-/* C -> Value.number */
 #define NUMBER_PACK(value)	((Value){VAL_NUMBER, {.number = value}})
-/* C -> Value.object */
 #define OBJECT_PACK(value)	((Value){VAL_OBJECT, {.object = (Object*)value}})
+#define NIL_PACK()			((Value){VAL_NIL,	 {.number = 0}})
+
+/* These macros unpack FunVM's 'Value' back to 'C' native represenation. */
+#define BOOL_UNPACK(value)		((value).as.boolean)
+#define NUMBER_UNPACK(value)	((value).as.number)
+#define OBJECT_UNPACK(value)	((value).as.object)
 
 typedef struct {
 	uint32_t capacity;

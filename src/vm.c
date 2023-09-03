@@ -107,7 +107,7 @@ pop(void)
 static Value
 peek(int32_t offset)
 {
-	return vm->stackTop[((-1) - offset)];
+	return vm->stackTop[(-1) - offset];
 }
 
 /** The 'falsiness' rule.
@@ -147,17 +147,18 @@ concatenate()
 
 #define READ_STRING() STRING_UNPACK(READ_CONSTANT())
 
-#define BINARY_OP(valueType, op)									\
-	do {															\
+#define BINARY_OP(valueType, op)							\
+	do {													\
 		if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))	{	\
-			runtimeError("Operands must be numbers.");			\
-			return IR_RUNTIME_ERROR;								\
-		}															\
-																	\
-		double b = NUMBER_UNPACK(pop());							\
-		double a = NUMBER_UNPACK(pop());							\
-		push(valueType(a op b));								\
+			runtimeError("Operands must be numbers.");		\
+			return IR_RUNTIME_ERROR;						\
+		}													\
+															\
+		double b = NUMBER_UNPACK(pop());					\
+		double a = NUMBER_UNPACK(pop());					\
+		push(valueType(a op b));							\
 	} while(false)
+
 
 #ifdef FUNVM_DEBUG
 static void
@@ -186,18 +187,18 @@ logRun()
 static InterpretResult
 run()
 {
+	uint8_t ins;
 	for (;;) {
-
 #ifdef FUNVM_DEBUG
 		logRun();
 #endif // !FUNVM_DEBUG
-
-		uint8_t ins;
 		switch (ins = READ_BYTE()) {
+
 			case OP_CONSTANT: {
 				Value constant = READ_CONSTANT();
 				push(constant);
 			} break;
+
 			case OP_CONSTANT_LONG: {
 				uint32_t offset = 0;
 				offset |= (READ_BYTE() << 16);
@@ -206,12 +207,13 @@ run()
 				Value constant = READ_CONSTANT_LONG(offset);
 				push(constant);
 			} break;
+			
 			case OP_NIL:	push(NIL_PACK());		break;
 			case OP_TRUE:	push(BOOL_PACK(true));	break;
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
 			case OP_POP:	pop();					break;
+			
 			case OP_GET_GLOBAL: {
-
 				// get the name of the variable from the constant pool
 				ObjString *name = READ_STRING();
 				Value value;
@@ -221,8 +223,8 @@ run()
 				}
 				push(value);
 			} break;
+			
 			case OP_DEFINE_GLOBAL: {
-				
 				// get the name of the variable from the constant pool
 				ObjString *name = READ_STRING();
 
@@ -235,6 +237,7 @@ run()
 				// In the end, pop the value from the stack.
 				pop();
 			} break;
+			
 			case OP_SET_GLOBAL: {
 				// get the name of the variable from the constant pool
 				ObjString *name = READ_STRING();
@@ -249,21 +252,20 @@ run()
 					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
-
 				/* The pop() function is not called due to assignment is an expression,
 				 * so it needs to leave that value on the stack in case the assignment
-				 * is nested inside some larger expression.
-				 */
+				 * is nested inside some larger expression. */
 			} break;
+
 			case OP_EQUAL: {
 				Value b = pop();
 				Value a = pop();
 				push(BOOL_PACK(valuesEqual(a, b)));
 			} break;
+			
 			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
 			case OP_LESS:		BINARY_OP(BOOL_PACK, <);	break;
 
-			//case OP_ADD:		BINARY_OP(NUMBER_PACK, +);	break;
 			case OP_ADD: {
 				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
 					concatenate(vm);
@@ -276,11 +278,19 @@ run()
 					return IR_RUNTIME_ERROR;
 				}
 			} break;
+			
 			case OP_SUBTRACT:	BINARY_OP(NUMBER_PACK, -);	break;
 			case OP_MULTIPLY:	BINARY_OP(NUMBER_PACK, *);	break;
 			case OP_DIVIDE:		BINARY_OP(NUMBER_PACK, /);	break;
+
+			/* This code substitutes the sequence like this:
+			 * push(BOOL_PACK(isFalsey(pop()))).
+			 *
+			 * Here we extract the value from the stack, processing it and
+			 * pushing back onto the stack. Instead of juggling the Value
+			 * back and forth to the stack, we just use more low-level 
+			 * stack indexing operations, eliminating redundant code. */
 			case OP_NOT: {
-				//push(BOOL_PACK(isFalsey(pop())), vm);
 				vm->stackTop[-1] = BOOL_PACK(isFalsey(vm->stackTop[-1]));
 			} break;
 
@@ -295,10 +305,12 @@ run()
 				double temp = NUMBER_UNPACK(vm->stackTop[-1]);
 				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
+
 			case OP_PRINT: {
 				printValue(pop());
 				printf("\n");
 			} break;
+			
 			case OP_RETURN: {
 				return IR_OK;
 			}

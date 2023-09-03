@@ -40,6 +40,9 @@ isAtEnd(void)
 	return (*scanner.current == '\0');
 }
 
+/** Shifts forward the pointer to the next character in the
+ * source code and returns the previous one.
+*/
 static char
 advance(void) {
 	scanner.current++;
@@ -61,6 +64,10 @@ peekNext(void)
 	return scanner.current[1];
 }
 
+/**
+ * Compares the current character in the source code with the
+ * expected value.
+*/
 static bool
 match(char expected)
 {
@@ -147,7 +154,7 @@ static TokenType
 identifierType(void)
 {
 	switch (scanner.start[0]) {
-		case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
+//		case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
 		case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
 		case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
 		case 'f':
@@ -161,7 +168,7 @@ identifierType(void)
 		break;
 		case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
 		case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
-		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
+//		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
 		case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
 		case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
 		case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
@@ -235,7 +242,7 @@ scanToken(void)
 
 	char c = advance();
 	if (isAlpha(c)) return identifier();
-	if (isDigit(c)) return number(); 
+	if (isDigit(c)) return number();
 	switch (c) {
 		case '(': return makeToken(TOKEN_LEFT_PAREN);
 		case ')': return makeToken(TOKEN_RIGHT_PAREN);
@@ -248,19 +255,29 @@ scanToken(void)
 		case '+': return makeToken(TOKEN_PLUS);
 		case '/': return makeToken(TOKEN_SLASH);
 		case '*': return makeToken(TOKEN_STAR);
-		case '!':
+		case '&': {
+			if (match('&'))
+				return makeToken(TOKEN_AND);
+			else
+				return errorToken("Expect '&' character.");
+		} case '|': {
+			if (match('|'))
+				return makeToken(TOKEN_OR);
+			else
+				return errorToken("Expect '|' character.");
+		} case '!': {
 			return makeToken(
 				match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
-		case '=':
+		} case '=': {
 			return makeToken(
 				match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
-		case '<':
+		} case '<': {
 			return makeToken(
 				match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
-		case '>':
+		} case '>': {
 			return makeToken(
 				match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
-		case '"': return string();
+		} case '"': return string();
 	}
 
 	return errorToken("Unexpected character.");

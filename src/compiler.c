@@ -309,9 +309,9 @@ static uint8_t identifierConstant(Token *name);
 
 /**
  * Infix expressions parser.
- * This function compiles the right operands and emits the bytecode instruction
+ * This function compiles the right-hand operands and emits the bytecode instruction
  * for the operator.
- * The fact that the left operang e.g. '= 1 +...' or '= (1 + 2 * 3) +...' gets
+ * The fact that the left operand e.g. '= 1 +...' or '= (1 + 2 * 3) +...' gets
  * compiled first, means that at runtime that code gets executed first.
  * When it runs, the value it produces will end up on the stack, which the
  * right where the infix operator is going to need it.
@@ -327,7 +327,7 @@ binary(bool canAssign)
 	TokenType operatorType = parser.previous.type;
 	
 	/* Consider the expression: '2 * 3 + 4'.
-	 * when we parse the right operand of the '*' expression, we need to
+	 * When we parse the right operand of the '*' expression, we need to
 	 * just capture '3', and not '3 + 4', because '+' is lower precedence
 	 * than '*'.
 	 * Each binary operator's right-hand operand precedence is one level
@@ -337,7 +337,7 @@ binary(bool canAssign)
 	 * function instead of declaring a separate function set for each king
 	 * of operators.
 	 * One higher level of precedence is used because the binary operators
-	 * are lef-associative. Given a series of the same operators, like:
+	 * are left-associative. Given a series of the same operators, like:
 	 * 1 + 2 + 3 + 4,
 	 * we want to parse it like:
 	 * (((1 + 2) + 3) + 4),
@@ -354,17 +354,17 @@ binary(bool canAssign)
 	parsePrecedence((Precedence)(rule->precedence + 1));
 
 	switch (operatorType) {
-		case TOKEN_BANG_EQUAL:		emitBytes(OP_EQUAL, OP_NOT); break;
-		case TOKEN_EQUAL_EQUAL:		emitByte(OP_EQUAL); break;
-		case TOKEN_GREATER:			emitByte(OP_GREATER); break;
-		case TOKEN_GREATER_EQUAL:	emitBytes(OP_LESS, OP_NOT); break;
-		case TOKEN_LESS:			emitByte(OP_LESS); break;
-		case TOKEN_LESS_EQUAL:		emitBytes(OP_GREATER, OP_NOT); break;
+		case TOKEN_BANG_EQUAL:		emitBytes(OP_EQUAL, OP_NOT);	break;
+		case TOKEN_EQUAL_EQUAL:		emitByte(OP_EQUAL);				break;
+		case TOKEN_GREATER:			emitByte(OP_GREATER);			break;
+		case TOKEN_GREATER_EQUAL:	emitBytes(OP_LESS, OP_NOT);		break;
+		case TOKEN_LESS:			emitByte(OP_LESS);				break;
+		case TOKEN_LESS_EQUAL:		emitBytes(OP_GREATER, OP_NOT);	break;
 
-		case TOKEN_PLUS:	emitByte(OP_ADD);		break;
-		case TOKEN_MINUS:	emitByte(OP_SUBTRACT);	break;
-		case TOKEN_STAR:	emitByte(OP_MULTIPLY);	break;
-		case TOKEN_SLASH:	emitByte(OP_DIVIDE);	break;
+		case TOKEN_PLUS:			emitByte(OP_ADD);				break;
+		case TOKEN_MINUS:			emitByte(OP_SUBTRACT);			break;
+		case TOKEN_STAR:			emitByte(OP_MULTIPLY);			break;
+		case TOKEN_SLASH:			emitByte(OP_DIVIDE);			break;
 
 		default: return; // Unreachable
 	}
@@ -409,7 +409,10 @@ grouping(bool canAssign)
 static void
 number(bool canAssign)
 {
+	/* Convert the lexeme to a C double. */
 	double value = strtod(parser.previous.start, NULL);
+	
+	/* Wrap it in a Value and store in the constant table. */
 	emitConstant(NUMBER_PACK(value));
 }
 
@@ -487,8 +490,8 @@ unary(bool canAssign)
 
 	/* Emit the operator instruction */
 	switch (operatorType) {
-		case TOKEN_BANG:	emitByte(OP_NOT);		break;
 		case TOKEN_MINUS:	emitByte(OP_NEGATE);	break;
+		case TOKEN_BANG:	emitByte(OP_NOT);		break;
 		default: return; // Unreachable
 	}
 }
