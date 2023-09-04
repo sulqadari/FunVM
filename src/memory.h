@@ -24,7 +24,7 @@
 #define INCREASE_CAPACITY(capacity)						\
 	(((capacity) < 8) ? 8 : ((capacity) * 2))
 
-void* reallocate(void *array, size_t oldCap, size_t newCap);
-void freeObjects(VM *vm);
+void* reallocate(void* array, size_t oldCap, size_t newCap);
+void freeObjects(VM* vm);
 
 #endif // !FUNVM_MEMORY_H

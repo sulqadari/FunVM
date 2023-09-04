@@ -8,10 +8,10 @@
 #include "value.h"
 
 //extern Table interns;		/* String interning (see  section 20.5). */
-static VM *vm;
+static VM* vm;
 
 void
-objModuleVmRef(VM *_vm)
+object_setVm(VM* _vm)
 {
 	vm = _vm;
 }
@@ -36,7 +36,7 @@ allocateObject(size_t size, ObjType type)
 {
 	/* Note the size which encompasses not only Object type,
 	 * but extra bytes for ObjString struct. */
-	Object *object = (Object*)reallocate(NULL, 0, size);
+	Object* object = (Object*)reallocate(NULL, 0, size);
 	/* Initialize the base class */
 	object->type = type;
 	object->next = vm->objects;
@@ -45,8 +45,12 @@ allocateObject(size_t size, ObjType type)
 	return object;
 }
 
+/**
+ * Creates a new ObjString on the heap and then initializes its fields.
+ * It's sort of like a constructor in an OOP language.
+ */
 static ObjString*
-allocateString(char *chars, int32_t length, uint32_t hash)
+allocateString(char* chars, int32_t length, uint32_t hash)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
 	/* Initialize the ObjString class */
@@ -64,7 +68,7 @@ allocateString(char *chars, int32_t length, uint32_t hash)
 }
 
 static uint32_t
-hashString(const char *key, int32_t length)
+hashString(const char* key, int32_t length)
 {
 	uint32_t hash = 2166136261U;	// 81 1C 9D C5
 	
@@ -83,12 +87,12 @@ hashString(const char *key, int32_t length)
  * concatenated.
 */
 ObjString*
-takeString(char *chars, int32_t length)
+takeString(char* chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
 
 	/* Before taking the ownership over the string, look it up in the string set first. */
-	ObjString *interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned) {
 		FREE_ARRAY(char, chars, length + 1);	/* Free memory for the passed in string. */
 		return interned;						/* return interned string. */
@@ -104,16 +108,16 @@ takeString(char *chars, int32_t length)
  * instantiates 'ObjString' and initializes its fields.
 */
 ObjString*
-copyString(const char *chars, int32_t length)
+copyString(const char* chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
 
 	/* Before copying the string, look it up in the string set first. */
-	ObjString *interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
 
-	char *heapChars = ALLOCATE(char, length + 1);
+	char* heapChars = ALLOCATE(char, length + 1);
 
 	memcpy(heapChars, chars, length);
 	heapChars[length] = '\0';

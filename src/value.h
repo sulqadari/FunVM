@@ -37,7 +37,7 @@ typedef struct {
 	union {
 		bool boolean;
 		double number;
-		Object *object;	/* Pointer to the heap memory. */
+		Object* object;	/* Pointer to the heap memory. */
 	} as;
 } Value;
 
@@ -62,13 +62,13 @@ typedef struct {
 typedef struct {
 	uint32_t capacity;
 	uint32_t count;
-	Value *pool;
+	Value* pool;
 } ConstantPool;
 
 bool valuesEqual(Value a, Value b);
-void initConstantPool(ConstantPool *constantPool);
-void writeConstantPool(ConstantPool *constantPool, Value constant);
-void freeConstantPool(ConstantPool *constantPool);
+void initConstantPool(ConstantPool* constantPool);
+void writeConstantPool(ConstantPool* constantPool, Value constant);
+void freeConstantPool(ConstantPool* constantPool);
 void printValue(Value value);
 
 #endif // !FUNVM_VALUE_H

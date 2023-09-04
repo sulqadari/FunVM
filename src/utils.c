@@ -21,11 +21,11 @@ repl(void)
 }
 
 static char*
-readFile(const char *path)
+readFile(const char* path)
 {
 	size_t fileSize;
-	FILE *file;
-	char *buffer;
+	FILE* file;
+	char* buffer;
 	size_t bytesRead;
 
 	file = fopen(path, "rb");
@@ -58,9 +58,9 @@ readFile(const char *path)
 }
 
 void
-runFile(const char *path)
+runFile(const char* path)
 {
-	char *source = readFile(path);
+	char* source = readFile(path);
 	InterpretResult result = interpret(source);
 	free(source);
 

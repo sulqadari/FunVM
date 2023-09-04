@@ -6,7 +6,7 @@
 #include "value.h"
 
 void
-initConstantPool(ConstantPool *constantPool)
+initConstantPool(ConstantPool* constantPool)
 {
 	constantPool->count = 0;
 	constantPool->capacity = 0;
@@ -14,14 +14,14 @@ initConstantPool(ConstantPool *constantPool)
 }
 
 void
-freeConstantPool(ConstantPool *constantPool)
+freeConstantPool(ConstantPool* constantPool)
 {
 	FREE_ARRAY(Value, constantPool->pool, constantPool->capacity);
 	initConstantPool(constantPool);
 }
 
 void
-writeConstantPool(ConstantPool *constantPool, Value constant)
+writeConstantPool(ConstantPool* constantPool, Value constant)
 {
 	/* Double constantPool array capacity if it doesn't have enough room. */
 	if (constantPool->capacity < constantPool->count + 1) {

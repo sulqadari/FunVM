@@ -41,7 +41,7 @@ typedef enum {
 */
 struct Object {
 	ObjType type;
-	struct Object *next;
+	struct Object* next;
 };
 
 /**
@@ -52,13 +52,13 @@ struct Object {
 struct ObjString {
 	Object object;
 	int32_t length;
-	char *chars;
+	char* chars;
 	uint32_t hash;
 };
 
-void objModuleVmRef(VM *_vm);
-ObjString* takeString(char *chars, int32_t length);
-ObjString* copyString(const char *chars, int32_t length);
+void object_setVm(VM* _vm);
+ObjString* takeString(char* chars, int32_t length);
+ObjString* copyString(const char* chars, int32_t length);
 void printObject(Value value);
 
 /** Safety check before downcasting from 'Object*' to one of the child object type.

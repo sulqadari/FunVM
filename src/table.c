@@ -13,7 +13,7 @@
 #define TABLE_MAX_LOAD 0.75
 
 void
-initTable(Table **table)
+initTable(Table** table)
 {
 	*table = ALLOCATE(Table, 1);
 	(*table)->count = 0;
@@ -22,7 +22,7 @@ initTable(Table **table)
 }
 
 void
-freeTable(Table *table)
+freeTable(Table* table)
 {
 	FREE_ARRAY(Bucket, table->buckets, table->capacity);
 	FREE(Table, table);
@@ -45,15 +45,15 @@ freeTable(Table *table)
  * 
 */
 static Bucket*
-findEntry(Bucket *buckets, int32_t capacity, const ObjString *key)
+findEntry(Bucket* buckets, int32_t capacity, const ObjString* key)
 {
 	/* Use key's hash code module the array size to choose the bucket for the
 	 * given entry. */
 	uint32_t index = key->hash % capacity;
-	Bucket *tombstone = NULL;
+	Bucket* tombstone = NULL;
 
 	for (;;) {
-		Bucket *bucket = &buckets[index];
+		Bucket* bucket = &buckets[index];
 		
 		/* we've found the entry, just return it. */
 		if (key == bucket->key)
@@ -100,12 +100,12 @@ _collision:
  * 
 */
 bool
-tableGet(Table *table, ObjString *key, Value *value)
+tableGet(Table* table, ObjString* key, Value* value)
 {
 	if (0 == table->count)
 		return false;
 	
-	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
+	Bucket* bucket = findEntry(table->buckets, table->capacity, key);
 	if (NULL == bucket->key)
 		return false;
 	
@@ -123,10 +123,10 @@ tableGet(Table *table, ObjString *key, Value *value)
  * Note that we don't copy tombstones over.
 */
 static void
-adjustCapacity(Table *table, int32_t capacity)
+adjustCapacity(Table* table, int32_t capacity)
 {
 	/* Create new array. */
-	Bucket *newTable = ALLOCATE(Bucket, capacity);
+	Bucket* newTable = ALLOCATE(Bucket, capacity);
 
 	/* Reset */
 	for (int32_t i = 0; i < capacity; ++i) {
@@ -140,14 +140,14 @@ adjustCapacity(Table *table, int32_t capacity)
 	for (int32_t i = 0; i < table->capacity; ++i) {
 
 		/* Get subsequent entry from the OLD array. */
-		Bucket *oldBucket = &table->buckets[i];
+		Bucket* oldBucket = &table->buckets[i];
 
 		/* Just skip current iteration if the key in OLD entry is NULL. */
 		if (NULL == oldBucket->key)
 			continue;
 
 		/* Otherwise, calculate the index for the key:value in the NEW Table. */
-		Bucket *newBucket = findEntry(newTable, capacity, oldBucket->key);
+		Bucket* newBucket = findEntry(newTable, capacity, oldBucket->key);
 
 		/* perform the assignment. */
 		newBucket->key = oldBucket->key;
@@ -169,14 +169,14 @@ adjustCapacity(Table *table, int32_t capacity)
  * been overwritten.
 */
 bool
-tableSet(Table *table, ObjString *key, Value value)
+tableSet(Table* table, ObjString* key, Value value)
 {
 	if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
 		int32_t capacity = INCREASE_CAPACITY(table->capacity);
 		adjustCapacity(table, capacity);
 	}
 
-	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
+	Bucket* bucket = findEntry(table->buckets, table->capacity, key);
 	
 	/* Increment the count only if the new entry goes into an entirely empty
 	 * bucket. */
@@ -196,13 +196,13 @@ tableSet(Table *table, ObjString *key, Value value)
  * substitutes its value with the 'tombstone'.
 */
 bool
-tableDelete(Table *table, ObjString *key)
+tableDelete(Table* table, ObjString* key)
 {
 	if (0 == table->count)
 		return false;
 	
 	/* Find the entry to delete. */
-	Bucket *bucket = findEntry(table->buckets, table->capacity, key);
+	Bucket* bucket = findEntry(table->buckets, table->capacity, key);
 	if (NULL == bucket->key)
 		return false;
 	
@@ -213,11 +213,11 @@ tableDelete(Table *table, ObjString *key)
 }
 
 void
-tableAddAll(Table *from, Table *to)
+tableAddAll(Table* from, Table* to)
 {
 	for (int32_t i = 0; i < from->capacity; ++i) {
 
-		Bucket *bucket = &from->buckets[i];
+		Bucket* bucket = &from->buckets[i];
 		if (NULL != bucket->key) {
 			tableSet(to, bucket->key, bucket->value);
 		}
@@ -225,7 +225,7 @@ tableAddAll(Table *from, Table *to)
 }
 
 ObjString*
-tableFindString(Table *table, const char *chars,
+tableFindString(Table* table, const char* chars,
 							const int32_t length, const uint32_t hash)
 {
 	if (0 == table->count)
@@ -234,7 +234,7 @@ tableFindString(Table *table, const char *chars,
 	uint32_t index = hash % table->capacity;
 
 	for (;;) {
-		Bucket *bucket = &table->buckets[index];
+		Bucket* bucket = &table->buckets[index];
 
 		if (NULL == bucket->key) {
 			/* Stop if an empty non-tombstone entry is found. */

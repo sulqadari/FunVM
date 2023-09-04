@@ -10,23 +10,23 @@
 /* Since the key is always a string, we store the ObjString
  * pointer directly instead of wrapping it in a Value. */
 typedef struct {
-	ObjString *key;
+	ObjString* key;
 	Value value;
 } Bucket;
 
 typedef struct Table {
 	int32_t count;
 	int32_t capacity;
-	Bucket *buckets;
+	Bucket* buckets;
 } Table;
 
-void initTable(Table **table);
-void freeTable(Table *table);
-bool tableGet(Table *table, ObjString *key, Value *value);
-bool tableSet(Table *table, ObjString *key, Value value);
-bool tableDelete(Table *table, ObjString *key);
-void tableAddAll(Table *from, Table *to);
-ObjString* tableFindString(Table *table, const char *chars,
+void initTable(Table** table);
+void freeTable(Table* table);
+bool tableGet(Table* table, ObjString* key, Value* value);
+bool tableSet(Table* table, ObjString* key, Value value);
+bool tableDelete(Table* table, ObjString* key);
+void tableAddAll(Table* from, Table* to);
+ObjString* tableFindString(Table* table, const char* chars,
 							const int32_t length, const uint32_t hash);
 
 #endif // !FUNVM_TABLE_H

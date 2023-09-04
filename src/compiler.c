@@ -58,7 +58,7 @@ typedef struct {
 } ParseRule;
 
 Parser parser;
-Bytecode *currentCtx;
+Bytecode* currentCtx;
 
 static Bytecode*
 currentContext(void)
@@ -98,7 +98,7 @@ currentContext(void)
  * This way the compiler will process and print all errors in the single pass.
  */
 static void
-errorAt(Token *token, const char *message)
+errorAt(Token* token, const char* message)
 {
 	/* Once we've encountered an error in the source code,
 	 * there is no reason to print out further messages. */
@@ -140,7 +140,7 @@ errorAt(Token *token, const char *message)
  * have returned from the call.
  */
 static void
-error(const char *message)
+error(const char* message)
 {
 	errorAt(&parser.previous, message);
 }
@@ -152,7 +152,7 @@ error(const char *message)
  * in the middle of token processing, e.g. advance() and consume().
  */
 static void
-errorAtCurrent(const char *message)
+errorAtCurrent(const char* message)
 {
 	errorAt(&parser.current, message);
 }
@@ -179,8 +179,7 @@ advance(void)
 		parser.current = scanToken();
 		if (parser.current.type != TOKEN_ERROR)
 			break;
-		/* The beginning of the lexeme of error token is
-		 * passed to it*/
+		/* Passing in a message about the error type. */
 		errorAtCurrent(parser.current.start);
 	}
 }
@@ -189,7 +188,7 @@ advance(void)
  * Reads and validates subsequent token.
  */
 static void
-consume(TokenType type, const char *message)
+consume(TokenType type, const char* message)
 {
 	/* Ensure that the current token's type matchs
 	 * expected value. If this is the case,
@@ -305,7 +304,7 @@ static void declaration(void);
 
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
-static uint8_t identifierConstant(Token *name);
+static uint8_t identifierConstant(Token* name);
 
 /**
  * Infix expressions parser.
@@ -350,7 +349,7 @@ binary(bool canAssign)
 	 * must be parsed as:
 	 * (a = (b = (c = d))),
 	 * */
-	ParseRule *rule = getRule(operatorType);
+	ParseRule* rule = getRule(operatorType);
 	parsePrecedence((Precedence)(rule->precedence + 1));
 
 	switch (operatorType) {
@@ -427,7 +426,7 @@ number(bool canAssign)
 static void
 string(bool canAssign)
 {
-	ObjString *str = copyString(parser.previous.start + 1,
+	ObjString*  str = copyString(parser.previous.start + 1,
 								parser.previous.length - 2);
 	
 	/* Trim the leading double quote and exclude
@@ -595,14 +594,14 @@ parsePrecedence(Precedence precedence)
  * @returns uint8_t: an index of the constant in the constant pool.
  */
 static uint8_t
-identifierConstant(Token *name)
+identifierConstant(Token* name)
 {
-	ObjString *str = copyString(name->start, name->length);
+	ObjString* str = copyString(name->start, name->length);
 	return makeConstant(OBJECT_PACK(str));
 }
 
 static uint8_t
-parseVariable(const char *errorMessage)
+parseVariable(const char* errorMessage)
 {
 	consume(TOKEN_IDENTIFIER, errorMessage);
 	return identifierConstant(&parser.previous);
@@ -740,7 +739,7 @@ statement(void)
  * @returns bool: TRUE if an error occured. FALSE otherwise.
  */
 bool
-compile(const char *source, Bytecode *bytecode)
+compile(const char* source, Bytecode* bytecode)
 {
 	initScanner(source);
 	currentCtx = bytecode;

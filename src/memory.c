@@ -12,14 +12,14 @@
  * shrink capacity		- newCap < oldCap
  * increase capacity	- newCap > oldCap. */
 void*
-reallocate(void *array, size_t oldCap, size_t newCap)
+reallocate(void* array, size_t oldCap, size_t newCap)
 {
 	if (0 == newCap) {
 		free(array);
 		return NULL;
 	}
 
-	void *result = realloc(array, newCap);
+	void* result = realloc(array, newCap);
 	if (NULL == result) {
 		printf("in reallocate(): failed to allocate memory.\n");
 		exit(1);
@@ -29,11 +29,11 @@ reallocate(void *array, size_t oldCap, size_t newCap)
 }
 
 static void
-freeObject(Object *object)
+freeObject(Object* object)
 {
 	switch (object->type) {
 		case OBJ_STRING : {
-			ObjString *string = (ObjString*)object;
+			ObjString* string = (ObjString*)object;
 			FREE_ARRAY(char, string->chars, string->length + 1);
 			FREE(ObjString, object);
 		} break;
@@ -41,11 +41,11 @@ freeObject(Object *object)
 }
 
 void
-freeObjects(VM *vm)
+freeObjects(VM* vm)
 {
-	Object *object = vm->objects;
+	Object* object = vm->objects;
 	while (object != NULL) {
-		Object * next = object->next;
+		Object*  next = object->next;
 		freeObject(object);
 		object = next;
 	}

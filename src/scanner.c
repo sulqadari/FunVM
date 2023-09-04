@@ -5,15 +5,15 @@
 #include "scanner.h"
 
 typedef struct {
-	const char *start;		/* Start of the current lexeme. */
-	const char *current;	/* Current character being looked at. */
+	const char* start;		/* Start of the current lexeme. */
+	const char* current;	/* Current character being looked at. */
 	int line;				/* for error reporting purposes. */
 } Scanner;
 
 Scanner scanner;
 
 void
-initScanner(const char *source)
+initScanner(const char* source)
 {
 	scanner.start = source;
 	scanner.current = source;
@@ -67,6 +67,8 @@ peekNext(void)
 /**
  * Compares the current character in the source code with the
  * expected value.
+ * @returns bool: true if match and shifts scanner.current to the
+ * subsequent character in the source file.
 */
 static bool
 match(char expected)
@@ -93,7 +95,7 @@ makeToken(TokenType type)
 }
 
 static Token
-errorToken(const char *message)
+errorToken(const char* message)
 {
 	Token token;
 	token.type = TOKEN_ERROR;
@@ -140,7 +142,7 @@ skipWhiteSpace(void)
 
 static TokenType
 checkKeyword(int start, int length,
-			const char *rest, TokenType type)
+			const char* rest, TokenType type)
 {
 	if (((scanner.current - scanner.start) == (start + length)) &&
 		memcmp(scanner.start + start, rest, length) == 0) {

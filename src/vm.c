@@ -17,7 +17,7 @@
 #include "debug.h"
 #endif
 
-static VM *vm;
+static VM* vm;
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
@@ -28,7 +28,7 @@ resetStack(void)
 }
 
 static void
-runtimeError(const char *format, ...)
+runtimeError(const char* format, ...)
 {
 	va_list args;
 
@@ -44,7 +44,7 @@ runtimeError(const char *format, ...)
 }
 
 void
-initVM(VM *_vm)
+initVM(VM* _vm)
 {
 	vm = _vm;
 	vm->bytecode = NULL;
@@ -59,7 +59,7 @@ initVM(VM *_vm)
 }
 
 void
-freeVM(VM *vm)
+freeVM(VM* vm)
 {
 	/* Release stack. */
 	FREE_ARRAY(Value, vm->stack, vm->stackSize);
@@ -101,7 +101,7 @@ Value
 pop(void)
 {
 	vm->stackTop--;			/* move stack ptr back to the recent used slot. */
-	return *vm->stackTop;	/* retrieve the value at that index in stack. */
+	return* vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
 static Value
@@ -123,16 +123,16 @@ isFalsey(Value value)
 static void
 concatenate()
 {
-	ObjString *b = STRING_UNPACK(pop());
-	ObjString *a = STRING_UNPACK(pop());
+	ObjString* b = STRING_UNPACK(pop());
+	ObjString* a = STRING_UNPACK(pop());
 
 	int32_t length = a->length + b->length;
-	char *chars = ALLOCATE(char, length + 1);
+	char* chars = ALLOCATE(char, length + 1);
 	memcpy(chars, a->chars, a->length);
 	memcpy(chars + a->length, b->chars, b->length);
 	chars[length] = '\0';
 
-	ObjString *result = takeString(chars, length);
+	ObjString* result = takeString(chars, length);
 	push(OBJECT_PACK(result));
 }
 
@@ -165,7 +165,7 @@ static void
 logRun()
 {
 	printf("		");
-	for (Value *slot = vm->stack; slot < vm->stackTop; slot++) {
+	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
 		printf("[ ");
 		printValue(*slot);
 		printf(" ]");
@@ -215,7 +215,7 @@ run()
 			
 			case OP_GET_GLOBAL: {
 				// get the name of the variable from the constant pool
-				ObjString *name = READ_STRING();
+				ObjString* name = READ_STRING();
 				Value value;
 				if (!tableGet(vm->globals, name, &value)) {
 					runtimeError("Undefined variable '%s'.", name->chars);
@@ -226,7 +226,7 @@ run()
 			
 			case OP_DEFINE_GLOBAL: {
 				// get the name of the variable from the constant pool
-				ObjString *name = READ_STRING();
+				ObjString* name = READ_STRING();
 
 				// Take the value from the top of the stack and
 				// store it in a hash table with that name as the key
@@ -240,7 +240,7 @@ run()
 			
 			case OP_SET_GLOBAL: {
 				// get the name of the variable from the constant pool
-				ObjString *name = READ_STRING();
+				ObjString* name = READ_STRING();
 
 				/* Assign a value to an existing variable.
 				 * If tableSet() returns TRUE, than mean that we didn't overwrite
@@ -268,7 +268,7 @@ run()
 
 			case OP_ADD: {
 				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
-					concatenate(vm);
+					concatenate();
 				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
 					double b = NUMBER_UNPACK(pop());
 					double a = NUMBER_UNPACK(pop());
@@ -319,11 +319,11 @@ run()
 }
 
 InterpretResult
-interpret(const char *source)
+interpret(const char* source)
 {
 	Bytecode bytecode;
 	initBytecode(&bytecode);
-	objModuleVmRef(vm);
+	object_setVm(vm);
 
 	/* Fill in the bytecode with the instructions retrieved
 	 * from source code. */
@@ -342,7 +342,7 @@ interpret(const char *source)
 	 * Next improvements shall eliminate this case. */
 	vm->ip = vm->bytecode->code;
 	
-	InterpretResult result = run(vm);
+	InterpretResult result = run();
 	freeBytecode(&bytecode);
 
 	return result;

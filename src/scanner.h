@@ -25,12 +25,12 @@ typedef enum {
 
 typedef struct {
 	TokenType type;
-	const char *start;
+	const char* start;
 	int length;
 	int line;
 } Token;
 
-void initScanner(const char *source);
+void initScanner(const char* source);
 Token scanToken(void);
 
 #endif // !FUNVM_SCANNER_H

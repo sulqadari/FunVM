@@ -9,7 +9,7 @@
 #include "utils.h"
 
 static int
-case_1(int argc, char *argv[])
+case_1(int argc, char* argv[])
 {
 	VM vm;
 	printf("*** Interpreter ***\n");
@@ -29,7 +29,7 @@ case_1(int argc, char *argv[])
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, char* argv[])
 {
 	case_1(argc, argv);
 	

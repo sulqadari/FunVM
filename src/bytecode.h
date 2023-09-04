@@ -33,15 +33,15 @@ typedef enum {
 typedef struct {
 	uint32_t count;		/* How many elements in code arrya is. */
 	uint32_t capacity;	/* Size of the code array. */
-	uint8_t *code;		/* A chunk of instructions. */
-	uint32_t *lines;
+	uint8_t* code;		/* A chunk of instructions. */
+	uint32_t* lines;
 	ConstantPool const_pool;
 } Bytecode;
 
-void initBytecode(Bytecode *bytecode);
-void freeBytecode(Bytecode *bytecode);
-//void writeBytecode(Bytecode *bytecode, uint8_t opcode, uint32_t line);
-void writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line);
-uint32_t addConstant(Bytecode *bytecode, Value constant);
+void initBytecode(Bytecode* bytecode);
+void freeBytecode(Bytecode* bytecode);
+//void writeBytecode(Bytecode* bytecode, uint8_t opcode, uint32_t line);
+void writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line);
+uint32_t addConstant(Bytecode* bytecode, Value constant);
 
 #endif // !FUNVM_BYTECODE_H

@@ -5,7 +5,7 @@
 #include "memory.h"
 
 void
-initBytecode(Bytecode *bytecode)
+initBytecode(Bytecode* bytecode)
 {
 	bytecode->count = 0;
 	bytecode->capacity = 0;
@@ -15,7 +15,7 @@ initBytecode(Bytecode *bytecode)
 }
 
 void
-writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line)
+writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line)
 {
 	uint32_t additSpace = 1;
 	uint32_t shift = 0;
@@ -47,7 +47,7 @@ writeBytecode(Bytecode *bytecode, uint32_t opcode, uint32_t line)
 }
 
 void
-freeBytecode(Bytecode *bytecode)
+freeBytecode(Bytecode* bytecode)
 {
 	FREE_ARRAY(uint8_t, bytecode->code, bytecode->capacity);
 	FREE_ARRAY(uint32_t, bytecode->lines, bytecode->capacity);
@@ -60,7 +60,7 @@ freeBytecode(Bytecode *bytecode)
  * @returns uint32_t - index where the constant was appended.
 */
 uint32_t
-addConstant(Bytecode *bytecode, Value constant)
+addConstant(Bytecode* bytecode, Value constant)
 {
 	writeConstantPool(&bytecode->const_pool, constant);
 	return (bytecode->const_pool.count - 1);

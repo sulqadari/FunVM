@@ -5,7 +5,7 @@
 #include "value.h"
 
 void
-disassembleBytecode(Bytecode *bytecode, const char *name)
+disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
@@ -15,14 +15,14 @@ disassembleBytecode(Bytecode *bytecode, const char *name)
 }
 
 static int32_t
-simpleInstruction(const char *name, int32_t offset)
+simpleInstruction(const char* name, int32_t offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
 static uint32_t
-constantInstruction(const char *name, Bytecode *bytecode, int32_t offset)
+constantInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 {
 	uint8_t constant = bytecode->code[offset + 1];
 
@@ -34,7 +34,7 @@ constantInstruction(const char *name, Bytecode *bytecode, int32_t offset)
 }
 
 static uint32_t
-constantLongInstruction(const char *name, Bytecode *bytecode, int32_t offset)
+constantLongInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 {
 	uint32_t constant = 0;
 	constant =	((((int32_t)bytecode->code[offset + 1] & 0xFF) << 16) |
@@ -49,7 +49,7 @@ constantLongInstruction(const char *name, Bytecode *bytecode, int32_t offset)
 }
 
 int32_t
-disassembleInstruction(Bytecode *bytecode, int32_t offset)
+disassembleInstruction(Bytecode* bytecode, int32_t offset)
 {
 	printf("%04d	", offset);
 
