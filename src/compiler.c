@@ -57,6 +57,29 @@ typedef struct {
 	Precedence precedence;
 } ParseRule;
 
+
+typedef struct {
+	Token name;
+	
+	/* 0 - global scope, 1 - the first top-level,
+	 * 2 - inside the previous, and so on. */
+	int32_t depth; 
+} Local;
+
+typedef struct {
+
+	/* Locals in scope. Ordered in the
+	 * order of their declaration in the code. */
+	Local locals[UINT16_MAX];
+	
+	/* the number of locals in the scope. */
+	int32_t localCount;
+	
+	/* Number of blocks surrounding
+	 * the current code we're compiling. */
+	int32_t scopeDepth;
+} Compiler;
+
 Parser parser;
 Bytecode* currentCtx;
 
