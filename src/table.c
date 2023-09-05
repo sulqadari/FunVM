@@ -54,38 +54,27 @@ findEntry(Bucket* buckets, int32_t capacity, const ObjString* key)
 
 	for (;;) {
 		Bucket* bucket = &buckets[index];
+
+		if (bucket->key == NULL) {
+
+			/* So, the key is NULL. If it contains no value, then return the bucket.
+			 * Special case: if this is not the first iteration, i.e. bucket->key was NULL,
+			 * but bucket->value contained a value, then we had been encountered a tombstone.
+			 * Thus, return the latter. */
+			if (IS_NIL(bucket->value)) {
+				// Empty bucket.
+				return tombstone != NULL ? tombstone : bucket;
+			} else {
+				// We found a tombstone.
+				if (tombstone == NULL) tombstone = bucket;
+			}
 		
-		/* we've found the entry, just return it. */
-		if (key == bucket->key)
+		  /* bucket->key wasn't NULL, but bucket->value contained a value (true).
+		   * This is the fingerprint of tombstone. Store the first encountered one. */
+		} else if (bucket->key == key) {
+			/* we've found the entry, just return it. */
 			return bucket;
-		
-		/* Bucket isn't empty, skip this iteration and manage
-		 * collision issues. */
-		if (NULL != bucket->key)
-			goto _collision;
-
-		/* So, the key is NULL. If it contains no value, then return the bucket.
-		 * Special case: if this is not the first iteration, i.e. bucket->key was NULL,
-		 * but bucket->value contained a value, then we had been encountered a tombstone.
-		 * Thus, return the latter. */
-		if (IS_NIL(bucket->value))
-			return NULL != tombstone ? tombstone : bucket;
-
-		/* bucket->key wasn't NULL, but bucket->value contained a value (true).
-		 * This is the fingerprint of tombstone. Store the first encountered one. */
-		if (NULL == tombstone)
-			tombstone = bucket;
-
-		// if (NULL == bucket->key) {
-		// 	if (IS_NIL(bucket->value)) {
-		// 		return NULL != tombstone ? tombstone : bucket;
-		// 	} else {
-		// 		if (NULL == tombstone)
-		// 			tombstone = bucket;
-		// 	}
-		// } else if (key == bucket->key)
-		// 	return bucket;
-_collision:
+		}
 		/* Manage collisions by means of linear probing algorithm. */
 		index = (index + 1) % capacity;
 	}
@@ -177,13 +166,13 @@ tableSet(Table* table, ObjString* key, Value value)
 	}
 
 	Bucket* bucket = findEntry(table->buckets, table->capacity, key);
-	
-	/* Increment the count only if the new entry goes into an entirely empty
-	 * bucket. */
+
+	/* Increment the count only if the new [key:value] entry goes
+	 * into an entirely empty bucket. */
 	bool isNewKey = ((NULL == bucket->key) && IS_NIL(bucket->value));
 	if (isNewKey)
 		table->count++;
-	
+
 	bucket->key = key;
 	bucket->value = value;
 

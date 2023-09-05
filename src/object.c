@@ -7,7 +7,6 @@
 #include "table.h"
 #include "value.h"
 
-//extern Table interns;		/* String interning (see  section 20.5). */
 static VM* vm;
 
 void
