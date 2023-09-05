@@ -89,7 +89,9 @@ push(Value value)
 		 * Also we mind the correct offset within new block. */
 		vm->stackTop = (vm->stack + stackOffset);
 #ifdef FUNVM_DEBUG
-		printf("old: %d\nnew: %d\nstackTop: %.2f\n", oldSize, vm->stackSize, NUMBER_UNPACK(*vm->stackTop));
+		printf("Increasing stack size:\n");
+		printf("old: %d\nnew: %d\n",
+							oldSize, vm->stackSize);
 #endif	// !FUNVM_DEBUG
 	}
 	
@@ -128,6 +130,7 @@ concatenate()
 
 	int32_t length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
+
 	memcpy(chars, a->chars, a->length);
 	memcpy(chars + a->length, b->chars, b->length);
 	chars[length] = '\0';
@@ -211,7 +214,7 @@ run()
 			case OP_NIL:	push(NIL_PACK());		break;
 			case OP_TRUE:	push(BOOL_PACK(true));	break;
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
-			case OP_POP:	pop();					break;
+			case OP_POP:	pop();							break;
 			
 			case OP_GET_GLOBAL: {
 				// get the name of the variable from the constant pool
@@ -341,7 +344,11 @@ interpret(const char* source)
 	 * the runtime will fail.
 	 * Next improvements shall eliminate this case. */
 	vm->ip = vm->bytecode->code;
-	
+
+#ifdef FUNVM_DEBUG
+		printf("\nFiring up Virtual Machine\n");
+#endif // !FUNVM_DEBUG
+
 	InterpretResult result = run();
 	freeBytecode(&bytecode);
 

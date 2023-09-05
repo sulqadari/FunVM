@@ -7,7 +7,7 @@
 void
 disassembleBytecode(Bytecode* bytecode, const char* name)
 {
-	printf("=== %s ===\n"
+	printf("\n=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
 	for (int32_t offset = 0; offset < bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);

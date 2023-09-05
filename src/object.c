@@ -37,6 +37,7 @@ allocateObject(size_t size, ObjType type)
 	/* Note the size which encompasses not only Object type,
 	 * but extra bytes for ObjString struct. */
 	Object* object = (Object*)reallocate(NULL, 0, size);
+	
 	/* Initialize the base class */
 	object->type = type;
 	object->next = vm->objects;
@@ -81,10 +82,9 @@ hashString(const char* key, int32_t length)
 }
 
 /**
- * Used in vm::concatenate() to allocate new instance of ObjString
- * onto the heap.
- * Its value is created from a two ObjStrings that about to be
- * concatenated.
+ * Compared to copyString() function, this one handles a string
+ * which have already been created on the heap, and only thing is left
+ * is to assign it to the new ObjString entity.
 */
 ObjString*
 takeString(char* chars, int32_t length)
@@ -102,7 +102,8 @@ takeString(char* chars, int32_t length)
 }
 
 /**
- * Copies the given char array from the source code into the String object.
+ * Copies the given char array from the source code and
+ * assgins it to the ObjString.
  * 
  * To do that it allocates a new char array on the heap,
  * instantiates 'ObjString' and initializes its fields.

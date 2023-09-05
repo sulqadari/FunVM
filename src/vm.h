@@ -14,7 +14,7 @@ typedef struct VM {
 	uint32_t stackSize;
 	Table* globals;
 	Table* interns;		/* String interning (see  section 20.5). */
-	Object* objects;
+	Object* objects;	/* Pointer to the head of the list of objects on the heap. */
 } VM;
 
 typedef enum {
