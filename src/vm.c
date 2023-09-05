@@ -89,9 +89,8 @@ push(Value value)
 		 * Also we mind the correct offset within new block. */
 		vm->stackTop = (vm->stack + stackOffset);
 #ifdef FUNVM_DEBUG
-		printf("Increasing stack size:\n");
-		printf("old: %d\nnew: %d\n",
-							oldSize, vm->stackSize);
+		printf("Increasing stack size:\told: %d\tnew: %d\n",
+									oldSize, vm->stackSize);
 #endif	// !FUNVM_DEBUG
 	}
 	
@@ -215,29 +214,25 @@ run()
 			case OP_TRUE:	push(BOOL_PACK(true));	break;
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
 			case OP_POP:	pop();							break;
-			
-			case OP_GET_GLOBAL: {
-				// get the name of the variable from the constant pool
-				ObjString* name = READ_STRING();
-				Value value;
-				if (!tableGet(vm->globals, name, &value)) {
-					runtimeError("Undefined variable '%s'.", name->chars);
-					return IR_RUNTIME_ERROR;
-				}
-				push(value);
-			} break;
-			
+
 			case OP_DEFINE_GLOBAL: {
+				// Value val = pop(); see NOTE.
 				// get the name of the variable from the constant pool
 				ObjString* name = READ_STRING();
 
-				// Take the value from the top of the stack and
-				// store it in a hash table with that name as the key
-				// NOTE: there is no check to see if the key is already in the
-				// table. This allows redefine global variables without error.
-				tableSet(vm->globals, name, peek(0));
-				
-				// In the end, pop the value from the stack.
+				/* Take the value from the top of the stack and
+				 * store it in a hash table with that name as the key.
+				 * Throw an exception if variable have alredy been declared. */
+				if (!tableSet(vm->globals, name, peek(0))) {
+					runtimeError("Variable '%s' is already defined.",
+																		name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+
+				/* NOTE: we don't pop the value until *after* we add it to the
+				 * hash table. This ensures the VM can still find the value if a
+				 * GC is triggered right in the middle of adding it to the
+				 * hash table.*/
 				pop();
 			} break;
 			
@@ -246,8 +241,8 @@ run()
 				ObjString* name = READ_STRING();
 
 				/* Assign a value to an existing variable.
-				 * If tableSet() returns TRUE, than mean that we didn't overwrite
-				 * an existing variable, but have created a new one.
+				 * If tableSet() returns TRUE means that instead of overwriting
+				 * an existing variable we have created a new one.
 				 * Thus, delete it and throw the runtime error, because current
 				 * implementation doesn't support implicit variable declarations. */
 				if (tableSet(vm->globals, name, peek(0))) {
@@ -259,7 +254,20 @@ run()
 				 * so it needs to leave that value on the stack in case the assignment
 				 * is nested inside some larger expression. */
 			} break;
+			
+			case OP_GET_GLOBAL: {
+				// get the name of the variable from the constant pool
+				ObjString* name = READ_STRING();
+				Value value;
 
+				/* Report a error if tableGet() can't find the given entry. */
+				if (!tableGet(vm->globals, name, &value)) {
+					runtimeError("Undefined variable '%s'.", name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+				push(value);
+			} break;
+			
 			case OP_EQUAL: {
 				Value b = pop();
 				Value a = pop();

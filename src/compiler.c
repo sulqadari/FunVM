@@ -441,13 +441,13 @@ string(bool canAssign)
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint8_t arg = identifierConstant(&name);
+	uint8_t offset = identifierConstant(&name);
 
 	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
 		expression();				// ..evaluate the expression and..
-		emitBytes(OP_SET_GLOBAL, arg);	// ..set the value
+		emitBytes(OP_SET_GLOBAL, offset);	// ..set the value
 	} else {						// Otherwise
-		emitBytes(OP_GET_GLOBAL, arg);	// get the variable's value.
+		emitBytes(OP_GET_GLOBAL, offset);	// get the variable's value.
 	}
 }
 
@@ -568,12 +568,24 @@ parsePrecedence(Precedence precedence)
 		return;
 	}
 
-	/* Handle the assignment. */
-	bool canAssign = precedence <= PREC_ASSIGNMENT;
+	/* Take into account the precedence of the surrounding expression
+	 * that contains the variable.
+	 *
+	 * If the variable happens to be the right-hand side of an infix operator,
+	 * or the operand of a unary operator, then that containing expression
+	 * is too high precedence to permit the '=' sign.
+	 * Thus, variable() should look for and consume the '=' only if it's
+	 * in the context of a low-precedence expression.
+	 *
+	 * Since assignment is the lowest-precedence expression, the only time
+	 * we allow an ssignment is when parsing an assignemt expression or
+	 * top-level expression like in an expression statement. */
+	bool canAssign = (precedence <= PREC_ASSIGNMENT);
+
 	/* Compile the prefix expression. */
 	prefixRule(canAssign);
 
-	/* Parsing infix expressions. The prefix expression we already compiled
+	/* Parsing infix expressions. The prefix expression we hace already compiled
 	 * might be an left-hand operand for it if and only if the 'precedence'
 	 * argument passed to this function is low enough to permit
 	 * the infix operator or compiler hit a token that isn't an infix. */
@@ -667,6 +679,8 @@ expressionStatement(void)
 static void
 printStatement(void)
 {
+	/* Evaluate the expression, leaving the result on top of the stack,
+	 * which will be printed out. */
 	expression();
 	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
 	emitByte(OP_PRINT);

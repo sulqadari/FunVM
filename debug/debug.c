@@ -1,18 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "debug.h"
-#include "value.h"
-
-void
-disassembleBytecode(Bytecode* bytecode, const char* name)
-{
-	printf("\n=== %s ===\n"
-		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (int32_t offset = 0; offset < bytecode->count; ) {
-		offset = disassembleInstruction(bytecode, offset);
-	}
-}
+#include "bytecode.h"
 
 static int32_t
 simpleInstruction(const char* name, int32_t offset)
@@ -77,12 +66,12 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 			return simpleInstruction("OP_FALSE", offset);
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
-		case OP_GET_GLOBAL:
-			return constantInstruction("OP_GET_GLOBAL", bytecode, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", bytecode, offset);
 		case OP_SET_GLOBAL:
 			return constantInstruction("OP_SET_GLOBAL", bytecode, offset);
+		case OP_GET_GLOBAL:
+			return constantInstruction("OP_GET_GLOBAL", bytecode, offset);
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:
@@ -108,5 +97,15 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 		default:
 			printf("Unknown opcode %d\n", opcode);
 			return offset + 1;
+	}
+}
+
+void
+disassembleBytecode(Bytecode* bytecode, const char* name)
+{
+	printf("\n=== %s ===\n"
+		"offset | line |    opcode    | cp_off : 'val'\n", name);
+	for (int32_t offset = 0; offset < bytecode->count; ) {
+		offset = disassembleInstruction(bytecode, offset);
 	}
 }

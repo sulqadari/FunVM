@@ -69,5 +69,4 @@ runFile(const char* path)
 	
 	if (IR_RUNTIME_ERROR == result)
 		exit(70);
-	
 }
