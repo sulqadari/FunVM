@@ -72,6 +72,7 @@ typedef struct {
 } Local;
 
 #define UIN8_COUNT (UINT8_MAX + 1)
+
 /**
  * Compiler tracks the scopes and variables within them
  * at compile time, taking most of the advantages from 
@@ -81,7 +82,7 @@ typedef struct {
  * Local locals: all locals that are in scope during each
  * 				point in the compilation process.
  *				Ordered in declaration appearance sequence.
- * localCount:	tracks the number of locals in the scope, i.e.,
+ * localCount:	tracks the number of locals are in the scope, i.e.,
  *				how many of those array slots are in use.
  * scopeDepth:	the number of blocks surrounding the current
  *				bit of code we're compiling.
@@ -93,13 +94,13 @@ typedef struct {
 } Compiler;
 
 Parser parser;
-static Compiler* cmplr = NULL;
-Bytecode* currentCtx;
+static Compiler* currCplr = NULL;
+Bytecode* currCtx;
 
 static Bytecode*
 currentContext(void)
 {
-	return currentCtx;
+	return currCtx;
 }
 
 /**
@@ -246,7 +247,7 @@ check(const TokenType type)
 }
 
 /**
- * Consumes the current token if it has the given type.
+ * Consumes the current token if and only if it has the given type.
  * @returns bool: true if match, false otherwise.
 */
 static bool
@@ -326,7 +327,7 @@ initCompiler(Compiler* compiler)
 {
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
-	cmplr = compiler;
+	currCplr = compiler;
 }
 
 static void
@@ -349,7 +350,7 @@ endCompiler(void)
 static void
 beginScope(void)
 {
-	cmplr->scopeDepth++;
+	currCplr->scopeDepth++;
 }
 
 /**
@@ -358,12 +359,12 @@ beginScope(void)
 static void
 endScope(void)
 {
-	cmplr->scopeDepth--;
+	currCplr->scopeDepth--;
 
-	while ((0 < cmplr->localCount) &&
-		(cmplr->locals[cmplr->localCount - 1].depth > cmplr->scopeDepth)) {
+	while ((0 < currCplr->localCount) &&
+		(currCplr->locals[currCplr->localCount - 1].depth > currCplr->scopeDepth)) {
 		emitByte(OP_POP);
-		cmplr->localCount--;
+		currCplr->localCount--;
 	}
 }
 
@@ -694,27 +695,37 @@ identifiersEqual(Token* a, Token* b)
 	return memcmp(a->start, b->start, a->length) == 0;
 }
 
+/**
+ * Adds a variable to the compiler's list of variables
+ * in the current scope. */
 static void
 addLocal(Token name)
 {
-	if (UIN8_COUNT == cmplr->localCount) {
+	if (UIN8_COUNT <= currCplr->localCount) {
 		error("Too many local variables in function.");
 		return;
 	}
 
-	Local* local = &cmplr->locals[cmplr->localCount++];
+	Local* local = &currCplr->locals[currCplr->localCount++];
 	local->name = name;
-	local->depth = cmplr->scopeDepth;
+	local->depth = currCplr->scopeDepth;
 }
 
 /**
- * Records the existence of the variable.
+ * The point where the compiler records the existence of
+ * the local variable.
+ * Because global variables are late bound, the compiler doesn't
+ * keep track of which declarations for them it has seen.
+ * But for local variables, the compiler does need to remember that
+ * the variables exists.
+ * Thus, declaring a local variables - is adding it to the compiler's
+ * list of variables in the current scope.
  */
 static void
 declareVariable(void)
 {
 	/* Just bail out if we're in the global scope. */
-	if (0 == cmplr->scopeDepth)
+	if (0 == currCplr->scopeDepth)
 		return;
 	
 	Token* name = &parser.previous;
@@ -727,11 +738,11 @@ declareVariable(void)
 	 * 
 	 * NOTE: FunVM's semantic allows to have two or more variable
 	 * with the same name in *different* scopes. */
-	for (int i = cmplr->localCount - 1; i >= 0; --i) {
+	for (int i = currCplr->localCount - 1; i >= 0; --i) {
 
-		Local* local = &cmplr->locals[i];
+		Local* local = &currCplr->locals[i];
 		if ((local->depth != -1) &&
-			(local->depth < cmplr->scopeDepth)) {
+			(local->depth < currCplr->scopeDepth)) {
 			break;
 		}
 
@@ -739,8 +750,6 @@ declareVariable(void)
 			error("Already a variable with this name in this scope.");
 	}
 
-	/* Add a variable to the compiler's list of variables
-	 * in the current scope. */
 	addLocal(*name);
 }
 
@@ -756,8 +765,12 @@ parseVariable(const char* errorMessage)
 
 	declareVariable();
 
-	/* Exit the function if we're in a local scope. */
-	if (0 < cmplr->scopeDepth)
+	/* Exit the function if we're in a local scope.
+	 * At runtime, locals aren't looked up by name. There is no need
+	 * to stuff the variable's name into the constant pool, so if
+	 * the declaration is inside a local scope, we return a dummy table
+	 * index instead. */
+	if (0 < currCplr->scopeDepth)
 		return 0;
 	
 	return identifierConstant(&parser.previous);
@@ -770,15 +783,19 @@ parseVariable(const char* errorMessage)
 static void
 defineVariable(uint8_t global)
 {
-	/* There is no code to create a local variable at runtime,
+	/* 
+	 * is crrCplr->scopeDepth is greater than 0, then we a in local
+	 * scope.
+	 * There is no code to create a local variable at runtime,
 	 * Consider the state the VM is in:
 	 * The variable is already initialized and the value is sitting
 	 * right on top of the stack as the only remaining temporary.
 	 * The locals are allocated at the top of the stack - right where
-	 * that value already is. Thus, there's nothing to do: the
-	 * temporary simply *becomes* the local variable.
-	 * */
-	if (0 < cmplr->scopeDepth)
+	 * that value already is.
+	 * 
+	 * Thus, there's nothing to do: the temporary simply *becomes*
+	 * the local variable. */
+	if (0 < currCplr->scopeDepth)
 		return;
 
 	emitBytes(OP_DEFINE_GLOBAL, global);
@@ -936,7 +953,7 @@ compile(const char* source, Bytecode* bytecode)
 	Compiler compiler;
 	initScanner(source);
 	initCompiler(&compiler);
-	currentCtx = bytecode;
+	currCtx = bytecode;
 	parser.hadError = false;
 	parser.panicMode = false;
 
