@@ -1,0 +1,15 @@
+{
+	var a = "first ";
+	{
+		var a = "second ";
+		{
+			var b = 3.14;
+			{
+				var c = true;
+			}
+			var d = (1 + (1 + (1 + (1 + (1 + (1 + (1 + (1 + 1))))))));
+		}
+		var e = "second";
+	}
+	var f;
+}

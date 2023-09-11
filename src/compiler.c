@@ -79,13 +79,13 @@ typedef struct {
  * stack-based local variable declaration pattern.
  *
  * The Complier struct contains the following fields:
- * Local locals: all locals that are in scope during each
- * 				point in the compilation process.
+ * Local locals[]:	all locals that are in scope during each
+ * 				point in the compilation process;
  *				Ordered in declaration appearance sequence.
- * localCount:	tracks the number of locals are in the scope, i.e.,
- *				how many of those array slots are in use.
- * scopeDepth:	the number of blocks surrounding the current
- *				bit of code we're compiling.
+ * localCount:		the number of locals are in the scope, i.e.,
+ *				how many of those array slots are in use;
+ * scopeDepth:		the number of blocks surrounding the current
+ *				bit of code we're compiling;
  */
 typedef struct {
 	Local locals[UIN8_COUNT];
@@ -222,9 +222,8 @@ advance(void)
 }
 
 /**
- * Reads and validates subsequent token.
- * Ensures that the current token's type matchs expected value. 
- * If this is the case, then consumes it return.
+ * Validates and consumes current token.
+ * Throws an exception otherwise.
  */
 static void
 consume(TokenType type, const char* message)
@@ -236,6 +235,7 @@ consume(TokenType type, const char* message)
 		advance();
 		return;
 	}
+
 	/* Throw error otherwise. */
 	errorAtCurrent(message);
 }
@@ -355,14 +355,20 @@ beginScope(void)
 
 /**
  * Returns from the local scope.
+ * When we pop a scope ,we walk backward through the local array looking for
+ * any variables declared at the scope depth we just left.
  */
 static void
 endScope(void)
 {
 	currCplr->scopeDepth--;
 
-	while ((0 < currCplr->localCount) &&
-		(currCplr->locals[currCplr->localCount - 1].depth > currCplr->scopeDepth)) {
+	/* Discard locals by simply decrementing the length of the array
+	 * and poping values from top of the stack at runtime. */
+	while ( (0 < currCplr->localCount) &&
+			(currCplr->locals[currCplr->localCount - 1].depth >
+			 currCplr->scopeDepth)) {
+
 		emitByte(OP_POP);
 		currCplr->localCount--;
 	}
@@ -733,7 +739,7 @@ declareVariable(void)
 	/* Check if a variable with the same name have been declared
 	 * previously.
 	 * The current scope is always at the end of the locals[]. When we
-	 * declare a new variable, we start at the end and word backward,
+	 * declare a new variable, we start at the end and work backward,
 	 * looking for an existing variable with the same name.
 	 * 
 	 * NOTE: FunVM's semantic allows to have two or more variable
@@ -747,7 +753,7 @@ declareVariable(void)
 		}
 
 		if (identifiersEqual(name, &local->name))
-			error("Already a variable with this name in this scope.");
+			error("A variable with the same name is already defined in this scope.");
 	}
 
 	addLocal(*name);
