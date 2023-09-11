@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/_stdint.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -385,7 +386,7 @@ static void declaration(void);
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static uint8_t identifierConstant(Token* name);
-
+static int32_t resolveLocal(Compiler* compiler, Token* name);
 /**
  * Infix expressions parser.
  * This function compiles the right-hand operands and emits the bytecode instruction
@@ -521,13 +522,23 @@ string(bool canAssign)
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint8_t offset = identifierConstant(&name);
+	uint32_t getOp, setOp;
+	//uint8_t offset = identifierConstant(&name);
+	int32_t offset = resolveLocal(currCplr, &name);
+	if (-1 == offset) {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} {
+		offset = identifierConstant(&name);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	}
 
 	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
-		expression();				// ..evaluate the expression and..
-		emitBytes(OP_SET_GLOBAL, offset);	// ..set the value
-	} else {						// Otherwise
-		emitBytes(OP_GET_GLOBAL, offset);	// get the variable's value.
+		expression();								// ..evaluate the expression and..
+		emitBytes(setOp, offset);		// ..set the value
+	} else {										// Otherwise
+		emitBytes(getOp, offset);		// get the variable's value.
 	}
 }
 
@@ -701,6 +712,32 @@ identifiersEqual(Token* a, Token* b)
 	return memcmp(a->start, b->start, a->length) == 0;
 }
 
+/** 
+ * Searches a local variable in the current scope.
+ * Returns index of the variable whom identifier matches with the
+ * given token's name.
+ * We walk the array backward so that we find the *last* declared
+ * variable with the identifier. That ensures that inner local
+ * variables correctly shadow locals with the same name in surrounding
+ * scopes.
+ */
+static int32_t
+resolveLocal(Compiler* compiler, Token* name)
+{
+	for (int i = compiler->localCount - 1; i >= 0; --i) {
+		Local* local = &compiler->locals[i];
+		if (identifiersEqual(name, &local->name)) {
+
+			if ((-1) == local->depth)
+				error("Can't read local variable in its own initializer.");
+
+			return i;
+		}
+	}
+
+	return (-1);
+}
+
 /**
  * Adds a variable to the compiler's list of variables
  * in the current scope. */
@@ -714,6 +751,18 @@ addLocal(Token name)
 
 	Local* local = &currCplr->locals[currCplr->localCount++];
 	local->name = name;
+
+	/* Special case handling, consider example:
+	 * {
+	 *   var a = "outer";
+	 *  {
+	 *    var a = a;
+	 *  }
+	 * }
+	 * splitting a vavriable's declaration into two phases (declaration
+	 * and initialization) addresses this issue.
+	 **/
+	local->depth = -1;
 	local->depth = currCplr->scopeDepth;
 }
 
@@ -782,6 +831,12 @@ parseVariable(const char* errorMessage)
 	return identifierConstant(&parser.previous);
 }
 
+static void
+markInitialized(void)
+{
+	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
+}
+
 /**
  * Emits the bytecode for storing the global variable's value
  * in the global variable hash table.
@@ -801,8 +856,10 @@ defineVariable(uint8_t global)
 	 * 
 	 * Thus, there's nothing to do: the temporary simply *becomes*
 	 * the local variable. */
-	if (0 < currCplr->scopeDepth)
+	if (0 < currCplr->scopeDepth) {
+		markInitialized();
 		return;
+	}
 
 	emitBytes(OP_DEFINE_GLOBAL, global);
 }

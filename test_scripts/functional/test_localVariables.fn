@@ -1,15 +1,25 @@
 {
 	var a = "first ";
+	print(a);
 	{
+		print(a);
 		var a = "second ";
+		print(a);
 		{
 			var b = 3.14;
+			print(b);
 			{
-				var c = true;
+				print(b);
+				var b = b;
+				print(b);
 			}
 			var d = (1 + (1 + (1 + (1 + (1 + (1 + (1 + (1 + 1))))))));
+			print(d);
 		}
-		var e = "second";
+		var e = a + "scope";
+		print(e);
 	}
-	var f;
+	var f = a + "scope";
+	print(f);
+	print(a);
 }
