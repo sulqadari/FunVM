@@ -10,6 +10,14 @@ simpleInstruction(const char* name, int32_t offset)
 	return offset + 1;
 }
 
+static int32_t
+bytecodeInstruction(const char* name, Bytecode* bytecode, int32_t offset)
+{
+	uint32_t slot = bytecode->code[offset + 1];
+	printf("%-16s %4d\n", name, slot);
+	return offset + 2;
+}
+
 static uint32_t
 constantInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 {
@@ -66,6 +74,10 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 			return simpleInstruction("OP_FALSE", offset);
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
+		case OP_GET_LOCAL:
+			return bytecodeInstruction("OP_GET_LOCAL", bytecode, offset);
+		case OP_SET_LOCAL:
+			return bytecodeInstruction("OP_SET_LOCAL", bytecode, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", bytecode, offset);
 		case OP_SET_GLOBAL:

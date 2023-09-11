@@ -4,18 +4,6 @@ include_directories(
 	${PROJECT_SOURCE_DIR}/debug
 )
 
-set(SRC_FILES 
-	main.fn
-	compilerPanic.fn
-)
-
-foreach(sourceFile IN LISTS SRC_FILES)
-	file(GENERATE 
-		OUTPUT ${PROJECT_BINARY_DIR}/${sourceFile}
-		INPUT ${sourceFile}
-	)
-endforeach()
-
 set(tests 
 	test_scanner
 )

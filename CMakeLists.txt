@@ -9,6 +9,21 @@ configure_file(funvmConfig.h.in funvmConfig.h)
 
 add_subdirectory(src)
 
+set(scriptFiles
+	./test_scripts/functional/run.sh
+	./test_scripts/functional/test_expressions.fn
+	./test_scripts/functional/test_globalVariables.fn
+	./test_scripts/functional/test_localVariables.fn
+	./test_scripts/functional/test_strings.fn
+)
+
+foreach(scriptFile IN LISTS scriptFiles)
+	file(GENERATE 
+		OUTPUT ${scriptFile}
+		INPUT ${scriptFile}
+	)
+endforeach()
+
 if(FUNVM_DEBUG)
 	add_subdirectory(debug)
 	add_subdirectory(tests)
