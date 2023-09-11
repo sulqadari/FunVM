@@ -525,10 +525,10 @@ namedVariable(Token name, bool canAssign)
 	uint32_t getOp, setOp;
 	//uint8_t offset = identifierConstant(&name);
 	int32_t offset = resolveLocal(currCplr, &name);
-	if (-1 == offset) {
+	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
-	} {
+	} else {
 		offset = identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
