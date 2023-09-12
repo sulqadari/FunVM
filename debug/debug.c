@@ -11,11 +11,21 @@ simpleInstruction(const char* name, int32_t offset)
 }
 
 static int32_t
-bytecodeInstruction(const char* name, Bytecode* bytecode, int32_t offset)
+byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 {
 	uint32_t slot = bytecode->code[offset + 1];
 	printf("%-16s %4d\n", name, slot);
 	return offset + 2;
+}
+
+static int32_t
+jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t offset)
+{
+	uint32_t jump = (uint32_t)(bytecode->code[offset + 1] << 16);
+	jump |= (uint32_t)(bytecode->code[offset + 2] << 8);
+	jump |= (uint32_t)(bytecode->code[offset + 3]);
+	printf("%-16s %4d -> %d", name, offset, offset + 4 + sign + jump);
+	return offset + 4;
 }
 
 static uint32_t
@@ -75,9 +85,9 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
 		case OP_GET_LOCAL:
-			return bytecodeInstruction("OP_GET_LOCAL", bytecode, offset);
+			return byteInstruction("OP_GET_LOCAL", bytecode, offset);
 		case OP_SET_LOCAL:
-			return bytecodeInstruction("OP_SET_LOCAL", bytecode, offset);
+			return byteInstruction("OP_SET_LOCAL", bytecode, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", bytecode, offset);
 		case OP_SET_GLOBAL:
@@ -104,6 +114,10 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 			return simpleInstruction("OP_NEGATE", offset);
 		case OP_PRINT:
 			return simpleInstruction("OP_PRINT", offset);
+		case OP_JUMP:
+			return jumpInstruction("OP_JUMP", 1, bytecode, offset);
+		case OP_JUMP_IF_FALSE:
+			return jumpInstruction("OP_JUMP_IF_FALSE", 1, bytecode, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		default:

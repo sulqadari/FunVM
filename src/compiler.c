@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/_stdint.h>
+#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -289,6 +290,36 @@ emitBytes(uint32_t byte1, uint32_t byte2)
 	emitByte(byte2);
 }
 
+/**
+ * Generates a bytecode instruction and placeholder operand
+ * for conditional branching.
+ * @returns the offset of the emitted instruction in the bytecode.
+ */
+static uint32_t
+emitJump(uint32_t instruction)
+{
+	emitByte(instruction);
+	emitByte(0x00FFFFFF);
+	
+	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
+	 * we need to subtract three operands. */
+	return currentContext()->count - 3;
+}
+
+static void
+patchJump(uint32_t offset)
+{	
+	/* -3 to adjust for the bytecode for the jump offset itself. */
+	uint32_t jump = currentContext()->count - offset - 3;
+
+	if (jump > 0x00FFFFFF)
+		error("Too much code to jump over.");
+
+	currentContext()->code[offset] 		= (jump >> 16) & 0x000000FF;
+	currentContext()->code[offset + 1]	= (jump >>  8) & 0x000000FF;
+	currentContext()->code[offset + 2]	= jump & 0x000000FF;
+}
+
 static void
 emitReturn(void)
 {
@@ -316,7 +347,7 @@ emitConstant(Value value)
 	 * exceeds 255 elements, then instead of OP_CONSTANT which
 	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
 	 * comes into play, which spawns over four bytes:
-	 * [OP_CONSTANT_LONG, operand1, operand2, operand3]*/
+	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (offset > UINT8_MAX)
 		opcode = OP_CONSTANT_LONG;
 
@@ -928,6 +959,50 @@ expressionStatement(void)
 	emitByte(OP_POP);
 }
 
+/**
+ * Compiles the if () statement.
+ * The execution flow shall branch to 'then' body in case the condition
+ * of 'if()' is truthy. Otherwise we step over either to the 'else' branch (if any)
+ * or to the nearest instruction below.
+ * Every 'if()' statement had an implicit else branch, even if the user didn't write
+ * an 'else' clause. In the case where they left if off, all the branch does is
+ * discard the condition value.
+ */
+static void
+ifStatement(void)
+{
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition in 'if' statement");
+
+	/* Emit the jump instruction with the placeholder offset operand, which
+	 * right now has a meaningless value. */
+	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
+
+	/* If condition is truthy, then emit OP_POP to pull out condition value
+	 * from top of the stack right before evaluating the code in 'then' branch. */
+	emitByte(OP_POP);
+
+	/* Compile the 'then' body. */
+	statement();
+
+	/* Note that this branch is unconditional. */
+	uint32_t elseJump = emitJump(OP_JUMP);
+
+	/* Once we have compiled 'then' body, we know how far to jump.
+	 * Thus, proceed to 'backpatching' offset with the real value. */
+	patchJump(thenJump);
+
+	/* Emit OP_POP right before evaluating the body of 'else' branch. */
+	emitByte(OP_POP);
+
+	if (match(TOKEN_ELSE))
+		statement();
+	
+	/* backpatching the 'else' branch. */
+	patchJump(elseJump);
+}
+
 static void
 printStatement(void)
 {
@@ -974,6 +1049,25 @@ synchronize(void)
 }
 
 static void
+statement(void)
+{
+	if (match(TOKEN_PRINT)) {
+		printStatement();
+	}
+	else if (match(TOKEN_IF)) {
+		ifStatement();
+	}
+	else if(match(TOKEN_LEFT_BRACE)) {
+		beginScope();
+		block();
+		endScope();
+	}
+	else {
+		expressionStatement();
+	}
+}
+
+static void
 declaration(void)
 {
 	if (match(TOKEN_VAR)) {
@@ -985,22 +1079,6 @@ declaration(void)
 	/* The synchronization point. */
 	if (parser.panicMode)
 		synchronize();
-}
-
-static void
-statement(void)
-{
-	if (match(TOKEN_PRINT)) {
-		printStatement();
-	}
-	else if(match(TOKEN_LEFT_BRACE)) {
-		beginScope();
-		block();
-		endScope();
-	}
-	else {
-		expressionStatement();
-	}
 }
 
 /**

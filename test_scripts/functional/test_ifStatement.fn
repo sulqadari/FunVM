@@ -1,0 +1,36 @@
+var truthy = true;
+var falsey = false;
+
+print(truthy);
+print(falsey);
+
+if (falsey) {
+	print("shall not be printed out.");
+} else {
+	print("entering else branch.");
+}
+
+if (truthy) {
+	print("Test have been passed successfully.");
+}
+
+if (truthy) {
+	print(1);
+	if (falsey) {
+		print(2);
+		if (truthy) {
+			print(3);
+			if (truthy) {
+				print(4);
+				if (truthy) {
+					print(5);
+					if (truthy) {
+						print(6);
+					}
+				}
+			}
+		}
+	} else {
+		print("skipping nested if-else block");
+	}
+}

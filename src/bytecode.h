@@ -28,6 +28,8 @@ typedef enum {
 	OP_NOT,				/* Logical inversion (true<->false; zero<->non-zero). */
 	OP_NEGATE,			/* Negate operand value (254<->(-254), etc). */
 	OP_PRINT,
+	OP_JUMP,
+	OP_JUMP_IF_FALSE,
 	OP_RETURN			/* Return from the current function. */
 } Opcode;
 
@@ -42,7 +44,6 @@ typedef struct {
 
 void initBytecode(Bytecode* bytecode);
 void freeBytecode(Bytecode* bytecode);
-//void writeBytecode(Bytecode* bytecode, uint8_t opcode, uint32_t line);
 void writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line);
 uint32_t addConstant(Bytecode* bytecode, Value constant);
 

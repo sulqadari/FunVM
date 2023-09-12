@@ -140,15 +140,27 @@ concatenate()
 }
 
 /* Read current byte, then advance istruction pointer. */
-#define READ_BYTE() (*vm->ip++)
+#define READ_BYTE() \
+	(*vm->ip++)
+
+#define READ_LONG()	\
+	(vm->ip += 3, (uint32_t) ((vm->ip[-3] << 16) | \
+							  (vm->ip[-2] <<  8) | \
+							  (vm->ip[-1]) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's const_pool. */
-#define READ_CONSTANT() (vm->bytecode->const_pool.pool[READ_BYTE()])
+#define READ_CONSTANT() \
+	(vm->bytecode->const_pool.pool[READ_BYTE()])
 
-#define READ_CONSTANT_LONG(offset) (vm->bytecode->const_pool.pool[offset])
+#define READ_CONSTANT_LONG() \
+	(vm->bytecode->const_pool.pool[READ_LONG()])
 
-#define READ_STRING() STRING_UNPACK(READ_CONSTANT())
+#define READ_STRING() \
+	STRING_UNPACK(READ_CONSTANT())
+
+#define READ_STRING_LONG() \
+	STRING_UNPACK(READ_CONSTANT_LONG())
 
 #define BINARY_OP(valueType, op)							\
 	do {													\
@@ -203,11 +215,7 @@ run()
 			} break;
 
 			case OP_CONSTANT_LONG: {
-				uint32_t offset = 0;
-				offset |= (READ_BYTE() << 16);
-				offset |= (READ_BYTE() << 8);
-				offset |=  READ_BYTE();
-				Value constant = READ_CONSTANT_LONG(offset);
+				Value constant = READ_CONSTANT_LONG();
 				push(constant);
 			} break;
 			
@@ -333,6 +341,20 @@ run()
 				printf("\n");
 			} break;
 			
+			case OP_JUMP: {
+				uint32_t offset = READ_LONG();
+				vm->ip += offset;
+			} break;
+			
+			case OP_JUMP_IF_FALSE: {
+				uint32_t offset = READ_LONG();
+				/* Check the condition value which resides on top of the stack.
+				 * Apply this jump offset to vm->ip if it's falsey. */
+				if (isFalsey(peek(0)))
+					vm->ip += offset;
+
+			} break;
+
 			case OP_RETURN: {
 				return IR_OK;
 			}

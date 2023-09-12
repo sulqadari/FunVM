@@ -15,6 +15,7 @@ set(scriptFiles
 	./test_scripts/functional/test_globalVariables.fn
 	./test_scripts/functional/test_localVariables.fn
 	./test_scripts/functional/test_strings.fn
+	./test_scripts/functional/test_ifStatement.fn
 )
 
 foreach(scriptFile IN LISTS scriptFiles)
