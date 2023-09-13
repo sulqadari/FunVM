@@ -314,10 +314,16 @@ patchJump(uint32_t offset)
 
 	if (jump > 0x00FFFFFF)
 		error("Too much code to jump over.");
+	
+	int shift = 16;
+	for (int i = 0; i < 3; ++i) {
+		currentContext()->code[offset + i] = (uint8_t)((jump >> shift) & 0x000000FF);
+		shift -= 8;
+	}
 
-	currentContext()->code[offset] 		= (jump >> 16) & 0x000000FF;
-	currentContext()->code[offset + 1]	= (jump >>  8) & 0x000000FF;
-	currentContext()->code[offset + 2]	= jump & 0x000000FF;
+	// currentContext()->code[offset] 		= (jump >> 16) & 0x000000FF;
+	// currentContext()->code[offset + 1]	= (jump >>  8) & 0x000000FF;
+	// currentContext()->code[offset + 2]	= jump & 0x000000FF;
 }
 
 static void
@@ -418,6 +424,9 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static uint8_t identifierConstant(Token* name);
 static int32_t resolveLocal(Compiler* compiler, Token* name);
+static void and_(bool canAssign);
+static void or_(bool canAssign);
+
 /**
  * Infix expressions parser.
  * This function compiles the right-hand operands and emits the bytecode instruction
@@ -650,7 +659,7 @@ ParseRule rules[] = {
 	[TOKEN_IDENTIFIER]		= {variable,     NULL,   PREC_NONE},
 	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
-	[TOKEN_AND]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_AND]				= {NULL,     and_,   PREC_NONE},
 	[TOKEN_CLASS]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_ELSE]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_FALSE]			= {literal,     NULL,   PREC_NONE},
@@ -658,7 +667,7 @@ ParseRule rules[] = {
 	[TOKEN_FUN]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_IF]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NIL]				= {literal,     NULL,   PREC_NONE},
-	[TOKEN_OR]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_OR]				= {NULL,     or_,   PREC_NONE},
 	[TOKEN_PRINT]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
@@ -893,6 +902,49 @@ defineVariable(uint8_t global)
 	}
 
 	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+/**
+ * Compiles logical '&&' operation.
+ * At the point this function is called, the left-hand side expression has
+ * already been compiled, which means that at runtime its value will be on top
+ * of the stack.
+ * If that value is falsey, the entire '&&' must be false, so skip
+ * the right operand and leave the left-hand side value as the result of
+ * the entire expression.
+ * Otherwise, we discard the left-hand value and evaluate the right operand
+ * which becomes the result of the whole '&&' expression.
+ * 
+ */
+static void
+and_(bool canAssign)
+{
+	int32_t endJump = emitJump(OP_JUMP_IF_FALSE);
+	
+	emitByte(OP_POP);
+	parsePrecedence(PREC_AND);
+
+	patchJump(endJump);
+}
+
+/**
+ * Compiles logical '||' expression.
+ * If the left-hand side is truthy, then we skip over the right operand,
+ * thus, we need to jump when a value is truthy.
+ * Otherwise, it does a tiny jump over the next statement which is
+ * unconditional jump over the code for the right operand.
+*/
+static void
+or_(bool canAssign)
+{
+	uint32_t elseJump = emitJump(OP_JUMP_IF_FALSE);
+	uint32_t endJump = emitJump(OP_JUMP);
+
+	patchJump(elseJump);
+	emitByte(OP_POP);
+
+	parsePrecedence(PREC_OR);
+	patchJump(endJump);
 }
 
 /**
