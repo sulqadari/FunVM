@@ -28,6 +28,7 @@ typedef enum {
 	OP_NOT,				/* Logical inversion (true<->false; zero<->non-zero). */
 	OP_NEGATE,			/* Negate operand value (254<->(-254), etc). */
 	OP_PRINT,
+	OP_PRINTLN,
 	OP_JUMP,
 	OP_JUMP_IF_FALSE,
 	OP_RETURN			/* Return from the current function. */

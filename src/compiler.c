@@ -659,7 +659,7 @@ ParseRule rules[] = {
 	[TOKEN_IDENTIFIER]		= {variable,     NULL,   PREC_NONE},
 	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
-	[TOKEN_AND]				= {NULL,     and_,   PREC_NONE},
+	[TOKEN_AND]				= {NULL,     and_,   PREC_AND},
 	[TOKEN_CLASS]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_ELSE]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_FALSE]			= {literal,     NULL,   PREC_NONE},
@@ -667,8 +667,9 @@ ParseRule rules[] = {
 	[TOKEN_FUN]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_IF]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NIL]				= {literal,     NULL,   PREC_NONE},
-	[TOKEN_OR]				= {NULL,     or_,   PREC_NONE},
+	[TOKEN_OR]				= {NULL,     or_,   PREC_OR},
 	[TOKEN_PRINT]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_PRINTLN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_THIS]			= {NULL,     NULL,   PREC_NONE},
@@ -1065,6 +1066,16 @@ printStatement(void)
 	emitByte(OP_PRINT);
 }
 
+static void
+printLnStatement(void)
+{
+	/* Evaluate the expression, leaving the result on top of the stack,
+	 * which will be printed out. */
+	expression();
+	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+	emitByte(OP_PRINTLN);
+}
+
 /**
  * Panic mode error recovery function aimed to minimize the
  * number of cascaded compile errors that it reports.
@@ -1105,6 +1116,8 @@ statement(void)
 {
 	if (match(TOKEN_PRINT)) {
 		printStatement();
+	} else if (match(TOKEN_PRINTLN)) {
+		printLnStatement();
 	}
 	else if (match(TOKEN_IF)) {
 		ifStatement();

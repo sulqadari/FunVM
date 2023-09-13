@@ -14,7 +14,7 @@ static int32_t
 byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 {
 	uint32_t slot = bytecode->code[offset + 1];
-	printf("%-16s %4d\n", name, slot);
+	printf("	%-16s %4d\n", name, slot);
 	return offset + 2;
 }
 
@@ -24,7 +24,7 @@ jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t off
 	uint32_t jump = (uint32_t)(bytecode->code[offset + 1] << 16);
 	jump |= (uint32_t)(bytecode->code[offset + 2] << 8);
 	jump |= (uint32_t)(bytecode->code[offset + 3]);
-	printf("%-16s %4d -> %d", name, offset, offset + 4 + sign + jump);
+	printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign + jump);
 	return offset + 4;
 }
 
@@ -114,6 +114,8 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 			return simpleInstruction("OP_NEGATE", offset);
 		case OP_PRINT:
 			return simpleInstruction("OP_PRINT", offset);
+		case OP_PRINTLN:
+			return simpleInstruction("OP_PRINTLN", offset);
 		case OP_JUMP:
 			return jumpInstruction("OP_JUMP", 1, bytecode, offset);
 		case OP_JUMP_IF_FALSE:

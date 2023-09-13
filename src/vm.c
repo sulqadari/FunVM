@@ -338,9 +338,13 @@ run()
 
 			case OP_PRINT: {
 				printValue(pop());
-				printf("\n");
 			} break;
 			
+			case OP_PRINTLN: {
+				printValue(pop());
+				printf("\n");
+			} break;
+
 			case OP_JUMP: {
 				uint32_t offset = READ_LONG();
 				vm->ip += offset;
