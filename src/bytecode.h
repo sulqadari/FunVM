@@ -36,7 +36,7 @@ typedef enum {
 
 /* Bytecode - a dynamic array of instructions (opcodes). */
 typedef struct {
-	uint32_t count;		/* How many elements in code arrya is. */
+	uint32_t count;		/* Number of elements in code array. */
 	uint32_t capacity;	/* Size of the code array. */
 	uint8_t* code;		/* A chunk of instructions. */
 	uint32_t* lines;

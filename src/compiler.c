@@ -306,24 +306,32 @@ emitJump(uint32_t instruction)
 	return currentContext()->count - 3;
 }
 
+/**
+ * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
+ * resides.
+ * This function is called right before we emit the next instruction that we
+ * want the jump to land on. In the case of 'if' statement, that means right after
+ * we compile the 'then' branch and before we compile the next statement.
+ * 
+ * @param uint32_t offset: the offset of OP_JUMP_IF_FALSE instruction
+ * to revert to.
+ */
 static void
 patchJump(uint32_t offset)
 {	
-	/* -3 to adjust for the bytecode for the jump offset itself. */
+	/* Calculate how far to jump.
+	 * '-3' is to adjust the bytecode for the jump offset itself. */
 	uint32_t jump = currentContext()->count - offset - 3;
 
 	if (jump > 0x00FFFFFF)
 		error("Too much code to jump over.");
 	
+	/** Beginning from the op1, assign the actual offset value to jump to. */
 	int shift = 16;
 	for (int i = 0; i < 3; ++i) {
 		currentContext()->code[offset + i] = (uint8_t)((jump >> shift) & 0x000000FF);
 		shift -= 8;
 	}
-
-	// currentContext()->code[offset] 		= (jump >> 16) & 0x000000FF;
-	// currentContext()->code[offset + 1]	= (jump >>  8) & 0x000000FF;
-	// currentContext()->code[offset + 2]	= jump & 0x000000FF;
 }
 
 static void
@@ -1016,7 +1024,7 @@ expressionStatement(void)
  * Compiles the if () statement.
  * The execution flow shall branch to 'then' body in case the condition
  * of 'if()' is truthy. Otherwise we step over either to the 'else' branch (if any)
- * or to the nearest instruction below.
+ * or to the nearest instruction below the 'then' branch.
  * Every 'if()' statement had an implicit else branch, even if the user didn't write
  * an 'else' clause. In the case where they left if off, all the branch does is
  * discard the condition value.
@@ -1024,12 +1032,14 @@ expressionStatement(void)
 static void
 ifStatement(void)
 {
-	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'");
+	/* Compile condition variable. The resulting value will be placed
+	 * on top of the stack and used to determine whether to execute the
+	 * 'then' branch or skip it. */
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
 	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition in 'if' statement");
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition in 'if' statement.");
 
-	/* Emit the jump instruction with the placeholder offset operand, which
-	 * right now has a meaningless value. */
+	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
 	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
 
 	/* If condition is truthy, then emit OP_POP to pull out condition value
