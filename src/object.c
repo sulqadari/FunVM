@@ -143,6 +143,11 @@ copyString(const char* chars, int32_t length)
 static void
 printFunction(ObjFunction* function)
 {
+	if (NULL == function->name) {
+		printf("<script>");
+		return;
+	}
+
 	printf("<fn %s>", function->name->chars);
 }
 
@@ -150,7 +155,11 @@ void
 printObject(Value value)
 {
 	switch (OBJECT_TYPE(value)) {
-		case OBJ_STRING: printf("%s", CSTRING_UNPACK(value)); break;
-		case OBJ_FUNCTION: printFunction(FUNCTION_UNPACK(value));
+		case OBJ_STRING:
+			printf("%s", CSTRING_UNPACK(value));
+		break;
+		case OBJ_FUNCTION:
+			printFunction(FUNCTION_UNPACK(value));
+		break;
 	}
 }

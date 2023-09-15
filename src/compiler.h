@@ -2,7 +2,8 @@
 #define FUNVM_COMPILER_H
 
 #include "bytecode.h"
+#include "object.h"
 
-bool compile(const char* source, Bytecode* bytecode);
+ObjFunction* compile(const char* source);
 
 #endif // !FUNVM_COMPILER_H

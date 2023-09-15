@@ -49,6 +49,11 @@ struct Object {
 	struct Object* next;
 };
 
+/**
+ * Function object structure.
+ * The functions are first-class, thus ObjFunction has the same
+ * 'Object' header that all object types share.
+*/
 typedef struct {
 	Object		object;
 	uint32_t	arity;		/* the number of params. */
@@ -85,7 +90,7 @@ void printObject(Value value);
 static inline bool
 isObjType(Value value, ObjType type)
 {
-	return IS_OBJECT(value) && OBJECT_UNPACK(value)->type == type;
+	return (IS_OBJECT(value) && (OBJECT_UNPACK(value)->type == type));
 }
 
 #endif // !FUNVM_OBJECT_H

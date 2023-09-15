@@ -4,7 +4,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"

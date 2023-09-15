@@ -38,6 +38,8 @@ freeObject(Object* object)
 			FREE(ObjString, object);
 		} break;
 
+		/* Note that function's name is an instance of ObjString
+		 * which will be garbage collected once we delete the function. */
 		case OBJ_FUNCTION: {
 			ObjFunction* function = (ObjFunction*)object;
 			freeBytecode(&function->bytecode);
