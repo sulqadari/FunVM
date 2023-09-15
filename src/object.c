@@ -46,6 +46,22 @@ allocateObject(size_t size, ObjType type)
 }
 
 /**
+ * Creates an instance of ObjFunction.
+ * The initial state is left black which will be filled in at
+ * the function creation stage.
+ */
+ObjFunction*
+newFunction(void)
+{
+	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+	function->arity = 0;
+	function->name = NULL;
+	initBytecode(&function->bytecode);
+	
+	return function;
+}
+
+/**
  * Creates a new ObjString on the heap and then initializes its fields.
  * It's sort of like a constructor in an OOP language.
  */
@@ -124,9 +140,17 @@ copyString(const char* chars, int32_t length)
 	return allocateString(heapChars, length, hash);
 }
 
-void printObject(Value value)
+static void
+printFunction(ObjFunction* function)
+{
+	printf("<fn %s>", function->name->chars);
+}
+
+void
+printObject(Value value)
 {
 	switch (OBJECT_TYPE(value)) {
 		case OBJ_STRING: printf("%s", CSTRING_UNPACK(value)); break;
+		case OBJ_FUNCTION: printFunction(FUNCTION_UNPACK(value));
 	}
 }

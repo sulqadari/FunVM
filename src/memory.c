@@ -32,10 +32,16 @@ static void
 freeObject(Object* object)
 {
 	switch (object->type) {
-		case OBJ_STRING : {
+		case OBJ_STRING: {
 			ObjString* string = (ObjString*)object;
 			FREE_ARRAY(char, string->chars, string->length + 1);
 			FREE(ObjString, object);
+		} break;
+
+		case OBJ_FUNCTION: {
+			ObjFunction* function = (ObjFunction*)object;
+			freeBytecode(&function->bytecode);
+			FREE(ObjFunction, object);
 		} break;
 	}
 }

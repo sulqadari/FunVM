@@ -5,14 +5,18 @@
 #include <stdint.h>
 
 #include "value.h"
+#include "bytecode.h"
 #include "vm.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
+#define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
+
 /* Safety check macro. */
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
+#define FUNCTION_UNPACK(value)	((ObjFunction*)OBJECT_UNPACK(value))
 /* Returns the (ObjString*) from the heap. */
 #define STRING_UNPACK(value)	((ObjString*)OBJECT_UNPACK(value))
 
@@ -21,6 +25,7 @@
 
 typedef enum {
 	OBJ_STRING,
+	OBJ_FUNCTION
 } ObjType;
 
 /**
@@ -44,6 +49,13 @@ struct Object {
 	struct Object* next;
 };
 
+typedef struct {
+	Object		object;
+	uint32_t	arity;		/* the number of params. */
+	Bytecode	bytecode;	/* function's own bytecode. */
+	ObjString*	name;		/* Function's name. */
+} ObjFunction;
+
 /**
  * String object aimed to keep payload. 
  * The cached hash code of the 'chars' is used in hash table
@@ -57,6 +69,7 @@ struct ObjString {
 };
 
 void object_setVm(VM* _vm);
+ObjFunction* newFunction(void);
 ObjString* takeString(char* chars, int32_t length);
 ObjString* copyString(const char* chars, int32_t length);
 void printObject(Value value);
