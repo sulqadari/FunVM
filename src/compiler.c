@@ -1363,6 +1363,7 @@ ObjFunction*
 compile(const char* source)
 {
 	Compiler compiler;
+	
 	initScanner(source);
 	initCompiler(&compiler, TYPE_SCRIPT);
 
