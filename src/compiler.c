@@ -1033,6 +1033,99 @@ expressionStatement(void)
 	emitByte(OP_POP);
 }
 
+static void
+forStatement(void)
+{
+	/* Wrap the whole statement in a scope, so that any declared variable
+	 * will reside within it. */
+	beginScope();
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+
+	/* The initializer clause.
+	 * Parse token the next of opening parenthsis. */
+	if (match(TOKEN_SEMICOLON)) {
+		// No initializer
+	} else if (match(TOKEN_VAR)) {
+		varDeclaration();
+	} else {
+
+		/* Calling this function instead of expression() is because
+		 * it looks for semantic-mandaroty semicolon and also emits an OP_POP. */
+		expressionStatement();
+	}
+
+	/* The condition clause. */
+	uint32_t loopStart = currentContext()->count;
+	int32_t exitJump = -1;
+
+	/* Since this clause is optionalm we need to see if it's actually present.
+	 * The previous semicolon was consumed by previous clause, no that if
+	 * the current clause is ommited, the next token must be a semicolon,
+	 * so we look for that to tell. If there is not a semicolon, there
+	 * must be a condition expression. */
+	if (!match(TOKEN_SEMICOLON)) {
+		expression();
+		consume(TOKEN_SEMICOLON, "Expect ';' after loop's condition clause.");
+
+		/* Jump out of the loop if the condition is false. */
+		exitJump = emitJump(OP_JUMP_IF_FALSE);
+
+		/* Since the jump leaves the value on the stack, we pop it before
+		 * executing the body. That ensures we discard the value when
+		 * the condition is true. */
+		emitByte(OP_POP);
+	}
+
+	/* The increment clause.
+	 * Even though this clause appears textually *before* the body, but
+	 * executes *after* it.
+	 * To do so, the control flow jumps over the increment clause,
+	 * runs the body, jumps back up to the increment clause, runs it,
+	 * and then goes to the next iteration. */
+	if (!match(TOKEN_RIGHT_PAREN)) {
+
+		/* Emit the unconditional jump that hops over the increment clause. */
+		uint32_t bodyJump = emitJump(OP_JUMP);
+		
+		/* take the offset of the increment clause within bytecode. */
+		uint32_t incrementStart = currentContext()->count;
+		/* Compile the increment expression itself. The only thing we need
+		 * is its side effect, so.. */
+		expression();
+		/* ..also emit a OP_POP to discard its value after that. */
+		emitByte(OP_POP);
+
+		consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'for' clause");
+
+		/* Emit the main loop that takes us back to the top of the for loop,
+		 * right before the condition expression if there is one. */
+		emitLoop(loopStart);
+
+		/* Change loopStart to point to the offset where the increment
+		 * expression begins. When we emit the loop instruction after
+		 * the body statement, this will cause it to jump up to the
+		 * *increment* expression instead of teh top of the loop like
+		 * it does when there is no increment. */
+		loopStart = incrementStart;
+		patchJump(bodyJump);
+	}
+
+	/* Compile the body. */
+	statement();
+
+	/* Emit a OP_LOOP opcode to jump back to 'condition' clause. */
+	emitLoop(loopStart);
+
+	/* Patch the exitJump if condition clause is defined. Otherwise
+	 * there's no jump to patch and no condition value on the stack to pop. */
+	if (-1 != exitJump) {
+		patchJump(exitJump);
+		emitByte(OP_POP);
+	}
+
+	endScope();
+}
+
 /**
  * Compiles the if () statement.
  * The execution flow shall branch to 'then' body in case the condition
@@ -1050,7 +1143,7 @@ ifStatement(void)
 	 * 'then' branch or skip it. */
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
 	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' in 'if' statement.");
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'if' clause.");
 
 	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
 	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
@@ -1110,7 +1203,7 @@ whileStatement(void)
 
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
 	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' in 'while' statement.");
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
 
 	/* To skip over the subsequent body statement if the condition if falsey. */
 	uint32_t exitJump = emitJump(OP_JUMP_IF_FALSE);
@@ -1171,6 +1264,8 @@ statement(void)
 		printStatement();
 	} else if (match(TOKEN_PRINTLN)) {
 		printLnStatement();
+	} else if (match(TOKEN_FOR)) {
+		forStatement();
 	} else if (match(TOKEN_IF)) {
 		ifStatement();
 	} else if (match(TOKEN_WHILE)) {

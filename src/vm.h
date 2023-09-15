@@ -26,7 +26,5 @@ typedef enum {
 void initVM(VM* vm);
 void freeVM(VM* vm);
 InterpretResult interpret(const char* source);
-// void push(Value value, VM* vm);
-// Value pop(VM* vm);
 
 #endif // !FUNVM_VM_H
