@@ -71,13 +71,18 @@ typedef struct {
 	int16_t depth; 
 } Local;
 
+typedef enum {
+	TYPE_FUNCTION,
+	TYPE_SCRIPT
+} FunctionType;
+
 #define UIN8_COUNT (UINT8_MAX + 1)
 
 /**
  * Compiler tracks the scopes and variables within them
  * at compile time, taking most of the advantages from 
  * stack-based local variable declaration pattern.
- *
+ * 
  * The Complier struct contains the following fields:
  * Local locals[]:	all locals that are in scope during each
  * 				point in the compilation process;
@@ -88,19 +93,32 @@ typedef struct {
  *				bit of code we're compiling;
  */
 typedef struct {
+
+	/* Instead of pointing directly to a Bytecode that the
+	 * compiler writes to, it instead has a reference to the
+	 * function object being built. */
+	ObjFunction* function;
+
+	/* Distinguishes compilation between top-level code vs
+	 * the body of a function. */
+	FunctionType type;
+
 	Local locals[UIN8_COUNT];
 	int16_t localCount;
 	int16_t scopeDepth;
 } Compiler;
 
-Parser parser;
+static Parser parser;
 static Compiler* currCplr = NULL;
-Bytecode* currCtx;
 
+/**
+ * The current context is always the bytecode owned by the function
+ * we're in the middle of compiling.
+ */
 static Bytecode*
 currentContext(void)
 {
-	return currCtx;
+	return &currCplr->function->bytecode;
 }
 
 /**
@@ -381,11 +399,23 @@ emitConstant(Value value)
 }
 
 static void
-initCompiler(Compiler* compiler)
+initCompiler(Compiler* compiler, FunctionType type)
 {
+	compiler->function = NULL;
+	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
+
+	/* Allocate a new function object to compile into.
+	 * Function are created during compilation and are
+	 * simply invoked at runtime. */
+	compiler->function = newFunction();
 	currCplr = compiler;
+
+	Local* local = &currCplr->locals[currCplr->localCount++];
+	local->depth = 0;
+	local->name.start = "";
+	local->name.length = 0;
 }
 
 static void
@@ -1305,8 +1335,8 @@ compile(const char* source, Bytecode* bytecode)
 {
 	Compiler compiler;
 	initScanner(source);
-	initCompiler(&compiler);
-	currCtx = bytecode;
+	initCompiler(&compiler, TYPE_SCRIPT);
+
 	parser.hadError = false;
 	parser.panicMode = false;
 
