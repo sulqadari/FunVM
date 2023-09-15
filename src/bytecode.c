@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdlib.h>
-//#include <sys/endian.h>
 #include "bytecode.h"
 #include "memory.h"
 

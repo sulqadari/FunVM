@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/_stdint.h>
-#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"
