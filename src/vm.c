@@ -352,11 +352,17 @@ run()
 			
 			case OP_JUMP_IF_FALSE: {
 				uint32_t offset = READ_LONG();
+
 				/* Check the condition value which resides on top of the stack.
 				 * Apply this jump offset to vm->ip if it's falsey. */
 				if (isFalsey(peek(0)))
 					vm->ip += offset;
 
+			} break;
+
+			case OP_LOOP: {
+				uint32_t offset = READ_LONG();
+				vm->ip -= offset;
 			} break;
 
 			case OP_RETURN: {

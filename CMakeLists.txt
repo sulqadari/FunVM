@@ -17,6 +17,7 @@ set(scriptFiles
 	./test_scripts/functional/test_strings.fn
 	./test_scripts/functional/test_ifStatement.fn
 	./test_scripts/functional/test_orAnd.fn
+	./test_scripts/functional/test_while.fn
 )
 
 foreach(scriptFile IN LISTS scriptFiles)

@@ -21,10 +21,21 @@ byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 static int32_t
 jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t offset)
 {
-	uint32_t jump = (uint32_t)(bytecode->code[offset + 1] << 16);
-	jump |= (uint32_t)(bytecode->code[offset + 2] << 8);
-	jump |= (uint32_t)(bytecode->code[offset + 3]);
-	printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign + jump);
+	// uint32_t jump = (uint32_t)(bytecode->code[offset + 1] << 16);
+	// jump |= (uint32_t)(bytecode->code[offset + 2] << 8);
+	// jump |= (uint32_t)(bytecode->code[offset + 3]);
+	// printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign + jump);
+	// return offset + 4;
+
+	uint32_t jump = 0;
+	int8_t lShift = 16;
+
+	for (int i = 1; i < 4; ++i) {
+		jump |= (uint32_t)((bytecode->code[offset + i] & 0xFF) << lShift);
+		lShift -= 8;
+	}
+
+	printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign * jump);
 	return offset + 4;
 }
 
@@ -120,6 +131,8 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 			return jumpInstruction("OP_JUMP", 1, bytecode, offset);
 		case OP_JUMP_IF_FALSE:
 			return jumpInstruction("OP_JUMP_IF_FALSE", 1, bytecode, offset);
+		case OP_LOOP:
+			return jumpInstruction("OP_LOOP", -1, bytecode, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		default:

@@ -290,6 +290,20 @@ emitBytes(uint32_t byte1, uint32_t byte2)
 	emitByte(byte2);
 }
 
+static void
+emitLoop(uint32_t loopStart)
+{
+	emitByte(OP_LOOP);
+
+	uint32_t offset = currentContext()->count - loopStart + 3;
+	if (0x00FFFFFF < offset)
+		error("Loop body too large.");
+	
+	emitByte((offset >> 16) & 0xff);
+	emitByte((offset >> 8) & 0xff);
+	emitByte(offset & 0xff);
+}
+
 /**
  * Generates a bytecode instruction and placeholder operand
  * for conditional branching.
@@ -508,6 +522,7 @@ literal(bool canAssign)
 		default: return;	// Unreachable
 	}
 }
+
 /**
  * Parentheses expression handler.
  *
@@ -718,7 +733,7 @@ parsePrecedence(Precedence precedence)
 	 * in the context of a low-precedence expression.
 	 *
 	 * Since assignment is the lowest-precedence expression, the only time
-	 * we allow an ssignment is when parsing an assignemt expression or
+	 * we allow an ssignment is when parsing an assigment expression or
 	 * top-level expression like in an expression statement. */
 	bool canAssign = (precedence <= PREC_ASSIGNMENT);
 
@@ -938,8 +953,8 @@ and_(bool canAssign)
 
 /**
  * Compiles logical '||' expression.
- * If the left-hand side is truthy, then we skip over the right operand,
- * thus, we need to jump when a value is truthy.
+ * If the left-hand side is truthy, then we skip over the right operand
+ * so that the execution flow proceeds to code.
  * Otherwise, it does a tiny jump over the next statement which is
  * unconditional jump over the code for the right operand.
 */
@@ -1025,25 +1040,27 @@ expressionStatement(void)
  * The execution flow shall branch to 'then' body in case the condition
  * of 'if()' is truthy. Otherwise we step over either to the 'else' branch (if any)
  * or to the nearest instruction below the 'then' branch.
- * Every 'if()' statement had an implicit else branch, even if the user didn't write
+ * Every 'if()' statement had an implicit 'else' branch, even if the user didn't write
  * an 'else' clause. In the case where they left if off, all the branch does is
  * discard the condition value.
  */
 static void
 ifStatement(void)
 {
-	/* Compile condition variable. The resulting value will be placed
+	/* Compile the condition expresiion. The resulting value will be placed
 	 * on top of the stack and used to determine whether to execute the
 	 * 'then' branch or skip it. */
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
 	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition in 'if' statement.");
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' in 'if' statement.");
 
 	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
 	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
 
 	/* If condition is truthy, then emit OP_POP to pull out condition value
-	 * from top of the stack right before evaluating the code in 'then' branch. */
+	 * from top of the stack right before evaluating the code in 'then' branch.
+	 * This way we obey the rule that each statement after being executed MUST
+	 * to have zero stack effect - its length should be as tall as it was before. */
 	emitByte(OP_POP);
 
 	/* Compile the 'then' body. */
@@ -1056,7 +1073,9 @@ ifStatement(void)
 	 * Thus, proceed to 'backpatching' offset with the real value. */
 	patchJump(thenJump);
 
-	/* Emit OP_POP right before evaluating the body of 'else' branch. */
+	/* If condition expression have been evaluated to 'falsey' and
+	 * execution flow jumped over to 'else' branch, the previous instruction
+	 * OP_POP left unexecuted. Thus, fix this case. */
 	emitByte(OP_POP);
 
 	if (match(TOKEN_ELSE))
@@ -1084,6 +1103,32 @@ printLnStatement(void)
 	expression();
 	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
 	emitByte(OP_PRINTLN);
+}
+
+static void
+whileStatement(void)
+{
+	uint32_t loopStart = currentContext()->count;
+
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' in 'while' statement.");
+
+	/* To skip over the subsequent body statement if the condition if falsey. */
+	uint32_t exitJump = emitJump(OP_JUMP_IF_FALSE);
+	
+	/* Pop the condition value from the stack if expression is falsey. */
+	emitByte(OP_POP);
+
+	/* Compile the body. */
+	statement();
+	/* Emit a 'loop' instruction. */
+	emitLoop(loopStart);
+	patchJump(exitJump);
+
+	/* Pop the condition value from the stack when exiting from the body
+	 * (i.e. the expresssion condition was truthy. */
+	emitByte(OP_POP);
 }
 
 /**
@@ -1128,16 +1173,15 @@ statement(void)
 		printStatement();
 	} else if (match(TOKEN_PRINTLN)) {
 		printLnStatement();
-	}
-	else if (match(TOKEN_IF)) {
+	} else if (match(TOKEN_IF)) {
 		ifStatement();
-	}
-	else if(match(TOKEN_LEFT_BRACE)) {
+	} else if (match(TOKEN_WHILE)) {
+		whileStatement();
+	} else if(match(TOKEN_LEFT_BRACE)) {
 		beginScope();
 		block();
 		endScope();
-	}
-	else {
+	} else {
 		expressionStatement();
 	}
 }
