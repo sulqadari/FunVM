@@ -23,3 +23,12 @@
 	print(f);
 	print(a);
 }
+
+{
+	var a = "outer";
+	println(a);
+	{
+		var a = a;
+		println(a);
+	}
+}

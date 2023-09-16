@@ -389,7 +389,9 @@ interpret(const char* source)
 	frame->slots = vm->stack;
 
 #ifdef FUNVM_DEBUG
-		printf("******\nFiring up Virtual Machine\n******\n");
+		printf( "\n************************************\n"
+				"    Firing up Virtual Machine"
+				"\n************************************\n");
 #endif // !FUNVM_DEBUG
 
 	return run();

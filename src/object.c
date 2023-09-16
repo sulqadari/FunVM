@@ -9,6 +9,11 @@
 
 static VM* vm;
 
+/** 
+ * Note that the declaration of this function can be found in vm.h.
+ * This weird decision is aimed to address the cross-dependency 
+ * issue between vm.h and object.h header files.
+*/
 void
 setVM(VM* _vm)
 {
