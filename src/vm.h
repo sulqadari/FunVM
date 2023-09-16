@@ -3,12 +3,42 @@
 
 #include "value.h"
 #include "bytecode.h"
+#include "object.h"
 
 typedef struct Table Table;
 
-typedef struct VM {
-	Bytecode* bytecode;	/* A chunk of bytecode to execute. */
-	uint8_t* ip;		/* InsPtr, points to the ins about to be executed. */
+/**
+ * Represents a single ongoing function call.
+ * For each call that hasn't returned yet we need to track where on the stack
+ * that function's locals begin, and where the caller should resume.
+ * 
+ * ObjFunction* function:
+ * 			current function.
+ * uint8_t* ip;
+ * 			current function's instruction pointer.
+ * Value* slots:
+ * 			points into the VM's values stack at the first slot that
+ * 			this function can use.
+*/
+typedef struct {
+	ObjFunction* function;
+	uint8_t* ip;
+	Value* slots;
+} CallFrame;
+
+#define FRAMES_MAX 64
+
+/**
+ * CallFrame frames[FRAMES_MAX]:
+ * 			Each CallFrame has its own instruction pointer and its own pointer
+ * 			to the ObjFunction that's executing.
+ * uint32_t frameCount:
+ * 			stores the current height of the CallFrame stack, i.e., the number of
+ * 			ongoing function calls.
+*/
+typedef struct {
+	CallFrame frames[FRAMES_MAX];
+	uint32_t frameCount;
 	Value* stack;
 	Value* stackTop;
 	uint32_t stackSize;
@@ -25,6 +55,7 @@ typedef enum {
 
 void initVM(VM* vm);
 void freeVM(VM* vm);
+void setVM(VM* vm);
 InterpretResult interpret(const char* source);
 
 #endif // !FUNVM_VM_H

@@ -10,7 +10,7 @@
 static VM* vm;
 
 void
-object_setVm(VM* _vm)
+setVM(VM* _vm)
 {
 	vm = _vm;
 }

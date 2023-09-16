@@ -25,6 +25,7 @@ static void
 resetStack(void)
 {
 	vm->stackTop = vm->stack;
+	vm->frameCount = 0;
 }
 
 static void
@@ -37,8 +38,9 @@ runtimeError(const char* format, ...)
 	va_end(args);
 	fputs("\n", stderr);
 
-	size_t instruction = (vm->ip - (vm->bytecode->code - 1));
-	int line = vm->bytecode->lines[instruction];
+	CallFrame* frame = &vm->frames[vm->frameCount - 1];
+	size_t instruction = (frame->ip - (frame->function->bytecode.code - 1));
+	int line = frame->function->bytecode.lines[instruction];
 	fprintf(stderr, "[line %d] in script\n", line);
 	resetStack();
 }
@@ -47,8 +49,6 @@ void
 initVM(VM* _vm)
 {
 	vm = _vm;
-	vm->bytecode = NULL;
-	vm->ip = NULL;
 	vm->stack = NULL;
 	vm->stackTop = NULL;
 	vm->stackSize = 0;
@@ -56,6 +56,7 @@ initVM(VM* _vm)
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 	resetStack();
+	setVM(vm);
 }
 
 void
@@ -140,20 +141,20 @@ concatenate()
 
 /* Read current byte, then advance istruction pointer. */
 #define READ_BYTE() \
-	(*vm->ip++)
+	(*frame->ip++)
 
 #define READ_LONG()	\
-	(vm->ip += 3, (uint32_t) ((vm->ip[-3] << 16) | \
-							  (vm->ip[-2] <<  8) | \
-							  (vm->ip[-1]) ))
+	(frame->ip += 3, (uint32_t) ((frame->ip[-3] << 16) | \
+							  (frame->ip[-2] <<  8) | \
+							  (frame->ip[-1]) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's const_pool. */
 #define READ_CONSTANT() \
-	(vm->bytecode->const_pool.pool[READ_BYTE()])
+	(frame->function->bytecode.const_pool.pool[READ_BYTE()])
 
 #define READ_CONSTANT_LONG() \
-	(vm->bytecode->const_pool.pool[READ_LONG()])
+	(frame->function->bytecode.const_pool.pool[READ_LONG()])
 
 #define READ_STRING() \
 	STRING_UNPACK(READ_CONSTANT())
@@ -176,7 +177,7 @@ concatenate()
 
 #ifdef FUNVM_DEBUG
 static void
-logRun()
+logRun(CallFrame* frame)
 {
 	printf("		");
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
@@ -186,8 +187,8 @@ logRun()
 	}
 	printf("\n");
 
-	disassembleInstruction(vm->bytecode,
-			(int32_t)(vm->ip - vm->bytecode->code));
+	disassembleInstruction(&frame->function->bytecode,
+			(int32_t)(frame->ip - frame->function->bytecode.code));
 }
 #endif // !FUNVM_DEBUG
 
@@ -202,9 +203,11 @@ static InterpretResult
 run()
 {
 	uint8_t ins;
+	CallFrame* frame = &vm->frames[vm->frameCount - 1];
+
 	for (;;) {
 #ifdef FUNVM_DEBUG
-		logRun();
+		logRun(frame);
 #endif // !FUNVM_DEBUG
 		switch (ins = READ_BYTE()) {
 
@@ -225,12 +228,12 @@ run()
 
 			case OP_GET_LOCAL: {
 				uint32_t slot = READ_BYTE();
-				push(vm->stack[slot]);
+				push(frame->slots[slot]);
 			} break;
 
 			case OP_SET_LOCAL: {
 				uint32_t slot = READ_BYTE();
-				vm->stack[slot] = peek(0);
+				frame->slots[slot] = peek(0);
 			} break;
 			
 			case OP_DEFINE_GLOBAL: {
@@ -346,7 +349,7 @@ run()
 
 			case OP_JUMP: {
 				uint32_t offset = READ_LONG();
-				vm->ip += offset;
+				frame->ip += offset;
 			} break;
 			
 			case OP_JUMP_IF_FALSE: {
@@ -355,13 +358,13 @@ run()
 				/* Check the condition value which resides on top of the stack.
 				 * Apply this jump offset to vm->ip if it's falsey. */
 				if (isFalsey(peek(0)))
-					vm->ip += offset;
+					frame->ip += offset;
 
 			} break;
 
 			case OP_LOOP: {
 				uint32_t offset = READ_LONG();
-				vm->ip -= offset;
+				frame->ip -= offset;
 			} break;
 
 			case OP_RETURN: {
@@ -374,33 +377,20 @@ run()
 InterpretResult
 interpret(const char* source)
 {
-	Bytecode bytecode;
-	initBytecode(&bytecode);
-	object_setVm(vm);
-
-	/* Fill in the bytecode with the instructions retrieved
-	 * from source code. */
-	if (compile(source, &bytecode)) {
-		freeBytecode(&bytecode);
+	ObjFunction* function = compile(source);
+	if (NULL == function)
 		return IR_COMPILE_ERROR;
-	}
 
-	/* Initialize VM with bytecode. */
-	vm->bytecode = &bytecode;
-
-	/* Assign VM a source code.
-	 * NOTE: current runtime highly depends on source code,
-	 * actually if we just remove it from the middle of execution,
-	 * the runtime will fail.
-	 * Next improvements shall eliminate this case. */
-	vm->ip = vm->bytecode->code;
+	push(OBJECT_PACK(function));
+	
+	CallFrame* frame = &vm->frames[vm->frameCount++];
+	frame->function = function;
+	frame->ip = function->bytecode.code;
+	frame->slots = vm->stack;
 
 #ifdef FUNVM_DEBUG
-		printf("\nFiring up Virtual Machine\n");
+		printf("******\nFiring up Virtual Machine\n******\n");
 #endif // !FUNVM_DEBUG
 
-	InterpretResult result = run();
-	freeBytecode(&bytecode);
-
-	return result;
+	return run();
 }

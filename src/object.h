@@ -6,7 +6,6 @@
 
 #include "value.h"
 #include "bytecode.h"
-#include "vm.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
@@ -73,7 +72,6 @@ struct ObjString {
 	uint32_t hash;
 };
 
-void object_setVm(VM* _vm);
 ObjFunction* newFunction(void);
 ObjString* takeString(char* chars, int32_t length);
 ObjString* copyString(const char* chars, int32_t length);
