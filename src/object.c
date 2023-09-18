@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "memory.h"
@@ -64,6 +65,18 @@ newFunction(void)
 	initBytecode(&function->bytecode);
 	
 	return function;
+}
+
+/**
+ * Takes a C function pointer to wrap in an ObjNative.
+ * It sets up the object header and stores the function.
+ */
+ObjNative*
+newNative(NativeFn function)
+{
+	ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+	native->function = function;
+	return native;
 }
 
 /**
@@ -133,6 +146,10 @@ copyString(const char* chars, int32_t length)
 {
 	uint32_t hash = hashString(chars, length);
 
+	if (NULL == vm->interns) {
+		printf("vm->interns is NULL\n");
+		exit(1);
+	}
 	/* Before copying the string, look it up in the string set first. */
 	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
 	if (NULL != interned)
@@ -163,6 +180,9 @@ printObject(Value value)
 		case OBJ_STRING:
 			printf("%s", CSTRING_UNPACK(value));
 		break;
+		case OBJ_NATIVE: {
+			printf("<native fn>");
+		} break;
 		case OBJ_FUNCTION:
 			printFunction(FUNCTION_UNPACK(value));
 		break;

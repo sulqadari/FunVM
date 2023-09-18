@@ -4,8 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/endian.h>
-#include <x86/_stdint.h>
+#include <time.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -20,6 +19,15 @@
 #endif
 
 static VM* vm;
+
+/**
+ * Returns the elapsed type since the program started running, in seconds.
+ */
+static Value
+clockNative(uint32_t argCount, Value* args)
+{
+	return NUMBER_PACK((double)clock() / CLOCKS_PER_SEC);
+}
 
 /* Makes stackTop point to the beginning of the stack,
  * that indicates that stack is empty. */
@@ -60,6 +68,8 @@ runtimeError(const char* format, ...)
 	resetStack();
 }
 
+static void defineNative(const char* name, NativeFn function);
+
 void
 initVM(VM* _vm)
 {
@@ -70,8 +80,10 @@ initVM(VM* _vm)
 	vm->objects = NULL;
 	initTable(&vm->globals);
 	initTable(&vm->interns);
+
 	resetStack();
 	setVM(vm);
+	defineNative("clock", clockNative);
 }
 
 void
@@ -128,6 +140,27 @@ peek(int32_t offset)
 }
 
 /**
+ * Foreign function interface is used to provide a users with
+ * capability to define their own native functions.
+ * This function takes the pointer to a C function and the name it will
+ * be known as in FunVM.
+ */
+static void
+defineNative(const char* name, NativeFn function)
+{
+	/* Store the name of the native function on top of the stack. */
+	push(OBJECT_PACK(copyString(name, (size_t)strlen(name))));
+
+	/* Wrap the function in an ObjNative and push onto the stack. */
+	push(OBJECT_PACK(newNative(function)));
+
+	/* Store in a global variable with the given name. */
+	tableSet(vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
+	pop();
+	pop();
+}
+
+/**
  * Initializes the next CallFrame on the stack to be called.
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
@@ -160,9 +193,22 @@ static bool
 callValue(Value callee, uint8_t argCount)
 {
 	if (IS_OBJECT(callee)) {
+		
 		switch (OBJECT_TYPE(callee)) {
+			
 			case OBJ_FUNCTION:
 				return call(FUNCTION_UNPACK(callee), argCount);
+			
+			/* If the object being called is a native function, we invoke
+			 * the C function right then and there. The value returned by
+			 * this call is stored onto the stack. */
+			case OBJ_NATIVE: {
+				NativeFn native = NATIVE_UNPACK(callee);
+				Value result = native(argCount, vm->stackTop - argCount);
+				vm->stackTop -= argCount - 1;
+				push(result);
+				return true;
+			}
 			default:
 				/* Non-callabe object type. */
 			break;

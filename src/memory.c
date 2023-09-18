@@ -38,6 +38,10 @@ freeObject(Object* object)
 			FREE(ObjString, object);
 		} break;
 
+		case OBJ_NATIVE: {
+			FREE(ObjNative, object);
+		} break;
+
 		/* Note that function's name is an instance of ObjString
 		 * which will be garbage collected once we delete the function. */
 		case OBJ_FUNCTION: {

@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/endian.h>
 
 #include "value.h"
 #include "bytecode.h"
@@ -12,10 +13,14 @@
 
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
 
+#define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
 /* Safety check macro. */
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
 #define FUNCTION_UNPACK(value)	((ObjFunction*)OBJECT_UNPACK(value))
+
+#define NATIVE_UNPACK(value)	(((ObjNative*)OBJECT_UNPACK(value))->function)
+
 /* Returns the (ObjString*) from the heap. */
 #define STRING_UNPACK(value)	((ObjString*)OBJECT_UNPACK(value))
 
@@ -24,6 +29,7 @@
 
 typedef enum {
 	OBJ_STRING,
+	OBJ_NATIVE,
 	OBJ_FUNCTION
 } ObjType;
 
@@ -60,6 +66,21 @@ typedef struct {
 	ObjString*	name;		/* Function's name. */
 } ObjFunction;
 
+/** Typedef for pointer to the C function.
+ * @param uint32_t: argument count.
+ * @param Value*: pointer to the first argument on the stack.
+ * @returns Value: the result value.
+ */
+typedef Value (*NativeFn)(uint32_t argCount, Value* args);
+
+/**
+ * Native function representation.
+ */
+typedef struct {
+	Object object;
+	NativeFn function;
+} ObjNative;
+
 /**
  * String object aimed to keep payload. 
  * The cached hash code of the 'chars' is used in hash table
@@ -73,6 +94,7 @@ struct ObjString {
 };
 
 ObjFunction* newFunction(void);
+ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, int32_t length);
 ObjString* copyString(const char* chars, int32_t length);
 void printObject(Value value);

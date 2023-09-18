@@ -1,20 +1,9 @@
-var outer = "global";
-
-fun globFun(param1) {
-	println(param1);
+fun fibo(n) {
+	if (n < 2)
+		return n;
+	return fibo(n - 2) + fibo(n - 1);
 }
 
-globFun(outer);
-
-{
-	globFun(outer);
-
-	var inner = "local";
-
-	fun locFun(param1) {
-		println(param1);
-	}
-
-	locFun(outer);
-	locFun(inner);
-}
+var start = clock();
+println(fibo(35));
+println(clock() - start);
