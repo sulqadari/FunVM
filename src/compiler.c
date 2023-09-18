@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/endian.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -379,6 +380,8 @@ patchJump(uint32_t offset)
 static void
 emitReturn(void)
 {
+	/* The function implicitly returns NIL. */
+	emitByte(OP_NIL);
 	emitByte(OP_RETURN);
 }
 
@@ -582,6 +585,34 @@ binary(bool canAssign)
 	}
 }
 
+/**
+ * Steps through arguments as long as encounters commas after each expression.
+ */
+static uint32_t
+argumentList(void)
+{
+	uint32_t argCount = 0;
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			expression();
+			if (argCount >= 255) {
+				error("Can't have more than 255 arguments");
+			}
+			argCount++;
+		} while (match(TOKEN_COMMA));
+	}
+
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+	return argCount;
+}
+
+static void
+call(bool canAssign)
+{
+	uint32_t argCount = argumentList();
+	emitBytes(OP_CALL, argCount);
+}
+
 static void
 literal(bool canAssign)
 {
@@ -730,7 +761,7 @@ unary(bool canAssign)
  * - the precedence of an infix expression that uses that token as ann operator.
  *  */
 ParseRule rules[] = {
-	[TOKEN_LEFT_PAREN]		= {grouping, NULL, PREC_NONE},
+	[TOKEN_LEFT_PAREN]		= {grouping, call, PREC_CALL},
 	[TOKEN_RIGHT_PAREN]		= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_LEFT_BRACE]		= {NULL,     NULL,   PREC_NONE}, 
 	[TOKEN_RIGHT_BRACE]		= {NULL,     NULL,   PREC_NONE},
@@ -1357,6 +1388,22 @@ printLnStatement(void)
 }
 
 static void
+returnStatement(void)
+{
+	if (TYPE_SCRIPT == currCplr->type) {
+		error("Can't return from top-level code.");
+	}
+	
+	if (match(TOKEN_SEMICOLON)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+		emitByte(OP_RETURN);
+	}
+}
+
+static void
 whileStatement(void)
 {
 	uint32_t loopStart = currentContext()->count;
@@ -1428,6 +1475,8 @@ statement(void)
 		forStatement();
 	} else if (match(TOKEN_IF)) {
 		ifStatement();
+	} else if (match(TOKEN_RETURN)) {
+		returnStatement();
 	} else if (match(TOKEN_WHILE)) {
 		whileStatement();
 	} else if(match(TOKEN_LEFT_BRACE)) {

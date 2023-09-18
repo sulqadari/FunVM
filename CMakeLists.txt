@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(FunVM VERSION 0.2)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2")
 
 option(FUNVM_DEBUG "Debug mode and unit tests" ON)
 
@@ -20,6 +20,7 @@ set(scriptFiles
 	./test_scripts/functional/test_while.fn
 	./test_scripts/functional/test_for.fn
 	./test_scripts/functional/test_funcDecl.fn
+	./test_scripts/functional/test_funcCall.fn
 )
 
 foreach(scriptFile IN LISTS scriptFiles)

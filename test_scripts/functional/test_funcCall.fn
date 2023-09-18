@@ -1,0 +1,20 @@
+var outer = "global";
+
+fun globFun(param1) {
+	println(param1);
+}
+
+globFun(outer);
+
+{
+	globFun(outer);
+
+	var inner = "local";
+
+	fun locFun(param1) {
+		println(param1);
+	}
+
+	locFun(outer);
+	locFun(inner);
+}

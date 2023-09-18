@@ -4,6 +4,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/endian.h>
+#include <x86/_stdint.h>
 
 #include "bytecode.h"
 #include "common.h"
@@ -38,10 +40,23 @@ runtimeError(const char* format, ...)
 	va_end(args);
 	fputs("\n", stderr);
 
-	CallFrame* frame = &vm->frames[vm->frameCount - 1];
-	size_t instruction = (frame->ip - (frame->function->bytecode.code - 1));
-	int line = frame->function->bytecode.lines[instruction];
-	fprintf(stderr, "[line %d] in script\n", line);
+	for (int32_t i = vm->frameCount - 1; i >= 0; --i) {
+
+		CallFrame* frame = &vm->frames[i];
+		ObjFunction* function = frame->function;
+
+		/* (-1) is because the frame->ip is already sitting on the next 
+		 * instruction to be executed but we want the stack trace to point to
+		 * the previous failed instruction. */
+		size_t instruction = (frame->ip - (function->bytecode.code - 1));
+		fprintf(stderr, "[line %d] in ", function->bytecode.lines[instruction]);
+
+		if (NULL == function->name)
+			fprintf(stderr, "script\n");
+		else
+			fprintf(stderr, "%s()\n", function->name->chars);
+	}
+
 	resetStack();
 }
 
@@ -110,6 +125,52 @@ static Value
 peek(int32_t offset)
 {
 	return vm->stackTop[(-1) - offset];
+}
+
+/**
+ * Initializes the next CallFrame on the stack to be called.
+ * This function stores a pointer to the function being called and points
+ * the frame's 'ip' to the beginning of the function's bytecode.
+ * It sets up the 'slots' pointer to give the frame its window into the stack.
+ */
+static bool
+call(ObjFunction* function, uint8_t argCount)
+{
+	if (argCount != function->arity) {
+		runtimeError("Expected %d arguments, but got %d.",
+			function->arity, argCount);
+		return false;
+	}
+
+	if (vm->frameCount >= FRAMES_MAX) {
+		runtimeError("Stack overflow.");
+		return false;
+	}
+
+	CallFrame* frame = &vm->frames[vm->frameCount++];
+	frame->function = function;
+	frame->ip = function->bytecode.code;
+	/* the (-1) is to account for stack slot zero, which the
+	 * compiler set aside for when we add methods. */
+	frame->slots = vm->stackTop - argCount - 1;
+	return true;
+}
+
+static bool
+callValue(Value callee, uint8_t argCount)
+{
+	if (IS_OBJECT(callee)) {
+		switch (OBJECT_TYPE(callee)) {
+			case OBJ_FUNCTION:
+				return call(FUNCTION_UNPACK(callee), argCount);
+			default:
+				/* Non-callabe object type. */
+			break;
+		}
+	}
+
+	runtimeError("Can only call functions and classes.");
+	return false;
 }
 
 /** The 'falsiness' rule.
@@ -227,12 +288,12 @@ run()
 			case OP_POP:	pop();							break;
 
 			case OP_GET_LOCAL: {
-				uint32_t slot = READ_BYTE();
+				uint8_t slot = READ_BYTE();
 				push(frame->slots[slot]);
 			} break;
 
 			case OP_SET_LOCAL: {
-				uint32_t slot = READ_BYTE();
+				uint8_t slot = READ_BYTE();
 				frame->slots[slot] = peek(0);
 			} break;
 			
@@ -367,9 +428,49 @@ run()
 				frame->ip -= offset;
 			} break;
 
+			case OP_CALL: {
+				uint8_t argCount = READ_BYTE();
+
+				/* If call to this function is succesfull, there will be a
+				 * new frame on the CallFrame stack for the called function. */
+				if (!callValue(peek(argCount), argCount)) {
+					return IR_RUNTIME_ERROR;
+				}
+
+				/* The run() function has its own cached pointer
+				 to the current frame, thus, update it. */
+				frame = &vm->frames[vm->frameCount - 1];
+			} break;
+
 			case OP_RETURN: {
-				return IR_OK;
-			}
+
+				/* Drop the return value if we're about to complete
+				 * the top-level script. */
+				Value result = pop();
+				vm->frameCount--;
+
+				/* Complete execution if the frame we have just returned from
+				 * is the last one (i.e. the top-level script). */
+				if (vm->frameCount == 0) {
+
+					/* Pop the main script function from the stack. */
+					pop();
+					return IR_OK;
+				}
+
+				/* Discard all of the slots the callee was using for its params
+				 * and local variables, i.e. the same slots the caller used
+				 * to pass the arguments. Now that the call is done, the caller
+				 * doesn't need them anymore. This means that top of the stack ends
+				 * up right at the beginning of the returning function's stack window. */
+				vm->stackTop = frame->slots;
+
+				/* Push the return value back onto the stack at the lower location. */
+				push(result);
+
+				/* Update the run() function's cached pointer to the current frame. */
+				frame = &vm->frames[vm->frameCount - 1];
+			} break;
 		}
 	}
 }
@@ -382,11 +483,7 @@ interpret(const char* source)
 		return IR_COMPILE_ERROR;
 
 	push(OBJECT_PACK(function));
-	
-	CallFrame* frame = &vm->frames[vm->frameCount++];
-	frame->function = function;
-	frame->ip = function->bytecode.code;
-	frame->slots = vm->stack;
+	call(function, 0);
 
 #ifdef FUNVM_DEBUG
 		printf( "\n************************************\n"
