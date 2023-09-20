@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/endian.h>
 
 #include "value.h"
 #include "bytecode.h"
