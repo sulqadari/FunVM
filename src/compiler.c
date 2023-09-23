@@ -321,11 +321,10 @@ emitLoop(uint32_t loopStart)
 {
 	emitByte(OP_LOOP);
 
-	uint32_t offset = currentContext()->count - loopStart + 3;
-	if (0x00FFFFFF < offset)
+	uint32_t offset = currentContext()->count - loopStart + 2;
+	if (UINT16_MAX < offset)
 		error("Loop body too large.");
 	
-	emitByte((offset >> 16) & 0xff);
 	emitByte((offset >> 8) & 0xff);
 	emitByte(offset & 0xff);
 }
@@ -364,12 +363,12 @@ patchJump(uint32_t offset)
 	 * '-3' is to adjust the bytecode for the jump offset itself. */
 	uint32_t jump = currentContext()->count - offset - 2;
 
-	if (jump > 0xFFFF)
+	if (UINT16_MAX < jump)
 		error("Too much code to jump over.");
 	
 	/** Beginning from the op1, assign the actual offset value to jump to. */
-	currentContext()->code[offset] = (uint8_t)(jump & 0xFF);
-	currentContext()->code[offset + 1] = (uint8_t)((jump >> 8) & 0xFF);
+	currentContext()->code[offset] = (uint8_t)((jump >> 8) & 0xFF);
+	currentContext()->code[offset + 1] = (uint8_t)(jump & 0xFF);
 }
 
 static void
@@ -384,28 +383,28 @@ emitReturn(void)
  * Push the given value into Constant Pool.
  * @returns uint32_t - an offset within Constant pool where the value is stored.
  */
-static uint32_t
+static uint8_t
 makeConstant(Value value)
 {
 	uint32_t offset = addConstant(currentContext(), value);
-	return offset;
-}
-
-static void
-emitConstant(Value value)
-{
-	uint32_t offset = makeConstant(value);
-	uint8_t opcode = OP_CONSTANT;
 
 	/* If the total number of constants in constant pool
 	 * exceeds 255 elements, then instead of OP_CONSTANT which
 	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
 	 * comes into play, which spawns over four bytes:
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
-	if (offset > UINT8_MAX)
+	if (UINT8_MAX < offset) {
 		error("Exceed the maximum size of Constant pool.");
+		return (0);
+	}
 
-	emitBytes(opcode, offset);
+	return (uint8_t)offset;
+}
+
+static void
+emitConstant(Value value)
+{
+	emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
 /**
@@ -583,15 +582,15 @@ binary(bool canAssign)
 /**
  * Steps through arguments as long as encounters commas after each expression.
  */
-static uint32_t
+static uint8_t
 argumentList(void)
 {
-	uint32_t argCount = 0;
+	uint8_t argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
-			if (argCount >= 255) {
-				error("Can't have more than 255 arguments");
+			if (argCount > MAX_ARITY) {
+				error("Can't have more than 127 arguments");
 			}
 			argCount++;
 		} while (match(TOKEN_COMMA));
@@ -604,7 +603,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	uint32_t argCount = argumentList();
+	uint8_t argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -674,6 +673,42 @@ string(bool canAssign)
 	emitConstant(OBJECT_PACK(str));
 }
 
+
+static bool
+identifiersEqual(Token* a, Token* b)
+{
+	if (a->length != b->length)
+		return false;
+
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+/** 
+ * Searches a local variable in the current scope.
+ * Returns index of the variable whom identifier matches with the
+ * given token's name.
+ * We walk the array backward so that we find the *last* declared
+ * variable with the identifier. That ensures that inner local
+ * variables correctly shadow locals with the same name in surrounding
+ * scopes.
+ */
+static int32_t
+resolveLocal(Compiler* compiler, Token* name)
+{
+	for (int16_t i = compiler->localCount - 1; i >= 0; --i) {
+		Local* local = &compiler->locals[i];
+		if (identifiersEqual(name, &local->name)) {
+
+			if ((-1) == local->depth)
+				error("Can't read local variable in its own initializer.");
+
+			return i;
+		}
+	}
+
+	return (-1);
+}
+
 /**
  * Passes the given identifier token and adds its lexeme to the bytecode's
  * constant table as a string.
@@ -681,8 +716,8 @@ string(bool canAssign)
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint32_t getOp, setOp;
-	int32_t offset = resolveLocal(currCplr, &name);
+	uint8_t getOp, setOp;
+	uint8_t offset = resolveLocal(currCplr, &name);
 
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
@@ -861,41 +896,6 @@ identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
 	return makeConstant(OBJECT_PACK(str));
-}
-
-static bool
-identifiersEqual(Token* a, Token* b)
-{
-	if (a->length != b->length)
-		return false;
-
-	return memcmp(a->start, b->start, a->length) == 0;
-}
-
-/** 
- * Searches a local variable in the current scope.
- * Returns index of the variable whom identifier matches with the
- * given token's name.
- * We walk the array backward so that we find the *last* declared
- * variable with the identifier. That ensures that inner local
- * variables correctly shadow locals with the same name in surrounding
- * scopes.
- */
-static int32_t
-resolveLocal(Compiler* compiler, Token* name)
-{
-	for (int i = compiler->localCount - 1; i >= 0; --i) {
-		Local* local = &compiler->locals[i];
-		if (identifiersEqual(name, &local->name)) {
-
-			if ((-1) == local->depth)
-				error("Can't read local variable in its own initializer.");
-
-			return i;
-		}
-	}
-
-	return (-1);
 }
 
 /**
