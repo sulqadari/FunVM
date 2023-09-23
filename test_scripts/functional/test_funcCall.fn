@@ -1,9 +1,14 @@
 fun fibo(n) {
-	if (n < 2)
-		return n;
-	return fibo(n - 2) + fibo(n - 1);
+	for (var i = 0; i < 100; i = i + i)
+		n = n + i;
+	
+	return n;
 }
 
 var start = clock();
-println(fibo(35));
+println(" ");
+print("result: ");
+println(fibo(1));
+println(" ");
+print("Elapsed time: ");
 println(clock() - start);
