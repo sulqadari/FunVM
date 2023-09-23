@@ -14,21 +14,10 @@ initBytecode(Bytecode* bytecode)
 }
 
 void
-writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line)
+writeBytecode(Bytecode* bytecode, uint8_t opcode, uint32_t line)
 {
-	uint32_t additSpace = 1;
-	uint32_t shift = 0;
-
-	/* Here we a about to prepare control variables to 
-	 * store opcode's operand in three bytes
-	 * in case its value exeeds 255. */
-	if (opcode > 255) {
-		additSpace = 3;
-		shift = 16;
-	}
-	
 	/* Double bytecode array capacity if it doesn't have enough room. */
-	if (bytecode->capacity < bytecode->count + additSpace) {
+	if (bytecode->capacity < bytecode->count + 1) {
 		uint32_t oldCapacity = bytecode->capacity;
 		bytecode->capacity	= INCREASE_CAPACITY(oldCapacity);
 		bytecode->code		= INCREASE_ARRAY(uint8_t, bytecode->code,
@@ -37,12 +26,9 @@ writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line)
 								oldCapacity, bytecode->capacity);
 	}
 
-	for (int i = 0; i < additSpace; ++i) {
-		bytecode->code[bytecode->count] = (uint8_t)((opcode >> shift) & 0x000000FF);
-		bytecode->lines[bytecode->count] = line;
-		bytecode->count++;
-		shift -= 8;
-	}
+	bytecode->code[bytecode->count] = opcode;
+	bytecode->lines[bytecode->count] = line;
+	bytecode->count++;
 }
 
 void

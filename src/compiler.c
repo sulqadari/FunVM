@@ -76,8 +76,6 @@ typedef enum {
 	TYPE_SCRIPT
 } FunctionType;
 
-#define UIN8_COUNT (UINT8_MAX + 1)
-
 /**
  * Compiler tracks the scopes and variables within them
  * at compile time, taking most of the advantages from 
@@ -302,7 +300,7 @@ match(TokenType type)
  * waiting its turn to be processed. 
  */
 static void
-emitByte(uint32_t byte)
+emitByte(uint8_t byte)
 {
 	Bytecode* ctx = currentContext();
 	writeBytecode(ctx, byte, parser.previous.line);
@@ -312,7 +310,7 @@ emitByte(uint32_t byte)
  * Writes an opcode followed by a one-byte operand.
  */
 static void
-emitBytes(uint32_t byte1, uint32_t byte2)
+emitBytes(uint8_t byte1, uint8_t byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
@@ -337,15 +335,16 @@ emitLoop(uint32_t loopStart)
  * for conditional branching.
  * @returns the offset of the emitted instruction in the bytecode.
  */
-static uint32_t
-emitJump(uint32_t instruction)
+static uint8_t
+emitJump(uint8_t instruction)
 {
 	emitByte(instruction);
-	emitByte(0x00FFFFFF);
+	emitByte(0xFF);
+	emitByte(0xFF);
 	
 	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
 	 * we need to subtract three operands. */
-	return currentContext()->count - 3;
+	return currentContext()->count - 2;
 }
 
 /**
@@ -363,17 +362,14 @@ patchJump(uint32_t offset)
 {	
 	/* Calculate how far to jump.
 	 * '-3' is to adjust the bytecode for the jump offset itself. */
-	uint32_t jump = currentContext()->count - offset - 3;
+	uint32_t jump = currentContext()->count - offset - 2;
 
-	if (jump > 0x00FFFFFF)
+	if (jump > 0xFFFF)
 		error("Too much code to jump over.");
 	
 	/** Beginning from the op1, assign the actual offset value to jump to. */
-	int shift = 16;
-	for (int i = 0; i < 3; ++i) {
-		currentContext()->code[offset + i] = (uint8_t)((jump >> shift) & 0x000000FF);
-		shift -= 8;
-	}
+	currentContext()->code[offset] = (uint8_t)(jump & 0xFF);
+	currentContext()->code[offset + 1] = (uint8_t)((jump >> 8) & 0xFF);
 }
 
 static void
@@ -407,7 +403,7 @@ emitConstant(Value value)
 	 * comes into play, which spawns over four bytes:
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (offset > UINT8_MAX)
-		opcode = OP_CONSTANT_LONG;
+		error("Exceed the maximum size of Constant pool.");
 
 	emitBytes(opcode, offset);
 }
@@ -1146,8 +1142,8 @@ function(FunctionType type)
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			currCplr->function->arity++;
-			if (currCplr->function->arity > 255) {
-				errorAtCurrent("Can't have more than 255 params");
+			if (currCplr->function->arity > MAX_ARITY) {
+				errorAtCurrent("Can't have more than 127 params");
 			}
 
 			uint32_t constant = parseVariable("Expect parameter name.");

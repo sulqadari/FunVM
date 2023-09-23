@@ -16,7 +16,7 @@ static VM* vm;
  * issue between vm.h and object.h header files.
 */
 void
-setVM(VM* _vm)
+objSetVM(VM* _vm)
 {
 	vm = _vm;
 }
@@ -84,7 +84,7 @@ newNative(NativeFn function)
  * It's sort of like a constructor in an OOP language.
  */
 static ObjString*
-allocateString(char* chars, int32_t length, uint32_t hash)
+allocateString(char* chars, uint32_t length, uint32_t hash)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
 	/* Initialize the ObjString class */
@@ -102,11 +102,11 @@ allocateString(char* chars, int32_t length, uint32_t hash)
 }
 
 static uint32_t
-hashString(const char* key, int32_t length)
+hashString(const char* key, uint32_t length)
 {
 	uint32_t hash = 2166136261U;	// 81 1C 9D C5
 	
-	for (int32_t i = 0; i < length; ++i) {
+	for (uint32_t i = 0; i < length; ++i) {
 		hash ^= (uint8_t)key[i];
 		hash *= 16777619;			// 01 00 01 93
 	}
@@ -120,7 +120,7 @@ hashString(const char* key, int32_t length)
  * is to assign it to the new ObjString entity.
 */
 ObjString*
-takeString(char* chars, int32_t length)
+takeString(char* chars, uint32_t length)
 {
 	uint32_t hash = hashString(chars, length);
 
@@ -142,7 +142,7 @@ takeString(char* chars, int32_t length)
  * instantiates 'ObjString' and initializes its fields.
 */
 ObjString*
-copyString(const char* chars, int32_t length)
+copyString(const char* chars, uint32_t length)
 {
 	uint32_t hash = hashString(chars, length);
 

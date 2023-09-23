@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "bytecode.h"
+#include "debug.h"
 
 static int32_t
 simpleInstruction(const char* name, int32_t offset)
@@ -21,12 +21,6 @@ byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 static int32_t
 jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t offset)
 {
-	// uint32_t jump = (uint32_t)(bytecode->code[offset + 1] << 16);
-	// jump |= (uint32_t)(bytecode->code[offset + 2] << 8);
-	// jump |= (uint32_t)(bytecode->code[offset + 3]);
-	// printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign + jump);
-	// return offset + 4;
-
 	uint32_t jump = 0;
 	int8_t lShift = 16;
 
@@ -51,21 +45,6 @@ constantInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 	return offset + 2;
 }
 
-static uint32_t
-constantLongInstruction(const char* name, Bytecode* bytecode, int32_t offset)
-{
-	uint32_t constant = 0;
-	constant =	((((int32_t)bytecode->code[offset + 1] & 0xFF) << 16) |
-				( ((int32_t)bytecode->code[offset + 2] & 0xFF) <<  8) |
-				( ((int32_t)bytecode->code[offset + 3] & 0xFF) <<  0));
-	
-	printf("	%-16s %4d : '", name, constant);
-	printValue(bytecode->const_pool.pool[constant]);
-	printf("'\n");
-	
-	return offset + 4;
-}
-
 int32_t
 disassembleInstruction(Bytecode* bytecode, int32_t offset)
 {
@@ -85,8 +64,6 @@ disassembleInstruction(Bytecode* bytecode, int32_t offset)
 	switch (opcode) {
 		case OP_CONSTANT:
 			return constantInstruction("OP_CONSTANT", bytecode, offset);
-		case OP_CONSTANT_LONG:
-			return constantLongInstruction("OP_CONSTANT_LONG", bytecode, offset);
 		case OP_NIL:
 			return simpleInstruction("OP_NIL", offset);
 		case OP_TRUE:
@@ -148,7 +125,7 @@ disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("\n=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (int32_t offset = 0; offset < bytecode->count; ) {
+	for (uint32_t offset = 0; offset < bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);
 	}
 }

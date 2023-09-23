@@ -24,7 +24,7 @@ static VM* vm;
  * Returns the elapsed type since the program started running, in seconds.
  */
 static Value
-clockNative(uint32_t argCount, Value* args)
+clockNative(uint8_t argCount, Value* args)
 {
 	return NUMBER_PACK((double)clock() / CLOCKS_PER_SEC);
 }
@@ -74,23 +74,19 @@ void
 initVM(VM* _vm)
 {
 	vm = _vm;
-	vm->stack = NULL;
 	vm->stackTop = NULL;
-	vm->stackSize = 0;
 	vm->objects = NULL;
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 
 	resetStack();
-	setVM(vm);
+	objSetVM(vm);
 	defineNative("clock", clockNative);
 }
 
 void
 freeVM(VM* vm)
 {
-	/* Release stack. */
-	FREE_ARRAY(Value, vm->stack, vm->stackSize);
 	freeTable(vm->globals);
 	freeTable(vm->interns);
 
@@ -101,27 +97,6 @@ freeVM(VM* vm)
 static void
 push(Value value)
 {
-	uint32_t stackOffset = ((vm->stackTop) - vm->stack);
-
-	if (vm->stackSize < stackOffset + 1) {
-		uint32_t oldSize = vm->stackSize;
-		vm->stackSize = INCREASE_CAPACITY(oldSize);
-		vm->stack = INCREASE_ARRAY(Value, vm->stack,
-								oldSize, vm->stackSize);
-
-		/* We could avoid this step if could be sure that 
-		 * realloc() wouldn't cause vm->stack points to another
-		 * memory block, but truth is that it can do so,
-		 * thus vm->stackTop will point to unused block which
-		 * will result in segmentation fault.
-		 * Also we mind the correct offset within new block. */
-		vm->stackTop = (vm->stack + stackOffset);
-#ifdef FUNVM_DEBUG
-		printf("Increasing stack size:\told: %d\tnew: %d\n",
-									oldSize, vm->stackSize);
-#endif	// !FUNVM_DEBUG
-	}
-	
 	*vm->stackTop = value;	/* push the value onto the stack. */
 	vm->stackTop++;				/* shift stackTop forward. */
 }
@@ -133,6 +108,9 @@ pop(void)
 	return* vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
+/**
+ * Returns a values from the stack at one index behind the given offset.
+*/
 static Value
 peek(int32_t offset)
 {
@@ -164,7 +142,7 @@ defineNative(const char* name, NativeFn function)
  * Initializes the next CallFrame on the stack to be called.
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
- * It sets up the 'slots' pointer to give the frame its window into the stack.
+ * It sets up the 'slots' pointer to give the frame its own window into the stack.
  */
 static bool
 call(ObjFunction* function, uint8_t argCount)
@@ -250,24 +228,17 @@ concatenate()
 #define READ_BYTE() \
 	(*frame->ip++)
 
-#define READ_LONG()	\
-	(frame->ip += 3, (uint32_t) ((frame->ip[-3] << 16) | \
-							  (frame->ip[-2] <<  8) | \
-							  (frame->ip[-1]) ))
+#define READ_SHORT()	\
+	(frame->ip += 2, (uint16_t) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's const_pool. */
 #define READ_CONSTANT() \
 	(frame->function->bytecode.const_pool.pool[READ_BYTE()])
 
-#define READ_CONSTANT_LONG() \
-	(frame->function->bytecode.const_pool.pool[READ_LONG()])
 
 #define READ_STRING() \
 	STRING_UNPACK(READ_CONSTANT())
-
-#define READ_STRING_LONG() \
-	STRING_UNPACK(READ_CONSTANT_LONG())
 
 #define BINARY_OP(valueType, op)							\
 	do {													\
@@ -322,16 +293,11 @@ run()
 				Value constant = READ_CONSTANT();
 				push(constant);
 			} break;
-
-			case OP_CONSTANT_LONG: {
-				Value constant = READ_CONSTANT_LONG();
-				push(constant);
-			} break;
 			
 			case OP_NIL:	push(NIL_PACK());		break;
 			case OP_TRUE:	push(BOOL_PACK(true));	break;
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
-			case OP_POP:	pop();							break;
+			case OP_POP:	pop();					break;
 
 			case OP_GET_LOCAL: {
 				uint8_t slot = READ_BYTE();
@@ -342,7 +308,7 @@ run()
 				uint8_t slot = READ_BYTE();
 				frame->slots[slot] = peek(0);
 			} break;
-			
+
 			case OP_DEFINE_GLOBAL: {
 				// Value val = pop(); see NOTE.
 				// get the name of the variable from the constant pool
@@ -363,7 +329,7 @@ run()
 				 * hash table.*/
 				pop();
 			} break;
-			
+
 			case OP_SET_GLOBAL: {
 				// get the name of the variable from the constant pool
 				ObjString* name = READ_STRING();
@@ -455,12 +421,12 @@ run()
 			} break;
 
 			case OP_JUMP: {
-				uint32_t offset = READ_LONG();
+				uint16_t offset = READ_SHORT();
 				frame->ip += offset;
 			} break;
-			
+
 			case OP_JUMP_IF_FALSE: {
-				uint32_t offset = READ_LONG();
+				uint16_t offset = READ_SHORT();
 
 				/* Check the condition value which resides on top of the stack.
 				 * Apply this jump offset to vm->ip if it's falsey. */
@@ -470,7 +436,7 @@ run()
 			} break;
 
 			case OP_LOOP: {
-				uint32_t offset = READ_LONG();
+				uint16_t offset = READ_SHORT();
 				frame->ip -= offset;
 			} break;
 
@@ -498,9 +464,8 @@ run()
 				/* Complete execution if the frame we have just returned from
 				 * is the last one (i.e. the top-level script). */
 				if (vm->frameCount == 0) {
-
-					/* Pop the main script function from the stack. */
-					pop();
+					
+					pop();	/* Pop the main script function from the stack. */
 					return IR_OK;
 				}
 

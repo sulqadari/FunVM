@@ -1,6 +1,7 @@
 #ifndef FUNVM_BYTECODE_H
 #define FUNVM_BYTECODE_H
 
+#include "common.h"
 #include "value.h"
 
 /* Opcode - a one-byte operation code which
@@ -8,7 +9,6 @@
  * add, subtract, look up variable, etc. */
 typedef enum {
 	OP_CONSTANT,		/* Load the constant from Value pool (1 byte  offset). */
-	OP_CONSTANT_LONG,	/* Load the constant from Value pool (3 bytes offset). */
 	OP_NIL,				/* Push NIL value on the stack (dedicated ins). */
 	OP_TRUE,			/* Push TRUE value on the stack (dedicated ins). */
 	OP_FALSE,			/* Push FALSE value on the stack (dedicated ins). */
@@ -47,7 +47,7 @@ typedef struct {
 
 void initBytecode(Bytecode* bytecode);
 void freeBytecode(Bytecode* bytecode);
-void writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line);
+void writeBytecode(Bytecode* bytecode, uint8_t opcode, uint32_t line);
 uint32_t addConstant(Bytecode* bytecode, Value constant);
 
 #endif // !FUNVM_BYTECODE_H
