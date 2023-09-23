@@ -7,7 +7,7 @@
 typedef struct {
 	const char* start;		/* Start of the current lexeme. */
 	const char* current;	/* Current character being looked at. */
-	int line;				/* for error reporting purposes. */
+	FN_uint line;		/* for error reporting purposes. */
 } Scanner;
 
 Scanner scanner;
@@ -130,6 +130,15 @@ skipWhiteSpace(void)
 					while ((peek() != '\n') && !isAtEnd())
 						advance();
 
+				/* Multiple line comments. */
+				} else if (peekNext() == '*') {
+					
+					while (!isAtEnd()) {
+						if (advance() == '*')
+							if (advance() == '/')
+								break;
+					}
+
 				} else {
 					return;
 				}
@@ -141,7 +150,7 @@ skipWhiteSpace(void)
 }
 
 static TokenType
-checkKeyword(int start, uint32_t length,
+checkKeyword(int start, FN_uint length,
 			const char* rest, TokenType type)
 {
 	if (((scanner.current - scanner.start) == (start + length)) &&

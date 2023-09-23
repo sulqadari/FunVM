@@ -68,7 +68,7 @@ typedef struct {
  */
 typedef struct {
 	Token name;
-	int16_t depth; 
+	FN_short depth; 
 } Local;
 
 typedef enum {
@@ -114,8 +114,8 @@ typedef struct Compiler {
 	 * the VM's own internal use
 	 * (additional explanation can be found in initCompiler() body). */
 	Local locals[UIN8_COUNT];
-	int16_t localCount;
-	int16_t scopeDepth;
+	FN_short localCount;
+	FN_short scopeDepth;
 } Compiler;
 
 static Parser parser;
@@ -300,111 +300,32 @@ match(TokenType type)
  * waiting its turn to be processed. 
  */
 static void
-emitByte(uint8_t byte)
+emitByte(FN_ubyte byte)
 {
-	Bytecode* ctx = currentContext();
-	writeBytecode(ctx, byte, parser.previous.line);
+	writeBytecode(currentContext(), byte, parser.previous.line);
 }
 
 /**
  * Writes an opcode followed by a one-byte operand.
  */
 static void
-emitBytes(uint8_t byte1, uint8_t byte2)
+emitBytes(FN_ubyte byte1, FN_ubyte byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
 }
 
 static void
-emitLoop(uint32_t loopStart)
+emitLoop(FN_uint loopStart)
 {
 	emitByte(OP_LOOP);
 
-	uint32_t offset = currentContext()->count - loopStart + 2;
+	FN_uint offset = currentContext()->count - loopStart + 2;
 	if (UINT16_MAX < offset)
 		error("Loop body too large.");
 	
 	emitByte((offset >> 8) & 0xff);
 	emitByte(offset & 0xff);
-}
-
-/**
- * Generates a bytecode instruction and placeholder operand
- * for conditional branching.
- * @returns the offset of the emitted instruction in the bytecode.
- */
-static uint8_t
-emitJump(uint8_t instruction)
-{
-	emitByte(instruction);
-	emitByte(0xFF);
-	emitByte(0xFF);
-	
-	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
-	 * we need to subtract three operands. */
-	return currentContext()->count - 2;
-}
-
-/**
- * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
- * resides.
- * This function is called right before we emit the next instruction that we
- * want the jump to land on. In the case of 'if' statement, that means right after
- * we compile the 'then' branch and before we compile the next statement.
- * 
- * @param uint32_t offset: the offset of OP_JUMP_IF_FALSE instruction
- * to revert to.
- */
-static void
-patchJump(uint32_t offset)
-{	
-	/* Calculate how far to jump.
-	 * '-3' is to adjust the bytecode for the jump offset itself. */
-	uint32_t jump = currentContext()->count - offset - 2;
-
-	if (UINT16_MAX < jump)
-		error("Too much code to jump over.");
-	
-	/** Beginning from the op1, assign the actual offset value to jump to. */
-	currentContext()->code[offset] = (uint8_t)((jump >> 8) & 0xFF);
-	currentContext()->code[offset + 1] = (uint8_t)(jump & 0xFF);
-}
-
-static void
-emitReturn(void)
-{
-	/* The function implicitly returns NIL. */
-	emitByte(OP_NIL);
-	emitByte(OP_RETURN);
-}
-
-/**
- * Push the given value into Constant Pool.
- * @returns uint32_t - an offset within Constant pool where the value is stored.
- */
-static uint8_t
-makeConstant(Value value)
-{
-	uint32_t offset = addConstant(currentContext(), value);
-
-	/* If the total number of constants in constant pool
-	 * exceeds 255 elements, then instead of OP_CONSTANT which
-	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
-	 * comes into play, which spawns over four bytes:
-	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
-	if (UINT8_MAX < offset) {
-		error("Exceed the maximum size of Constant pool.");
-		return (0);
-	}
-
-	return (uint8_t)offset;
-}
-
-static void
-emitConstant(Value value)
-{
-	emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
 /**
@@ -439,6 +360,14 @@ initCompiler(Compiler* compiler, FunctionType type)
 	local->depth = 0;
 	local->name.start = "";
 	local->name.length = 0;
+}
+
+static void
+emitReturn(void)
+{
+	/* The function implicitly returns NIL. */
+	emitByte(OP_NIL);
+	emitByte(OP_RETURN);
 }
 
 /**
@@ -511,8 +440,6 @@ static void declaration(void);
 
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
-static uint32_t identifierConstant(Token* name);
-static int32_t resolveLocal(Compiler* compiler, Token* name);
 static void and_(bool canAssign);
 static void or_(bool canAssign);
 
@@ -582,10 +509,10 @@ binary(bool canAssign)
 /**
  * Steps through arguments as long as encounters commas after each expression.
  */
-static uint8_t
+static FN_ubyte
 argumentList(void)
 {
-	uint8_t argCount = 0;
+	FN_ubyte argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
@@ -603,7 +530,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	uint8_t argCount = argumentList();
+	FN_ubyte argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -638,6 +565,35 @@ grouping(bool canAssign)
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
+
+/**
+ * Push the given value into Constant Pool.
+ * @returns FN_ubyte - an offset within Constant pool where the value is stored.
+ */
+static FN_ubyte
+makeConstant(Value value)
+{
+	FN_ushort offset = addConstant(currentContext(), value);
+
+	/* If the total number of constants in constant pool
+	 * exceeds 255 elements, then instead of OP_CONSTANT which
+	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
+	 * comes into play, which spawns over four bytes:
+	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
+	if (UINT8_MAX < offset) {
+		error("Exceed the maximum size of Constant pool.");
+		return (0);
+	}
+
+	return (FN_ubyte)offset;
+}
+
+static void
+emitConstant(Value value)
+{
+	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
 
 /**
  * Compiles number literal. Assumes the token for the
@@ -692,10 +648,10 @@ identifiersEqual(Token* a, Token* b)
  * variables correctly shadow locals with the same name in surrounding
  * scopes.
  */
-static int32_t
+static FN_short
 resolveLocal(Compiler* compiler, Token* name)
 {
-	for (int16_t i = compiler->localCount - 1; i >= 0; --i) {
+	for (FN_short i = compiler->localCount - 1; i >= 0; --i) {
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 
@@ -710,14 +666,26 @@ resolveLocal(Compiler* compiler, Token* name)
 }
 
 /**
+ * Takes the given token and adds its lexeme to the bytecode's constant pool
+ * as a string.
+ * @returns FN_ubyte: an index of the constant in the constant pool.
+ */
+static FN_uint
+identifierConstant(Token* name)
+{
+	ObjString* str = copyString(name->start, name->length);
+	return makeConstant(OBJECT_PACK(str));
+}
+
+/**
  * Passes the given identifier token and adds its lexeme to the bytecode's
  * constant table as a string.
  */
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint8_t getOp, setOp;
-	uint8_t offset = resolveLocal(currCplr, &name);
+	FN_ubyte getOp, setOp;
+	FN_short offset = resolveLocal(currCplr, &name);
 
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
@@ -887,18 +855,6 @@ parsePrecedence(Precedence precedence)
 }
 
 /**
- * Takes the given token and adds its lexeme to the bytecode's constant pool
- * as a string.
- * @returns uint8_t: an index of the constant in the constant pool.
- */
-static uint32_t
-identifierConstant(Token* name)
-{
-	ObjString* str = copyString(name->start, name->length);
-	return makeConstant(OBJECT_PACK(str));
-}
-
-/**
  * Adds a variable to the compiler's list of variables
  * in the current scope. */
 static void
@@ -976,7 +932,7 @@ declareVariable(void)
  * to the bytecode's constant pool as a string, and then returns the
  * constant pool index where it was added.
  */
-static uint32_t
+static FN_uint
 parseVariable(const char* errorMessage)
 {
 	consume(TOKEN_IDENTIFIER, errorMessage);
@@ -1016,7 +972,7 @@ markInitialized(void)
  * and returns.
  */
 static void
-defineVariable(uint32_t global)
+defineVariable(FN_uint global)
 {
 	/* 
 	 * is currCplr->scopeDepth is greater than 0, then we a in local
@@ -1039,6 +995,48 @@ defineVariable(uint32_t global)
 }
 
 /**
+ * Generates a bytecode instruction and placeholder operand
+ * for conditional branching.
+ * @returns the offset of the emitted instruction in the bytecode.
+ */
+static FN_ubyte
+emitJump(FN_ubyte instruction)
+{
+	emitByte(instruction);
+	emitByte(0xFF);
+	emitByte(0xFF);
+	
+	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
+	 * we need to subtract three operands. */
+	return currentContext()->count - 2;
+}
+
+/**
+ * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
+ * resides.
+ * This function is called right before we emit the next instruction that we
+ * want the jump to land on. In the case of 'if' statement, that means right after
+ * we compile the 'then' branch and before we compile the next statement.
+ * 
+ * @param FN_uint offset: the offset of OP_JUMP_IF_FALSE instruction
+ * to revert to.
+ */
+static void
+patchJump(FN_uint offset)
+{	
+	/* Calculate how far to jump.
+	 * '-3' is to adjust the bytecode for the jump offset itself. */
+	FN_uint jump = currentContext()->count - offset - 2;
+
+	if (UINT16_MAX < jump)
+		error("Too much code to jump over.");
+	
+	/** Beginning from the op1, assign the actual offset value to jump to. */
+	currentContext()->code[offset] = (FN_ubyte)((jump >> 8) & 0xFF);
+	currentContext()->code[offset + 1] = (FN_ubyte)(jump & 0xFF);
+}
+
+/**
  * Compiles logical '&&' operation.
  * At the point this function is called, the left-hand side expression has
  * already been compiled, which means that at runtime its value will be on top
@@ -1053,7 +1051,7 @@ defineVariable(uint32_t global)
 static void
 and_(bool canAssign)
 {
-	int32_t endJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_int endJump = emitJump(OP_JUMP_IF_FALSE);
 	
 	emitByte(OP_POP);
 	parsePrecedence(PREC_AND);
@@ -1071,8 +1069,8 @@ and_(bool canAssign)
 static void
 or_(bool canAssign)
 {
-	uint32_t elseJump = emitJump(OP_JUMP_IF_FALSE);
-	uint32_t endJump = emitJump(OP_JUMP);
+	FN_uint elseJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_uint endJump = emitJump(OP_JUMP);
 
 	patchJump(elseJump);
 	emitByte(OP_POP);
@@ -1146,7 +1144,7 @@ function(FunctionType type)
 				errorAtCurrent("Can't have more than 127 params");
 			}
 
-			uint32_t constant = parseVariable("Expect parameter name.");
+			FN_uint constant = parseVariable("Expect parameter name.");
 			defineVariable(constant);
 		} while (match(TOKEN_COMMA));
 	}
@@ -1175,7 +1173,7 @@ function(FunctionType type)
 static void
 funDeclaration(void)
 {
-	uint32_t global = parseVariable("Expect function name");
+	FN_uint global = parseVariable("Expect function name");
 
 	/* Marking function as 'initialized' as soon as we compile the name
 	 * make it possible to support recursive local functions. */
@@ -1194,7 +1192,7 @@ static void
 varDeclaration(void)
 {
 	// Manage variable name (which follows right after the 'var' keyword)
-	uint32_t global = parseVariable("Expect variable name.");
+	FN_uint global = parseVariable("Expect variable name.");
 
 	/* Parse the initialization. */
 	if (match(TOKEN_EQUAL)) {	// is variable assigned an initialization expression?
@@ -1241,8 +1239,8 @@ forStatement(void)
 	}
 
 	/* The condition clause. */
-	uint32_t loopStart = currentContext()->count;
-	int32_t exitJump = -1;
+	FN_uint loopStart = currentContext()->count;
+	FN_int exitJump = -1;
 
 	/* Since this clause is optionalm we need to see if it's actually present.
 	 * The previous semicolon was consumed by previous clause, no that if
@@ -1271,10 +1269,10 @@ forStatement(void)
 	if (!match(TOKEN_RIGHT_PAREN)) {
 
 		/* Emit the unconditional jump that hops over the increment clause. */
-		uint32_t bodyJump = emitJump(OP_JUMP);
+		FN_uint bodyJump = emitJump(OP_JUMP);
 		
 		/* take the offset of the increment clause within bytecode. */
-		uint32_t incrementStart = currentContext()->count;
+		FN_uint incrementStart = currentContext()->count;
 		/* Compile the increment expression itself. The only thing we need
 		 * is its side effect, so.. */
 		expression();
@@ -1312,6 +1310,32 @@ forStatement(void)
 	endScope();
 }
 
+static void
+whileStatement(void)
+{
+	FN_uint loopStart = currentContext()->count;
+
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
+
+	/* To skip over the subsequent body statement if the condition if falsey. */
+	FN_uint exitJump = emitJump(OP_JUMP_IF_FALSE);
+	
+	/* Pop the condition value from the stack if expression is falsey. */
+	emitByte(OP_POP);
+
+	/* Compile the body. */
+	statement();
+	/* Emit a 'loop' instruction. */
+	emitLoop(loopStart);
+	patchJump(exitJump);
+
+	/* Pop the condition value from the stack when exiting from the body
+	 * (i.e. the expresssion condition was truthy. */
+	emitByte(OP_POP);
+}
+
 /**
  * Compiles the if () statement.
  * The execution flow shall branch to 'then' body in case the condition
@@ -1332,7 +1356,7 @@ ifStatement(void)
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'if' clause.");
 
 	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
-	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_uint thenJump = emitJump(OP_JUMP_IF_FALSE);
 
 	/* If condition is truthy, then emit OP_POP to pull out condition value
 	 * from top of the stack right before evaluating the code in 'then' branch.
@@ -1344,7 +1368,7 @@ ifStatement(void)
 	statement();
 
 	/* Note that this branch is unconditional. */
-	uint32_t elseJump = emitJump(OP_JUMP);
+	FN_uint elseJump = emitJump(OP_JUMP);
 
 	/* Once we have compiled 'then' body, we know how far to jump.
 	 * Thus, proceed to 'backpatching' offset with the real value. */
@@ -1396,32 +1420,6 @@ returnStatement(void)
 		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
 		emitByte(OP_RETURN);
 	}
-}
-
-static void
-whileStatement(void)
-{
-	uint32_t loopStart = currentContext()->count;
-
-	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
-	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
-
-	/* To skip over the subsequent body statement if the condition if falsey. */
-	uint32_t exitJump = emitJump(OP_JUMP_IF_FALSE);
-	
-	/* Pop the condition value from the stack if expression is falsey. */
-	emitByte(OP_POP);
-
-	/* Compile the body. */
-	statement();
-	/* Emit a 'loop' instruction. */
-	emitLoop(loopStart);
-	patchJump(exitJump);
-
-	/* Pop the condition value from the stack when exiting from the body
-	 * (i.e. the expresssion condition was truthy. */
-	emitByte(OP_POP);
 }
 
 /**

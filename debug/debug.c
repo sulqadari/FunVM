@@ -4,14 +4,14 @@
 #include "debug.h"
 
 static int32_t
-simpleInstruction(const char* name, int32_t offset)
+simpleInstruction(const char* name, uint32_t offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
 static int32_t
-byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
+byteInstruction(const char* name, Bytecode* bytecode, uint32_t offset)
 {
 	uint32_t slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
@@ -21,32 +21,29 @@ byteInstruction(const char* name, Bytecode* bytecode, int32_t offset)
 static int32_t
 jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t offset)
 {
-	uint32_t jump = 0;
-	int8_t lShift = 16;
+	int32_t jump = 0;
 
-	for (int i = 1; i < 4; ++i) {
-		jump |= (uint32_t)((bytecode->code[offset + i] & 0xFF) << lShift);
-		lShift -= 8;
-	}
+	jump |= (int32_t)((bytecode->code[offset] & 0xFF) << 8);
+	jump |= (int32_t)(bytecode->code[offset + 1] & 0xFF);
 
-	printf("	%-16s %4d -> %d\n", name, offset, offset + 4 + sign * jump);
-	return offset + 4;
+	printf("	%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+	return offset + 3;
 }
 
 static uint32_t
-constantInstruction(const char* name, Bytecode* bytecode, int32_t offset)
+constantInstruction(const char* name, Bytecode* bytecode, uint32_t offset)
 {
 	uint8_t constant = bytecode->code[offset + 1];
 
 	printf("	%-16s %4d : '", name, constant);
-	printValue(bytecode->const_pool.pool[constant]);
+	printValue(bytecode->constPool.pool[constant]);
 	printf("'\n");
 	
 	return offset + 2;
 }
 
 int32_t
-disassembleInstruction(Bytecode* bytecode, int32_t offset)
+disassembleInstruction(Bytecode* bytecode, uint32_t offset)
 {
 	printf("%04d	", offset);
 

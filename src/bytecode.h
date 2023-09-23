@@ -38,16 +38,16 @@ typedef enum {
 
 /* Bytecode - a dynamic array of instructions (opcodes). */
 typedef struct {
-	uint32_t count;		/* Number of elements in code array. */
-	uint32_t capacity;	/* Size of the code array. */
-	uint8_t* code;		/* A chunk of instructions. */
-	uint32_t* lines;
-	ConstantPool const_pool;
+	FN_uint count;		/* Number of elements in code array. */
+	FN_uint capacity;	/* Size of the code array. */
+	FN_ubyte* code;		/* A chunk of instructions. */
+	FN_uint* lines;
+	ConstantPool constPool;
 } Bytecode;
 
 void initBytecode(Bytecode* bytecode);
 void freeBytecode(Bytecode* bytecode);
-void writeBytecode(Bytecode* bytecode, uint8_t opcode, uint32_t line);
-uint32_t addConstant(Bytecode* bytecode, Value constant);
+void writeBytecode(Bytecode* bytecode, FN_ubyte opcode, FN_uint line);
+FN_uint addConstant(Bytecode* bytecode, Value constant);
 
 #endif // !FUNVM_BYTECODE_H
