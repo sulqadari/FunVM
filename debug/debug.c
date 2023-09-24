@@ -3,22 +3,22 @@
 
 #include "debug.h"
 
-static FN_WORD
+static FN_UWORD
 simpleInstruction(const char* name, FN_UWORD offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
-static FN_WORD
+static FN_UWORD
 byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 {
-	FN_UWORD slot = bytecode->code[offset + 1];
+	FN_UBYTE slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
 	return offset + 2;
 }
 
-static FN_WORD
+static FN_UWORD
 jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_UWORD offset)
 {
 	FN_WORD jump = 0;
@@ -42,7 +42,7 @@ constantInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 	return offset + 2;
 }
 
-FN_WORD
+FN_UWORD
 disassembleInstruction(Bytecode* bytecode, FN_UWORD offset)
 {
 	printf("%04d	", offset);

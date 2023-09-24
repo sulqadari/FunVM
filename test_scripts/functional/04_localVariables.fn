@@ -1,57 +1,36 @@
 {
-	var a = "first scope";
-	print("var a = ");
+	var a = "scope 1";
+	print("a = ");
 	println(a);
 	{
-		print("[a nest_01] = ");
+		print("a = ");
 		println(a);
 
-		var a = "inner scope";
-		print("var a = ");
+		var a = "scope 2";
+		print("a = ");
 		println(a);
 		{
-			var b = 3.14;
-			print("var b = ");
+			var b = "scope 3";
+			print("b = ");
 			println(b);
 			{
-				var b = b;
-				print("[var b = b] = ");
+				print("b = ");
 				println(b);
 
 				b = a;
-				println("[b = a] = " + b);
+				println("b = " + b);
 			}
-			var d = (1 + (1 + (1 + (1 + (1 + (1 + (1 + (1 + 1))))))));
+			var d = "scope' 3";
 			print("d = ");
 			println(d);
 		}
-		var e = a + " scope";
-		print("[var e = a + 'scope'] = ");
+		var e = a + " scope' 2";
+		print("e = ");
 		println(e);
 	}
-	var f = a + " scope";
-	print("[var f = a + 'scope'] =");
+	var f = a + " scope' 1";
+	print("f = ");
 	println(f);
-	print("outter most 'a' = ");
+	print("a = ");
 	println(a);
-}
-
-println("================ BUG ================");
-
-{
-	var b = "b";
-	{
-		var b = b;
-		println("[var b = b] = " + b);	// "[var b = b] = first scope scope"
-		println(b);						// "first scope scope"
-	}
-}
-
-{
-	var b1 = "b1";
-	{
-		println("var b1 = " + b1);		// "var b1 = b1"
-		var b1 = b1;
-		println(b1);					// "var b1 = b1"
-	}
 }

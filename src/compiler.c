@@ -61,15 +61,23 @@ typedef struct {
 
 /** 
  * Local variable representation struct.
- * Each local has a name represented by the struct Token
- * and the nesting level where it appears, e.g. 'zero'
- * is the global scope, '1' is the first top-level
+ * Each local has a name represented by the struct Token and
+ * the nesting level, where it appears, e.g. 'zero' is
+ * the global scope, '1' is the first top-level
  * block, two is inside the previous one, and so on.
+ * 
+ * Token name:		Name of the local variable;
+ * 
+ * FN_WORD depth:	The scope depth of the block where the
+ * 					local variable is declared. This filed is
+ * 					initialized with the current value of
+ * 					Compiler::scopeDepth every time 'addLocal()'
+ * 					is called.
  */
 typedef struct {
 	Token name;
 	FN_WORD depth; 
-} Local;
+} LocalVariable;
 
 typedef enum {
 	TYPE_FUNCTION,
@@ -81,14 +89,23 @@ typedef enum {
  * at compile time, taking most of the advantages from 
  * stack-based local variable declaration pattern.
  * 
+ * The compiler simulates the stack during compilation to note
+ * on which stack offset variable lives. These offsets
+ * are used as operands for the bytecode instructions that read
+ * and read store local variables.
+ * 
+ * NOTE: Since the instruction operand being used to encode
+ * a local is a single byte, the current VM implementation has
+ * a hard limit on the number of locals that can be in scope at once.
+ *  
  * The Complier struct contains the following fields:
- * Local locals[]:	all locals that are in scope during each
- * 				point in the compilation process;
- *				Ordered in declaration appearance sequence.
- * localCount:		the number of locals are in the scope, i.e.,
- *				how many of those array slots are in use;
+ * LocalVariable locals[]:	array of local variables of fixed size (see NOTE)
+ *					Ordered in declaration appearance sequence.
+
+ * localCount:		tracks the number of locals are in the scope
+
  * scopeDepth:		the number of blocks surrounding the current
- *				bit of code we're compiling;
+ *					bit of code we're compiling;
  */
 typedef struct Compiler {
 
@@ -110,11 +127,12 @@ typedef struct Compiler {
 
 	/* Keeps track of which stack slots are associated with which
 	 * local variables or temporaries.
+	 *
 	 * NOTE: the compiler implicitly claims stack slot zero for
-	 * the VM's own internal use
+	 * the VM's own internal use.
 	 * (additional explanation can be found in initCompiler() body). */
-	Local locals[UINT8_COUNT];
-	FN_UWORD localCount;
+	LocalVariable locals[UINT8_COUNT];
+	FN_WORD localCount;
 	FN_WORD scopeDepth;
 } Compiler;
 
@@ -338,6 +356,7 @@ initCompiler(Compiler* compiler, FunctionType type)
 {
 	/* Cache the current Compiler as the parent. */
 	compiler->enclosing = currCplr;
+
 	/* Allocate a new function object to compile into.
 	 * NOTE: functions are created during compilation and
 	 * simply invoked at runtime. */
@@ -356,7 +375,7 @@ initCompiler(Compiler* compiler, FunctionType type)
 	/* Claim the zeroth stack slot for MV's internal use. Giving
 	 * the empty name protects from [un]intentional referencing
 	 * from a user's space. */
-	Local* local = &currCplr->locals[currCplr->localCount++];
+	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
 	local->name.start = "";
 	local->name.length = 0;
@@ -421,9 +440,9 @@ endScope(void)
 
 	/* Discard locals by simply decrementing the length of the array
 	 * and poping values from top of the stack at runtime. */
-	while ( (0 < currCplr->localCount) &&
+	while ((0 < currCplr->localCount) &&
 			(currCplr->locals[currCplr->localCount - 1].depth >
-			 currCplr->scopeDepth)) {
+			currCplr->scopeDepth)) {
 
 		emitByte(OP_POP);
 		currCplr->localCount--;
@@ -641,20 +660,29 @@ identifiersEqual(Token* a, Token* b)
 
 /** 
  * Searches a local variable in the current scope.
- * Returns index of the variable whom identifier matches with the
- * given token's name.
- * We walk the array backward so that we find the *last* declared
- * variable with the identifier. That ensures that inner local
- * variables correctly shadow locals with the same name in surrounding
- * scopes.
+ * 
+ * Walk the array of local variables beginning from the inner most
+ * scope to the outer most one and try to find a variable with the
+ * name passed in as argument to this function.
+ * Backward moving ensures that the inner most variable will shadow the
+ * outer most one.
+ * 
+ * @returns FN_WORD: an index in the Compiler::locals[] array if found.
+ * 					 (-1) otherwise.
  */
 static FN_WORD
 resolveLocal(Compiler* compiler, Token* name)
 {
 	for (FN_WORD i = compiler->localCount - 1; i >= 0; --i) {
-		Local* local = &compiler->locals[i];
+		LocalVariable* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 
+			/* Prevent a local variable to be initialized with its own
+			 * uninitialized state.
+			 * {
+			 *     var a = a;
+			 * }
+	 		 */
 			if ((-1) == local->depth)
 				error("Can't read local variable in its own initializer.");
 
@@ -666,11 +694,11 @@ resolveLocal(Compiler* compiler, Token* name)
 }
 
 /**
- * Takes the given token and adds its lexeme to the bytecode's constant pool
- * as a string.
+ * Takes the given token of a global variable and adds its lexeme to
+ * the bytecode's constant pool as a string.
  * @returns FN_UWORD: an index of the constant in the constant pool.
  */
-static FN_UWORD
+static FN_UBYTE
 identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
@@ -678,13 +706,16 @@ identifierConstant(Token* name)
 }
 
 /**
- * Passes the given identifier token and adds its lexeme to the bytecode's
- * constant table as a string.
+ * Implements an access either to local or global variable. Whichever
+ * type of variable we are targeted at, this function handles both type
+ * of operation - setting and getting a value.
  */
 static void
 namedVariable(Token name, bool canAssign)
 {
-	FN_UWORD getOp, setOp;
+	FN_UBYTE getOp, setOp;
+
+	/* Try to find a local variable with the given name. */
 	FN_WORD offset = resolveLocal(currCplr, &name);
 
 	if ((-1) != offset) {
@@ -698,9 +729,9 @@ namedVariable(Token name, bool canAssign)
 
 	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
 		expression();						// ..evaluate the expression and..
-		emitBytes(setOp, offset);			// ..set the value.
+		emitBytes(setOp, (FN_UBYTE)offset);	// ..set the value.
 	} else {								// Otherwise
-		emitBytes(getOp, offset);			// get the variable's value.
+		emitBytes(getOp, (FN_UBYTE)offset);	// get the variable's value.
 	}
 }
 
@@ -858,46 +889,6 @@ parsePrecedence(Precedence precedence)
 }
 
 /**
- * Adds a variable to the compiler's list of variables
- * in the current scope. */
-static void
-addLocal(Token name)
-{
-	if (UINT8_COUNT <= currCplr->localCount) {
-		error("Too many local variables in function.");
-		return;
-	}
-
-	Local* local = &currCplr->locals[currCplr->localCount++];
-	local->name = name;
-
-	/* Special case handling, consider example:
-	 * {
-	 *   var a = "outer";
-	 *  {
-	 *    var a = a;
-	 *  }
-	 * }
-	 * splitting a vavriable's declaration into two phases (declaration
-	 * and initialization) addresses this issue.
-	 **/
-	local->depth = -1;
-	local->depth = currCplr->scopeDepth;
-}
-
-static void
-markInitialized(void)
-{
-	/* When top-level function declaration calls this function,
-	 * there is no local variable to mark initialized - the function
-	 * is bound to a global variable. */
-	if (0 >= currCplr->scopeDepth)
-		return;
-
-	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
-}
-
-/**
  * Generates a bytecode instruction and placeholder operand
  * for conditional branching.
  * @returns the offset of the emitted instruction in the bytecode.
@@ -1014,6 +1005,18 @@ block(void)
 	consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+static void
+markInitialized(void)
+{
+	/* When top-level function declaration calls this function,
+	 * there is no local variable to mark initialized - the function
+	 * is bound to a global variable. */
+	if (0 >= currCplr->scopeDepth)
+		return;
+
+	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
+}
+
 /**
  * Defining variable is when a variable becomes available for use.
  * 
@@ -1027,23 +1030,55 @@ static void
 defineVariable(FN_UWORD global)
 {
 	/* 
-	 * is currCplr->scopeDepth is greater than 0, then we a in local
+	 * If currCplr->scopeDepth is greater than 0, then we a in local
 	 * scope.
 	 * There is no code to create a local variable at runtime,
+	 * 
 	 * Consider the state the VM is in:
-	 * The variable is already initialized and the value is sitting
+	 * The variable is declared and the value is sitting
 	 * right on top of the stack as the only remaining temporary.
 	 * The locals are allocated at the top of the stack - right where
 	 * that value already is.
 	 * 
 	 * Thus, there's nothing to do: the temporary simply *becomes*
-	 * the local variable. */
+	 * the local variable. Just mark the variable as 'initialized'
+	 * and return. */
 	if (0 < currCplr->scopeDepth) {
 		markInitialized();
 		return;
 	}
 
 	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+/**
+ * Adds a variable to the compiler's list of LocalVariable
+ * in the current scope. */
+static void
+addLocal(Token name)
+{
+	if (UINT8_COUNT <= currCplr->localCount) {
+		error("Too many local variables in function.");
+		return;
+	}
+
+	/* Fetch the pointer to an element under 'currCplr->localCount'
+	 * and proceed to its initialization. */
+	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
+	local->name = name;
+
+	/* To prevent an uninitialized variable to be initialized by its own value.
+	 * consider example:
+	 * {
+	 *     var a = "outer";
+	 *     {
+	 *         var a = a;
+	 *     }
+	 * }
+	 * Splitting a variable's declaration into two phases (declaration
+	 * and initialization) addresses this issue.
+	 **/
+	local->depth = -1;
 }
 
 /**
@@ -1070,20 +1105,25 @@ declareVariable(void)
 
 	/* Check if a variable with the same name have been declared
 	 * previously.
-	 * The current scope is always at the end of the locals[]. When we
-	 * declare a new variable, we start at the end and work backward,
-	 * looking for an existing variable with the same name.
-	 * 
-	 * NOTE: FunVM's semantic allows to have two or more variable
-	 * with the same name in *different* scopes. */
-	for (int i = currCplr->localCount - 1; i >= 0; --i) {
-
-		Local* local = &currCplr->locals[i];
+	 * Starting from the last (and actually current) scope, e.g.,
+	 * { { { } } }
+	 *	    ^__here,
+	 *
+	 * go backward through the array and examine variables
+	 * until we encounter a one which is out of the current scope.
+	 */
+	for (FN_WORD i = currCplr->localCount - 1; i >= 0; --i) {
+		/* Get the pointer to the element. */
+		LocalVariable* local = &currCplr->locals[i];
+		/* Stop searching if variable is in uninitialized state.. */
 		if ((local->depth != -1) &&
+			/* ..and it doesn't belong to the current scope. */
 			(local->depth < currCplr->scopeDepth)) {
 			break;
 		}
 
+		/* Otherwise check, if there is already a variable present
+		 * with the name we are abount to assign to new variable. */
 		if (identifiersEqual(name, &local->name))
 			error("A variable with the same name is already defined in this scope.");
 	}
@@ -1101,13 +1141,16 @@ parseVariable(const char* errorMessage)
 {
 	consume(TOKEN_IDENTIFIER, errorMessage);
 
+	/* Declare variable */
 	declareVariable();
 
-	/* Exit the function if we're in a local scope.
+	/* Just return from the FunVM's function we're in the
+	 * middle of execution if we're in a local scope.
 	 * At runtime, locals aren't looked up by name. There is no need
-	 * to stuff the variable's name into the constant pool, so if
-	 * the declaration is inside a local scope, we return a dummy table
-	 * index instead. */
+	 * to stuff the variable's name into the constant pool.
+	 * 
+	 * So if the declaration is inside a local scope, we return a
+	 * dummy table index instead. */
 	if (0 < currCplr->scopeDepth)
 		return 0;
 	

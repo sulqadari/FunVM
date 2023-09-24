@@ -280,7 +280,7 @@ logRun(CallFrame* frame)
 static InterpretResult
 run()
 {
-	FN_UWORD ins;
+	FN_UBYTE ins;
 	CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
 	for (;;) {
@@ -300,12 +300,12 @@ run()
 			case OP_POP:	pop();					break;
 
 			case OP_GET_LOCAL: {
-				FN_UWORD slot = READ_BYTE();
+				FN_UBYTE slot = READ_BYTE();
 				push(frame->slots[slot]);
 			} break;
 
 			case OP_SET_LOCAL: {
-				FN_UWORD slot = READ_BYTE();
+				FN_UBYTE slot = READ_BYTE();
 				frame->slots[slot] = peek(0);
 			} break;
 
