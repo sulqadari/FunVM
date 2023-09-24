@@ -112,7 +112,7 @@ pop(void)
  * Returns a values from the stack at one index behind the given offset.
 */
 static Value
-peek(FN_UWORD offset)
+peek(FN_WORD offset)
 {
 	return vm->stackTop[(-1) - offset];
 }

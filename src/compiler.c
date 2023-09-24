@@ -115,7 +115,7 @@ typedef struct Compiler {
 	 * (additional explanation can be found in initCompiler() body). */
 	Local locals[UIN8_COUNT];
 	FN_UWORD localCount;
-	FN_UWORD scopeDepth;
+	FN_WORD scopeDepth;
 } Compiler;
 
 static Parser parser;
@@ -1243,7 +1243,7 @@ forStatement(void)
 
 	/* The condition clause. */
 	FN_UWORD loopStart = currentContext()->count;
-	FN_UWORD exitJump = -1;
+	FN_WORD exitJump = -1;
 
 	/* Since this clause is optionalm we need to see if it's actually present.
 	 * The previous semicolon was consumed by previous clause, no that if
