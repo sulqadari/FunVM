@@ -7,7 +7,7 @@
 typedef struct {
 	const char* start;		/* Start of the current lexeme. */
 	const char* current;	/* Current character being looked at. */
-	FN_uint line;		/* for error reporting purposes. */
+	uint16_t line;		/* for error reporting purposes. */
 } Scanner;
 
 Scanner scanner;
@@ -154,7 +154,7 @@ skipWhiteSpace(void)
 }
 
 static TokenType
-checkKeyword(int start, FN_uint length,
+checkKeyword(int start, uint16_t length,
 			const char* rest, TokenType type)
 {
 	if (((scanner.current - scanner.start) == (start + length)) &&

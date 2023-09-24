@@ -36,7 +36,7 @@ typedef struct {
 	ValueType type;
 	union {
 		bool boolean;
-		FN_float number;
+		float number;
 		Object* object;	/* Pointer to the heap memory. */
 	} as;
 } Value;
@@ -60,8 +60,8 @@ typedef struct {
 #define OBJECT_UNPACK(value)	((value).as.object)
 
 typedef struct {
-	FN_uint capacity;
-	FN_uint count;
+	uint16_t capacity;
+	uint16_t count;
 	Value* pool;
 } ConstantPool;
 

@@ -66,7 +66,7 @@ typedef struct {
 } ObjFunction;
 
 /** Typedef for pointer to the C function.
- * @param uint32_t: argument count.
+ * @param uint16_t: argument count.
  * @param Value*: pointer to the first argument on the stack.
  * @returns Value: the result value.
  */
@@ -87,15 +87,15 @@ typedef struct {
  */
 struct ObjString {
 	Object object;
-	uint32_t length;
+	uint16_t length;
 	char* chars;
-	uint32_t hash;
+	uint16_t hash;
 };
 
 ObjFunction* newFunction(void);
 ObjNative* newNative(NativeFn function);
-ObjString* takeString(char* chars, uint32_t length);
-ObjString* copyString(const char* chars, uint32_t length);
+ObjString* takeString(char* chars, uint16_t length);
+ObjString* copyString(const char* chars, uint16_t length);
 void printObject(Value value);
 
 /** Safety check before downcasting from 'Object*' to one of the child object type.

@@ -14,7 +14,7 @@ typedef struct Table Table;
  * 
  * ObjFunction* function:
  * 			current function.
- * FN_ubyte* ip;
+ * uint16_t* ip;
  * 			current function's instruction set.
  * Value* slots:
  * 			points into the VM's values stack at the first slot that
@@ -22,7 +22,7 @@ typedef struct Table Table;
 */
 typedef struct {
 	ObjFunction* function;
-	FN_ubyte* ip;
+	uint8_t* ip;
 	Value* slots;
 } CallFrame;
 
@@ -33,13 +33,13 @@ typedef struct {
  * CallFrame frames[FRAMES_MAX]:
  * 			Each CallFrame has its own instruction pointer and its own pointer
  * 			to the ObjFunction that's executing.
- * FN_uint frameCount:
+ * uint16_t frameCount:
  * 			stores the current height of the CallFrame stack, i.e., the number of
  * 			ongoing function calls.
 */
 typedef struct {
 	CallFrame frames[FRAMES_MAX];
-	FN_uint frameCount;
+	uint16_t frameCount;
 	Value stack[STACK_MAX];
 	Value* stackTop;
 	Table* globals;

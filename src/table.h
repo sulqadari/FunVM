@@ -15,8 +15,8 @@ typedef struct {
 } Bucket;
 
 typedef struct Table {
-	uint32_t count;
-	uint32_t capacity;
+	uint16_t count;
+	uint16_t capacity;
 	Bucket* buckets;
 } Table;
 
@@ -27,6 +27,6 @@ bool tableSet(Table* table, ObjString* key, Value value);
 bool tableDelete(Table* table, ObjString* key);
 void tableAddAll(Table* from, Table* to);
 ObjString* tableFindString(Table* table, const char* chars,
-							const uint32_t length, const uint32_t hash);
+							const uint16_t length, const uint16_t hash);
 
 #endif // !FUNVM_TABLE_H

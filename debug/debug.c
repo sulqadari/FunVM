@@ -4,22 +4,22 @@
 #include "debug.h"
 
 static int32_t
-simpleInstruction(const char* name, uint32_t offset)
+simpleInstruction(const char* name, uint16_t offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
 static int32_t
-byteInstruction(const char* name, Bytecode* bytecode, uint32_t offset)
+byteInstruction(const char* name, Bytecode* bytecode, uint16_t offset)
 {
-	uint32_t slot = bytecode->code[offset + 1];
+	uint16_t slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
 	return offset + 2;
 }
 
 static int32_t
-jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t offset)
+jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint16_t offset)
 {
 	int32_t jump = 0;
 
@@ -30,8 +30,8 @@ jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint32_t off
 	return offset + 3;
 }
 
-static uint32_t
-constantInstruction(const char* name, Bytecode* bytecode, uint32_t offset)
+static uint16_t
+constantInstruction(const char* name, Bytecode* bytecode, uint16_t offset)
 {
 	uint8_t constant = bytecode->code[offset + 1];
 
@@ -43,7 +43,7 @@ constantInstruction(const char* name, Bytecode* bytecode, uint32_t offset)
 }
 
 int32_t
-disassembleInstruction(Bytecode* bytecode, uint32_t offset)
+disassembleInstruction(Bytecode* bytecode, uint16_t offset)
 {
 	printf("%04d	", offset);
 
@@ -122,7 +122,7 @@ disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("\n=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (uint32_t offset = 0; offset < bytecode->count; ) {
+	for (uint16_t offset = 0; offset < bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);
 	}
 }

@@ -26,8 +26,8 @@ typedef enum {
 typedef struct {
 	TokenType type;
 	const char* start;
-	FN_uint length;
-	FN_uint line;
+	uint16_t length;
+	uint16_t line;
 } Token;
 
 void initScanner(const char* source);

@@ -45,11 +45,11 @@ freeTable(Table* table)
  * 
 */
 static Bucket*
-findEntry(Bucket* buckets, uint32_t capacity, const ObjString* key)
+findEntry(Bucket* buckets, uint16_t capacity, const ObjString* key)
 {
 	/* Use key's hash code module the array size to choose the bucket for the
 	 * given entry. */
-	uint32_t index = key->hash % capacity;
+	uint16_t index = key->hash % capacity;
 	Bucket* tombstone = NULL;
 
 	for (;;) {
@@ -112,13 +112,13 @@ tableGet(Table* table, ObjString* key, Value* value)
  * Note that we don't copy tombstones over.
 */
 static void
-adjustCapacity(Table* table, uint32_t capacity)
+adjustCapacity(Table* table, uint16_t capacity)
 {
 	/* Create new array. */
 	Bucket* newTable = ALLOCATE(Bucket, capacity);
 
 	/* Reset */
-	for (uint32_t i = 0; i < capacity; ++i) {
+	for (uint16_t i = 0; i < capacity; ++i) {
 		newTable[i].key = NULL;
 		newTable[i].value = NIL_PACK();
 	}
@@ -126,7 +126,7 @@ adjustCapacity(Table* table, uint32_t capacity)
 	/* During resizing we discard the tombstones and take into
 	 * account only those buckets, containing active key:value pairs. */
 	table->count = 0;
-	for (uint32_t i = 0; i < table->capacity; ++i) {
+	for (uint16_t i = 0; i < table->capacity; ++i) {
 
 		/* Get subsequent entry from the OLD array. */
 		Bucket* oldBucket = &table->buckets[i];
@@ -161,7 +161,7 @@ bool
 tableSet(Table* table, ObjString* key, Value value)
 {
 	if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
-		uint32_t capacity = INCREASE_CAPACITY(table->capacity);
+		uint16_t capacity = INCREASE_CAPACITY(table->capacity);
 		adjustCapacity(table, capacity);
 	}
 
@@ -204,7 +204,7 @@ tableDelete(Table* table, ObjString* key)
 void
 tableAddAll(Table* from, Table* to)
 {
-	for (uint32_t i = 0; i < from->capacity; ++i) {
+	for (uint16_t i = 0; i < from->capacity; ++i) {
 
 		Bucket* bucket = &from->buckets[i];
 		if (NULL != bucket->key) {
@@ -215,12 +215,12 @@ tableAddAll(Table* from, Table* to)
 
 ObjString*
 tableFindString(Table* table, const char* chars,
-							const uint32_t length, const uint32_t hash)
+							const uint16_t length, const uint16_t hash)
 {
 	if (0 == table->count)
 		return NULL;
 	
-	uint32_t index = hash % table->capacity;
+	uint16_t index = hash % table->capacity;
 
 	for (;;) {
 		Bucket* bucket = &table->buckets[index];
