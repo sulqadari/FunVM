@@ -61,36 +61,51 @@ typedef struct {
 
 /** 
  * Local variable representation struct.
- * Each local has a name represented by the struct Token
- * and the nesting level where it appears, e.g. 'zero'
- * is the global scope, '1' is the first top-level
+ * Each local has a name represented by the struct Token and
+ * the nesting level, where it appears, e.g. 'zero' is
+ * the global scope, '1' is the first top-level
  * block, two is inside the previous one, and so on.
+ * 
+ * Token name:		Name of the local variable;
+ * 
+ * FN_WORD depth:	The scope depth of the block where the
+ * 					local variable is declared. This filed is
+ * 					initialized with the current value of
+ * 					Compiler::scopeDepth every time 'addLocal()'
+ * 					is called.
  */
 typedef struct {
 	Token name;
-	int16_t depth; 
-} Local;
+	FN_WORD depth; 
+} LocalVariable;
 
 typedef enum {
 	TYPE_FUNCTION,
 	TYPE_SCRIPT
 } FunctionType;
 
-#define UIN8_COUNT (UINT8_MAX + 1)
-
 /**
  * Compiler tracks the scopes and variables within them
  * at compile time, taking most of the advantages from 
  * stack-based local variable declaration pattern.
  * 
+ * The compiler simulates the stack during compilation to note
+ * on which stack offset variable lives. These offsets
+ * are used as operands for the bytecode instructions that read
+ * and read store local variables.
+ * 
+ * NOTE: Since the instruction operand being used to encode
+ * a local is a single byte, the current VM implementation has
+ * a hard limit on the number of locals that can be in scope at once.
+ *  
  * The Complier struct contains the following fields:
- * Local locals[]:	all locals that are in scope during each
- * 				point in the compilation process;
- *				Ordered in declaration appearance sequence.
- * localCount:		the number of locals are in the scope, i.e.,
- *				how many of those array slots are in use;
+ * LocalVariable locals[]:	array of local variables of fixed size (see NOTE)
+ *					Ordered in declaration appearance sequence.
+
+ * localCount:		tracks the number of locals are in the scope
+
  * scopeDepth:		the number of blocks surrounding the current
- *				bit of code we're compiling;
+ *					bit of code we're compiling;
  */
 typedef struct Compiler {
 
@@ -112,12 +127,13 @@ typedef struct Compiler {
 
 	/* Keeps track of which stack slots are associated with which
 	 * local variables or temporaries.
+	 *
 	 * NOTE: the compiler implicitly claims stack slot zero for
-	 * the VM's own internal use
+	 * the VM's own internal use.
 	 * (additional explanation can be found in initCompiler() body). */
-	Local locals[UIN8_COUNT];
-	int16_t localCount;
-	int16_t scopeDepth;
+	LocalVariable locals[UINT8_COUNT];
+	FN_WORD localCount;
+	FN_WORD scopeDepth;
 } Compiler;
 
 static Parser parser;
@@ -302,114 +318,32 @@ match(TokenType type)
  * waiting its turn to be processed. 
  */
 static void
-emitByte(uint32_t byte)
+emitByte(FN_UBYTE byte)
 {
-	Bytecode* ctx = currentContext();
-	writeBytecode(ctx, byte, parser.previous.line);
+	writeBytecode(currentContext(), byte, parser.previous.line);
 }
 
 /**
  * Writes an opcode followed by a one-byte operand.
  */
 static void
-emitBytes(uint32_t byte1, uint32_t byte2)
+emitBytes(FN_UBYTE byte1, FN_UBYTE byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
 }
 
 static void
-emitLoop(uint32_t loopStart)
+emitLoop(FN_UWORD loopStart)
 {
 	emitByte(OP_LOOP);
 
-	uint32_t offset = currentContext()->count - loopStart + 3;
-	if (0x00FFFFFF < offset)
+	FN_UWORD offset = currentContext()->count - loopStart + 2;
+	if (UINT16_MAX < offset)
 		error("Loop body too large.");
 	
-	emitByte((offset >> 16) & 0xff);
 	emitByte((offset >> 8) & 0xff);
 	emitByte(offset & 0xff);
-}
-
-/**
- * Generates a bytecode instruction and placeholder operand
- * for conditional branching.
- * @returns the offset of the emitted instruction in the bytecode.
- */
-static uint32_t
-emitJump(uint32_t instruction)
-{
-	emitByte(instruction);
-	emitByte(0x00FFFFFF);
-	
-	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
-	 * we need to subtract three operands. */
-	return currentContext()->count - 3;
-}
-
-/**
- * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
- * resides.
- * This function is called right before we emit the next instruction that we
- * want the jump to land on. In the case of 'if' statement, that means right after
- * we compile the 'then' branch and before we compile the next statement.
- * 
- * @param uint32_t offset: the offset of OP_JUMP_IF_FALSE instruction
- * to revert to.
- */
-static void
-patchJump(uint32_t offset)
-{	
-	/* Calculate how far to jump.
-	 * '-3' is to adjust the bytecode for the jump offset itself. */
-	uint32_t jump = currentContext()->count - offset - 3;
-
-	if (jump > 0x00FFFFFF)
-		error("Too much code to jump over.");
-	
-	/** Beginning from the op1, assign the actual offset value to jump to. */
-	int shift = 16;
-	for (int i = 0; i < 3; ++i) {
-		currentContext()->code[offset + i] = (uint8_t)((jump >> shift) & 0x000000FF);
-		shift -= 8;
-	}
-}
-
-static void
-emitReturn(void)
-{
-	/* The function implicitly returns NIL. */
-	emitByte(OP_NIL);
-	emitByte(OP_RETURN);
-}
-
-/**
- * Push the given value into Constant Pool.
- * @returns uint32_t - an offset within Constant pool where the value is stored.
- */
-static uint32_t
-makeConstant(Value value)
-{
-	uint32_t offset = addConstant(currentContext(), value);
-	return offset;
-}
-
-static void
-emitConstant(Value value)
-{
-	uint32_t offset = makeConstant(value);
-	uint8_t opcode = OP_CONSTANT;
-
-	/* If the total number of constants in constant pool
-	 * exceeds 255 elements, then instead of OP_CONSTANT which
-	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
-	 * comes into play, which spawns over four bytes:
-	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
-	if (offset > UINT8_MAX)
-		opcode = OP_CONSTANT_LONG;
-
-	emitBytes(opcode, offset);
 }
 
 /**
@@ -422,6 +356,7 @@ initCompiler(Compiler* compiler, FunctionType type)
 {
 	/* Cache the current Compiler as the parent. */
 	compiler->enclosing = currCplr;
+
 	/* Allocate a new function object to compile into.
 	 * NOTE: functions are created during compilation and
 	 * simply invoked at runtime. */
@@ -440,10 +375,18 @@ initCompiler(Compiler* compiler, FunctionType type)
 	/* Claim the zeroth stack slot for MV's internal use. Giving
 	 * the empty name protects from [un]intentional referencing
 	 * from a user's space. */
-	Local* local = &currCplr->locals[currCplr->localCount++];
+	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
 	local->name.start = "";
 	local->name.length = 0;
+}
+
+static void
+emitReturn(void)
+{
+	/* The function implicitly returns NIL. */
+	emitByte(OP_NIL);
+	emitByte(OP_RETURN);
 }
 
 /**
@@ -497,9 +440,9 @@ endScope(void)
 
 	/* Discard locals by simply decrementing the length of the array
 	 * and poping values from top of the stack at runtime. */
-	while ( (0 < currCplr->localCount) &&
+	while ((0 < currCplr->localCount) &&
 			(currCplr->locals[currCplr->localCount - 1].depth >
-			 currCplr->scopeDepth)) {
+			currCplr->scopeDepth)) {
 
 		emitByte(OP_POP);
 		currCplr->localCount--;
@@ -516,8 +459,6 @@ static void declaration(void);
 
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
-static uint32_t identifierConstant(Token* name);
-static int32_t resolveLocal(Compiler* compiler, Token* name);
 static void and_(bool canAssign);
 static void or_(bool canAssign);
 
@@ -587,15 +528,15 @@ binary(bool canAssign)
 /**
  * Steps through arguments as long as encounters commas after each expression.
  */
-static uint32_t
+static FN_UWORD
 argumentList(void)
 {
-	uint32_t argCount = 0;
+	FN_UWORD argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
-			if (argCount >= 255) {
-				error("Can't have more than 255 arguments");
+			if (argCount > MAX_ARITY) {
+				error("Can't have more than 16 arguments");
 			}
 			argCount++;
 		} while (match(TOKEN_COMMA));
@@ -608,7 +549,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	uint32_t argCount = argumentList();
+	FN_UWORD argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -645,6 +586,35 @@ grouping(bool canAssign)
 }
 
 /**
+ * Push the given value into Constant Pool.
+ * @returns FN_UBYTE - an offset within Constant pool where the value is stored.
+ */
+static FN_UBYTE
+makeConstant(Value value)
+{
+	FN_UWORD offset = addConstant(currentContext(), value);
+
+	/* If the total number of constants in constant pool
+	 * exceeds 255 elements, then instead of OP_CONSTANT which
+	 * occupes two bytes [OP_CONSTANT, operand], the OP_CONSTANT_LONG
+	 * comes into play, which spawns over four bytes:
+	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
+	if (UINT8_MAX < offset) {
+		error("Exceed the maximum size of Constant pool.");
+		return (0);
+	}
+
+	return (FN_UBYTE)offset;
+}
+
+static void
+emitConstant(Value value)
+{
+	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+
+/**
  * Compiles number literal. Assumes the token for the
  * number literal has already been consumed and is stored
  * in 'parser.previous' field.
@@ -652,8 +622,8 @@ grouping(bool canAssign)
 static void
 number(bool canAssign)
 {
-	/* Convert the lexeme to a C double. */
-	double value = strtod(parser.previous.start, NULL);
+	/* Convert the lexeme to a C FN_FLOAT. */
+	FN_FLOAT value = strtod(parser.previous.start, NULL);
 	
 	/* Wrap it in a Value and store in the constant table. */
 	emitConstant(NUMBER_PACK(value));
@@ -661,7 +631,7 @@ number(bool canAssign)
 
 /**
  * Takes the string's characters directly from the lexeme,
- * trims surrounding double quotes and then creates a string object,
+ * trims surrounding FN_FLOAT quotes and then creates a string object,
  * wraps it in a 'Value' and stores in into the constant pool.
  * 
  * Also makes VM track the new object in the VM's linked list so that,
@@ -673,20 +643,80 @@ string(bool canAssign)
 	ObjString*  str = copyString(parser.previous.start + 1,
 								parser.previous.length - 2);
 	
-	/* Trim the leading double quote and exclude
+	/* Trim the leading FN_FLOAT quote and exclude
 	 * from the length both leading and trailing ones. */
 	emitConstant(OBJECT_PACK(str));
 }
 
+
+static bool
+identifiersEqual(Token* a, Token* b)
+{
+	if (a->length != b->length)
+		return false;
+
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+/** 
+ * Searches a local variable in the current scope.
+ * 
+ * Walk the array of local variables beginning from the inner most
+ * scope to the outer most one and try to find a variable with the
+ * name passed in as argument to this function.
+ * Backward moving ensures that the inner most variable will shadow the
+ * outer most one.
+ * 
+ * @returns FN_WORD: an index in the Compiler::locals[] array if found.
+ * 					 (-1) otherwise.
+ */
+static FN_WORD
+resolveLocal(Compiler* compiler, Token* name)
+{
+	for (FN_WORD i = compiler->localCount - 1; i >= 0; --i) {
+		LocalVariable* local = &compiler->locals[i];
+		if (identifiersEqual(name, &local->name)) {
+
+			/* Prevent a local variable to be initialized with its own
+			 * uninitialized state.
+			 * {
+			 *     var a = a;
+			 * }
+	 		 */
+			if ((-1) == local->depth)
+				error("Can't read local variable in its own initializer.");
+
+			return i;
+		}
+	}
+
+	return (-1);
+}
+
 /**
- * Passes the given identifier token and adds its lexeme to the bytecode's
- * constant table as a string.
+ * Takes the given token of a global variable and adds its lexeme to
+ * the bytecode's constant pool as a string.
+ * @returns FN_UWORD: an index of the constant in the constant pool.
+ */
+static FN_UBYTE
+identifierConstant(Token* name)
+{
+	ObjString* str = copyString(name->start, name->length);
+	return makeConstant(OBJECT_PACK(str));
+}
+
+/**
+ * Implements an access either to local or global variable. Whichever
+ * type of variable we are targeted at, this function handles both type
+ * of operation - setting and getting a value.
  */
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint32_t getOp, setOp;
-	int32_t offset = resolveLocal(currCplr, &name);
+	FN_UBYTE getOp, setOp;
+
+	/* Try to find a local variable with the given name. */
+	FN_WORD offset = resolveLocal(currCplr, &name);
 
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
@@ -698,13 +728,16 @@ namedVariable(Token name, bool canAssign)
 	}
 
 	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
-		expression();								// ..evaluate the expression and..
-		emitBytes(setOp, offset);		// ..set the value
-	} else {										// Otherwise
-		emitBytes(getOp, offset);		// get the variable's value.
+		expression();						// ..evaluate the expression and..
+		emitBytes(setOp, (FN_UBYTE)offset);	// ..set the value.
+	} else {								// Otherwise
+		emitBytes(getOp, (FN_UBYTE)offset);	// get the variable's value.
 	}
 }
 
+/**
+ * Accesses a variable's value using its identifier (i.e. name).
+*/
 static void
 variable(bool canAssign)
 {
@@ -835,7 +868,7 @@ parsePrecedence(Precedence precedence)
 	 * Since assignment is the lowest-precedence expression, the only time
 	 * we allow an ssignment is when parsing an assigment expression or
 	 * top-level expression like in an expression statement. */
-	bool canAssign = (precedence <= PREC_ASSIGNMENT);
+	bool canAssign = (PREC_ASSIGNMENT >= precedence);
 
 	/* Compile the prefix expression. */
 	prefixRule(canAssign);
@@ -856,190 +889,45 @@ parsePrecedence(Precedence precedence)
 }
 
 /**
- * Takes the given token and adds its lexeme to the bytecode's constant pool
- * as a string.
- * @returns uint8_t: an index of the constant in the constant pool.
+ * Generates a bytecode instruction and placeholder operand
+ * for conditional branching.
+ * @returns the offset of the emitted instruction in the bytecode.
  */
-static uint32_t
-identifierConstant(Token* name)
+static FN_UWORD
+emitJump(FN_UWORD instruction)
 {
-	ObjString* str = copyString(name->start, name->length);
-	return makeConstant(OBJECT_PACK(str));
-}
-
-static bool
-identifiersEqual(Token* a, Token* b)
-{
-	if (a->length != b->length)
-		return false;
-
-	return memcmp(a->start, b->start, a->length) == 0;
-}
-
-/** 
- * Searches a local variable in the current scope.
- * Returns index of the variable whom identifier matches with the
- * given token's name.
- * We walk the array backward so that we find the *last* declared
- * variable with the identifier. That ensures that inner local
- * variables correctly shadow locals with the same name in surrounding
- * scopes.
- */
-static int32_t
-resolveLocal(Compiler* compiler, Token* name)
-{
-	for (int i = compiler->localCount - 1; i >= 0; --i) {
-		Local* local = &compiler->locals[i];
-		if (identifiersEqual(name, &local->name)) {
-
-			if ((-1) == local->depth)
-				error("Can't read local variable in its own initializer.");
-
-			return i;
-		}
-	}
-
-	return (-1);
-}
-
-/**
- * Adds a variable to the compiler's list of variables
- * in the current scope. */
-static void
-addLocal(Token name)
-{
-	if (UIN8_COUNT <= currCplr->localCount) {
-		error("Too many local variables in function.");
-		return;
-	}
-
-	Local* local = &currCplr->locals[currCplr->localCount++];
-	local->name = name;
-
-	/* Special case handling, consider example:
-	 * {
-	 *   var a = "outer";
-	 *  {
-	 *    var a = a;
-	 *  }
-	 * }
-	 * splitting a vavriable's declaration into two phases (declaration
-	 * and initialization) addresses this issue.
-	 **/
-	local->depth = -1;
-	local->depth = currCplr->scopeDepth;
-}
-
-/**
- * Declaring variable is when the variable is added to scope but
- * still haven't been initialized.
- * 
- * The point where the compiler records the existence of
- * the local variable.
- * Because global variables are late bound, the compiler doesn't
- * keep track of which declarations for them it has seen.
- * But for local variables, the compiler does need to remember that
- * the variables exists.
- * Thus, declaring a local variables - is adding it to the compiler's
- * list of variables in the current scope.
- */
-static void
-declareVariable(void)
-{
-	/* Just bail out if we're in the global scope. */
-	if (0 == currCplr->scopeDepth)
-		return;
+	emitByte(instruction);
+	emitByte(0xFF);
+	emitByte(0xFF);
 	
-	Token* name = &parser.previous;
-
-	/* Check if a variable with the same name have been declared
-	 * previously.
-	 * The current scope is always at the end of the locals[]. When we
-	 * declare a new variable, we start at the end and work backward,
-	 * looking for an existing variable with the same name.
-	 * 
-	 * NOTE: FunVM's semantic allows to have two or more variable
-	 * with the same name in *different* scopes. */
-	for (int i = currCplr->localCount - 1; i >= 0; --i) {
-
-		Local* local = &currCplr->locals[i];
-		if ((local->depth != -1) &&
-			(local->depth < currCplr->scopeDepth)) {
-			break;
-		}
-
-		if (identifiersEqual(name, &local->name))
-			error("A variable with the same name is already defined in this scope.");
-	}
-
-	addLocal(*name);
+	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
+	 * we need to subtract three operands. */
+	return currentContext()->count - 2;
 }
 
 /**
- * Consumes the identifier token for the variable name, adds its lexeme
- * to the bytecode's constant pool as a string, and then returns the
- * constant pool index where it was added.
+ * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
+ * resides.
+ * This function is called right before we emit the next instruction that we
+ * want the jump to land on. In the case of 'if' statement, that means right after
+ * we compile the 'then' branch and before we compile the next statement.
+ * 
+ * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
+ * to revert to.
  */
-static uint32_t
-parseVariable(const char* errorMessage)
-{
-	consume(TOKEN_IDENTIFIER, errorMessage);
+static void
+patchJump(FN_UWORD offset)
+{	
+	/* Calculate how far to jump.
+	 * '-3' is to adjust the bytecode for the jump offset itself. */
+	FN_UWORD jump = currentContext()->count - offset - 2;
 
-	declareVariable();
-
-	/* Exit the function if we're in a local scope.
-	 * At runtime, locals aren't looked up by name. There is no need
-	 * to stuff the variable's name into the constant pool, so if
-	 * the declaration is inside a local scope, we return a dummy table
-	 * index instead. */
-	if (0 < currCplr->scopeDepth)
-		return 0;
+	if (UINT16_MAX < jump)
+		error("Too much code to jump over.");
 	
-	return identifierConstant(&parser.previous);
-}
-
-static void
-markInitialized(void)
-{
-	/* When top-level function declaration calls this function,
-	 * there is no local variable to mark initialized - the function
-	 * is bound to a global variable. */
-	if (0 >= currCplr->scopeDepth)
-		return;
-
-	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
-}
-
-/**
- * Defining variable is when a variable becomes available for use.
- * 
- * In case of global variable this function emits the bytecode for
- * storing value in the global variable hash table.
- * 
- * In case of local variables this function marks it as initialized
- * and returns.
- */
-static void
-defineVariable(uint32_t global)
-{
-	/* 
-	 * is currCplr->scopeDepth is greater than 0, then we a in local
-	 * scope.
-	 * There is no code to create a local variable at runtime,
-	 * Consider the state the VM is in:
-	 * The variable is already initialized and the value is sitting
-	 * right on top of the stack as the only remaining temporary.
-	 * The locals are allocated at the top of the stack - right where
-	 * that value already is.
-	 * 
-	 * Thus, there's nothing to do: the temporary simply *becomes*
-	 * the local variable. */
-	if (0 < currCplr->scopeDepth) {
-		markInitialized();
-		return;
-	}
-
-	emitBytes(OP_DEFINE_GLOBAL, global);
+	/** Beginning from the op1, assign the actual offset value to jump to. */
+	currentContext()->code[offset] = (FN_UWORD)((jump >> 8) & 0xFF);
+	currentContext()->code[offset + 1] = (FN_UWORD)(jump & 0xFF);
 }
 
 /**
@@ -1057,7 +945,7 @@ defineVariable(uint32_t global)
 static void
 and_(bool canAssign)
 {
-	int32_t endJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD endJump = emitJump(OP_JUMP_IF_FALSE);
 	
 	emitByte(OP_POP);
 	parsePrecedence(PREC_AND);
@@ -1075,8 +963,8 @@ and_(bool canAssign)
 static void
 or_(bool canAssign)
 {
-	uint32_t elseJump = emitJump(OP_JUMP_IF_FALSE);
-	uint32_t endJump = emitJump(OP_JUMP);
+	FN_UWORD elseJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD endJump = emitJump(OP_JUMP);
 
 	patchJump(elseJump);
 	emitByte(OP_POP);
@@ -1117,6 +1005,158 @@ block(void)
 	consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+static void
+markInitialized(void)
+{
+	/* When top-level function declaration calls this function,
+	 * there is no local variable to mark initialized - the function
+	 * is bound to a global variable. */
+	if (0 >= currCplr->scopeDepth)
+		return;
+
+	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
+}
+
+/**
+ * Defining variable is when a variable becomes available for use.
+ * 
+ * In case of global variable this function emits the bytecode for
+ * storing value in the global variable hash table.
+ * 
+ * In case of local variables this function marks it as initialized
+ * and returns.
+ */
+static void
+defineVariable(FN_UWORD global)
+{
+	/* 
+	 * If currCplr->scopeDepth is greater than 0, then we a in local
+	 * scope.
+	 * There is no code to create a local variable at runtime,
+	 * 
+	 * Consider the state the VM is in:
+	 * The variable is declared and the value is sitting
+	 * right on top of the stack as the only remaining temporary.
+	 * The locals are allocated at the top of the stack - right where
+	 * that value already is.
+	 * 
+	 * Thus, there's nothing to do: the temporary simply *becomes*
+	 * the local variable. Just mark the variable as 'initialized'
+	 * and return. */
+	if (0 < currCplr->scopeDepth) {
+		markInitialized();
+		return;
+	}
+
+	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+/**
+ * Adds a variable to the compiler's list of LocalVariable
+ * in the current scope. */
+static void
+addLocal(Token name)
+{
+	if (UINT8_COUNT <= currCplr->localCount) {
+		error("Too many local variables in function.");
+		return;
+	}
+
+	/* Fetch the pointer to an element under 'currCplr->localCount'
+	 * and proceed to its initialization. */
+	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
+	local->name = name;
+
+	/* To prevent an uninitialized variable to be initialized by its own value.
+	 * consider example:
+	 * {
+	 *     var a = "outer";
+	 *     {
+	 *         var a = a;
+	 *     }
+	 * }
+	 * Splitting a variable's declaration into two phases (declaration
+	 * and initialization) addresses this issue.
+	 **/
+	local->depth = -1;
+}
+
+/**
+ * Declaring variable is when the variable is added to scope but
+ * still haven't been initialized.
+ * 
+ * The point where the compiler records the existence of
+ * the local variable.
+ * Because global variables are late bound, the compiler doesn't
+ * keep track of which declarations for them it has seen.
+ * But for local variables, the compiler does need to remember that
+ * the variables exists.
+ * Thus, declaring a local variables - is adding it to the compiler's
+ * list of variables in the current scope.
+ */
+static void
+declareVariable(void)
+{
+	/* Just bail out if we're in the global scope. */
+	if (0 == currCplr->scopeDepth)
+		return;
+	
+	Token* name = &parser.previous;
+
+	/* Check if a variable with the same name have been declared
+	 * previously.
+	 * Starting from the last (and actually current) scope, e.g.,
+	 * { { { } } }
+	 *	    ^__here,
+	 *
+	 * go backward through the array and examine variables
+	 * until we encounter a one which is out of the current scope.
+	 */
+	for (FN_WORD i = currCplr->localCount - 1; i >= 0; --i) {
+		/* Get the pointer to the element. */
+		LocalVariable* local = &currCplr->locals[i];
+		/* Stop searching if variable is in uninitialized state.. */
+		if ((local->depth != -1) &&
+			/* ..and it doesn't belong to the current scope. */
+			(local->depth < currCplr->scopeDepth)) {
+			break;
+		}
+
+		/* Otherwise check, if there is already a variable present
+		 * with the name we are abount to assign to new variable. */
+		if (identifiersEqual(name, &local->name))
+			error("A variable with the same name is already defined in this scope.");
+	}
+
+	addLocal(*name);
+}
+
+/**
+ * Consumes the identifier token for the variable name, adds its lexeme
+ * to the bytecode's constant pool as a string, and then returns the
+ * constant pool index where it was added.
+ */
+static FN_UWORD
+parseVariable(const char* errorMessage)
+{
+	consume(TOKEN_IDENTIFIER, errorMessage);
+
+	/* Declare variable */
+	declareVariable();
+
+	/* Just return from the FunVM's function we're in the
+	 * middle of execution if we're in a local scope.
+	 * At runtime, locals aren't looked up by name. There is no need
+	 * to stuff the variable's name into the constant pool.
+	 * 
+	 * So if the declaration is inside a local scope, we return a
+	 * dummy table index instead. */
+	if (0 < currCplr->scopeDepth)
+		return 0;
+	
+	return identifierConstant(&parser.previous);
+}
+
 /**
  * Compiles the function itself - its parameter list and block body.
  * The code being generated by this function leaves the resulting
@@ -1146,11 +1186,11 @@ function(FunctionType type)
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			currCplr->function->arity++;
-			if (currCplr->function->arity > 255) {
-				errorAtCurrent("Can't have more than 255 params");
+			if (currCplr->function->arity > MAX_ARITY) {
+				errorAtCurrent("Can't have more than 127 params");
 			}
 
-			uint32_t constant = parseVariable("Expect parameter name.");
+			FN_UWORD constant = parseVariable("Expect parameter name.");
 			defineVariable(constant);
 		} while (match(TOKEN_COMMA));
 	}
@@ -1179,7 +1219,7 @@ function(FunctionType type)
 static void
 funDeclaration(void)
 {
-	uint32_t global = parseVariable("Expect function name");
+	FN_UWORD global = parseVariable("Expect function name");
 
 	/* Marking function as 'initialized' as soon as we compile the name
 	 * make it possible to support recursive local functions. */
@@ -1198,7 +1238,7 @@ static void
 varDeclaration(void)
 {
 	// Manage variable name (which follows right after the 'var' keyword)
-	uint32_t global = parseVariable("Expect variable name.");
+	FN_UWORD global = parseVariable("Expect variable name.");
 
 	/* Parse the initialization. */
 	if (match(TOKEN_EQUAL)) {	// is variable assigned an initialization expression?
@@ -1245,8 +1285,8 @@ forStatement(void)
 	}
 
 	/* The condition clause. */
-	uint32_t loopStart = currentContext()->count;
-	int32_t exitJump = -1;
+	FN_UWORD loopStart = currentContext()->count;
+	FN_WORD exitJump = -1;
 
 	/* Since this clause is optionalm we need to see if it's actually present.
 	 * The previous semicolon was consumed by previous clause, no that if
@@ -1275,10 +1315,10 @@ forStatement(void)
 	if (!match(TOKEN_RIGHT_PAREN)) {
 
 		/* Emit the unconditional jump that hops over the increment clause. */
-		uint32_t bodyJump = emitJump(OP_JUMP);
+		FN_UWORD bodyJump = emitJump(OP_JUMP);
 		
 		/* take the offset of the increment clause within bytecode. */
-		uint32_t incrementStart = currentContext()->count;
+		FN_UWORD incrementStart = currentContext()->count;
 		/* Compile the increment expression itself. The only thing we need
 		 * is its side effect, so.. */
 		expression();
@@ -1316,6 +1356,32 @@ forStatement(void)
 	endScope();
 }
 
+static void
+whileStatement(void)
+{
+	FN_UWORD loopStart = currentContext()->count;
+
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
+
+	/* To skip over the subsequent body statement if the condition if falsey. */
+	FN_UWORD exitJump = emitJump(OP_JUMP_IF_FALSE);
+	
+	/* Pop the condition value from the stack if expression is falsey. */
+	emitByte(OP_POP);
+
+	/* Compile the body. */
+	statement();
+	/* Emit a 'loop' instruction. */
+	emitLoop(loopStart);
+	patchJump(exitJump);
+
+	/* Pop the condition value from the stack when exiting from the body
+	 * (i.e. the expresssion condition was truthy. */
+	emitByte(OP_POP);
+}
+
 /**
  * Compiles the if () statement.
  * The execution flow shall branch to 'then' body in case the condition
@@ -1336,7 +1402,7 @@ ifStatement(void)
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'if' clause.");
 
 	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
-	uint32_t thenJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD thenJump = emitJump(OP_JUMP_IF_FALSE);
 
 	/* If condition is truthy, then emit OP_POP to pull out condition value
 	 * from top of the stack right before evaluating the code in 'then' branch.
@@ -1348,7 +1414,7 @@ ifStatement(void)
 	statement();
 
 	/* Note that this branch is unconditional. */
-	uint32_t elseJump = emitJump(OP_JUMP);
+	FN_UWORD elseJump = emitJump(OP_JUMP);
 
 	/* Once we have compiled 'then' body, we know how far to jump.
 	 * Thus, proceed to 'backpatching' offset with the real value. */
@@ -1400,32 +1466,6 @@ returnStatement(void)
 		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
 		emitByte(OP_RETURN);
 	}
-}
-
-static void
-whileStatement(void)
-{
-	uint32_t loopStart = currentContext()->count;
-
-	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
-	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
-
-	/* To skip over the subsequent body statement if the condition if falsey. */
-	uint32_t exitJump = emitJump(OP_JUMP_IF_FALSE);
-	
-	/* Pop the condition value from the stack if expression is falsey. */
-	emitByte(OP_POP);
-
-	/* Compile the body. */
-	statement();
-	/* Emit a 'loop' instruction. */
-	emitLoop(loopStart);
-	patchJump(exitJump);
-
-	/* Pop the condition value from the stack when exiting from the body
-	 * (i.e. the expresssion condition was truthy. */
-	emitByte(OP_POP);
 }
 
 /**

@@ -24,9 +24,9 @@ static VM* vm;
  * Returns the elapsed type since the program started running, in seconds.
  */
 static Value
-clockNative(uint32_t argCount, Value* args)
+clockNative(FN_UBYTE argCount, Value* args)
 {
-	return NUMBER_PACK((double)clock() / CLOCKS_PER_SEC);
+	return NUMBER_PACK((FN_FLOAT)clock() / CLOCKS_PER_SEC);
 }
 
 /* Makes stackTop point to the beginning of the stack,
@@ -48,7 +48,7 @@ runtimeError(const char* format, ...)
 	va_end(args);
 	fputs("\n", stderr);
 
-	for (int32_t i = vm->frameCount - 1; i >= 0; --i) {
+	for (FN_WORD i = vm->frameCount - 1; i >= 0; --i) {
 
 		CallFrame* frame = &vm->frames[i];
 		ObjFunction* function = frame->function;
@@ -74,23 +74,19 @@ void
 initVM(VM* _vm)
 {
 	vm = _vm;
-	vm->stack = NULL;
 	vm->stackTop = NULL;
-	vm->stackSize = 0;
 	vm->objects = NULL;
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 
 	resetStack();
-	setVM(vm);
+	objSetVM(vm);
 	defineNative("clock", clockNative);
 }
 
 void
 freeVM(VM* vm)
 {
-	/* Release stack. */
-	FREE_ARRAY(Value, vm->stack, vm->stackSize);
 	freeTable(vm->globals);
 	freeTable(vm->interns);
 
@@ -101,27 +97,6 @@ freeVM(VM* vm)
 static void
 push(Value value)
 {
-	uint32_t stackOffset = ((vm->stackTop) - vm->stack);
-
-	if (vm->stackSize < stackOffset + 1) {
-		uint32_t oldSize = vm->stackSize;
-		vm->stackSize = INCREASE_CAPACITY(oldSize);
-		vm->stack = INCREASE_ARRAY(Value, vm->stack,
-								oldSize, vm->stackSize);
-
-		/* We could avoid this step if could be sure that 
-		 * realloc() wouldn't cause vm->stack points to another
-		 * memory block, but truth is that it can do so,
-		 * thus vm->stackTop will point to unused block which
-		 * will result in segmentation fault.
-		 * Also we mind the correct offset within new block. */
-		vm->stackTop = (vm->stack + stackOffset);
-#ifdef FUNVM_DEBUG
-		printf("Increasing stack size:\told: %d\tnew: %d\n",
-									oldSize, vm->stackSize);
-#endif	// !FUNVM_DEBUG
-	}
-	
 	*vm->stackTop = value;	/* push the value onto the stack. */
 	vm->stackTop++;				/* shift stackTop forward. */
 }
@@ -133,8 +108,11 @@ pop(void)
 	return* vm->stackTop;	/* retrieve the value at that index in stack. */
 }
 
+/**
+ * Returns a values from the stack at one index behind the given offset.
+*/
 static Value
-peek(int32_t offset)
+peek(FN_WORD offset)
 {
 	return vm->stackTop[(-1) - offset];
 }
@@ -164,10 +142,10 @@ defineNative(const char* name, NativeFn function)
  * Initializes the next CallFrame on the stack to be called.
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
- * It sets up the 'slots' pointer to give the frame its window into the stack.
+ * It sets up the 'slots' pointer to give the frame its own window into the stack.
  */
 static bool
-call(ObjFunction* function, uint8_t argCount)
+call(ObjFunction* function, FN_UWORD argCount)
 {
 	if (argCount != function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
@@ -190,7 +168,7 @@ call(ObjFunction* function, uint8_t argCount)
 }
 
 static bool
-callValue(Value callee, uint8_t argCount)
+callValue(Value callee, FN_UWORD argCount)
 {
 	if (IS_OBJECT(callee)) {
 		
@@ -235,7 +213,7 @@ concatenate()
 	ObjString* b = STRING_UNPACK(pop());
 	ObjString* a = STRING_UNPACK(pop());
 
-	int32_t length = a->length + b->length;
+	FN_UWORD length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
 
 	memcpy(chars, a->chars, a->length);
@@ -250,24 +228,17 @@ concatenate()
 #define READ_BYTE() \
 	(*frame->ip++)
 
-#define READ_LONG()	\
-	(frame->ip += 3, (uint32_t) ((frame->ip[-3] << 16) | \
-							  (frame->ip[-2] <<  8) | \
-							  (frame->ip[-1]) ))
+#define READ_SHORT()	\
+	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
- * and look up the corresponding Value in the bytecode's const_pool. */
+ * and look up the corresponding Value in the bytecode's constPool. */
 #define READ_CONSTANT() \
-	(frame->function->bytecode.const_pool.pool[READ_BYTE()])
+	(frame->function->bytecode.constPool.pool[READ_BYTE()])
 
-#define READ_CONSTANT_LONG() \
-	(frame->function->bytecode.const_pool.pool[READ_LONG()])
 
 #define READ_STRING() \
 	STRING_UNPACK(READ_CONSTANT())
-
-#define READ_STRING_LONG() \
-	STRING_UNPACK(READ_CONSTANT_LONG())
 
 #define BINARY_OP(valueType, op)							\
 	do {													\
@@ -276,8 +247,8 @@ concatenate()
 			return IR_RUNTIME_ERROR;						\
 		}													\
 															\
-		double b = NUMBER_UNPACK(pop());					\
-		double a = NUMBER_UNPACK(pop());					\
+		FN_FLOAT b = NUMBER_UNPACK(pop());					\
+		FN_FLOAT a = NUMBER_UNPACK(pop());					\
 		push(valueType(a op b));							\
 	} while(false)
 
@@ -295,7 +266,7 @@ logRun(CallFrame* frame)
 	printf("\n");
 
 	disassembleInstruction(&frame->function->bytecode,
-			(int32_t)(frame->ip - frame->function->bytecode.code));
+			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
 }
 #endif // !FUNVM_DEBUG
 
@@ -309,7 +280,7 @@ logRun(CallFrame* frame)
 static InterpretResult
 run()
 {
-	uint8_t ins;
+	FN_UBYTE ins;
 	CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
 	for (;;) {
@@ -322,30 +293,25 @@ run()
 				Value constant = READ_CONSTANT();
 				push(constant);
 			} break;
-
-			case OP_CONSTANT_LONG: {
-				Value constant = READ_CONSTANT_LONG();
-				push(constant);
-			} break;
 			
 			case OP_NIL:	push(NIL_PACK());		break;
 			case OP_TRUE:	push(BOOL_PACK(true));	break;
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
-			case OP_POP:	pop();							break;
+			case OP_POP:	pop();					break;
 
 			case OP_GET_LOCAL: {
-				uint8_t slot = READ_BYTE();
+				FN_UBYTE slot = READ_BYTE();
 				push(frame->slots[slot]);
 			} break;
 
 			case OP_SET_LOCAL: {
-				uint8_t slot = READ_BYTE();
+				FN_UBYTE slot = READ_BYTE();
 				frame->slots[slot] = peek(0);
 			} break;
-			
+
 			case OP_DEFINE_GLOBAL: {
-				// Value val = pop(); see NOTE.
-				// get the name of the variable from the constant pool
+				// get the name of the variable from the constant pool.
+				// Why not use 'Value val = pop()' instead? See NOTE.
 				ObjString* name = READ_STRING();
 
 				/* Take the value from the top of the stack and
@@ -353,7 +319,7 @@ run()
 				 * Throw an exception if variable have alredy been declared. */
 				if (!tableSet(vm->globals, name, peek(0))) {
 					runtimeError("Variable '%s' is already defined.",
-																		name->chars);
+														name->chars);
 					return IR_RUNTIME_ERROR;
 				}
 
@@ -363,7 +329,7 @@ run()
 				 * hash table.*/
 				pop();
 			} break;
-			
+
 			case OP_SET_GLOBAL: {
 				// get the name of the variable from the constant pool
 				ObjString* name = READ_STRING();
@@ -409,8 +375,8 @@ run()
 				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
 					concatenate();
 				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-					double b = NUMBER_UNPACK(pop());
-					double a = NUMBER_UNPACK(pop());
+					FN_FLOAT b = NUMBER_UNPACK(pop());
+					FN_FLOAT a = NUMBER_UNPACK(pop());
 					push(NUMBER_PACK(a + b));
 				} else {
 					runtimeError("Operands must be two numbers or two strings.");
@@ -441,7 +407,7 @@ run()
 					return IR_RUNTIME_ERROR;
 				}
 
-				double temp = NUMBER_UNPACK(vm->stackTop[-1]);
+				FN_FLOAT temp = NUMBER_UNPACK(vm->stackTop[-1]);
 				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
 
@@ -455,12 +421,12 @@ run()
 			} break;
 
 			case OP_JUMP: {
-				uint32_t offset = READ_LONG();
+				FN_UWORD offset = READ_SHORT();
 				frame->ip += offset;
 			} break;
-			
+
 			case OP_JUMP_IF_FALSE: {
-				uint32_t offset = READ_LONG();
+				FN_UWORD offset = READ_SHORT();
 
 				/* Check the condition value which resides on top of the stack.
 				 * Apply this jump offset to vm->ip if it's falsey. */
@@ -470,12 +436,12 @@ run()
 			} break;
 
 			case OP_LOOP: {
-				uint32_t offset = READ_LONG();
+				FN_UWORD offset = READ_SHORT();
 				frame->ip -= offset;
 			} break;
 
 			case OP_CALL: {
-				uint8_t argCount = READ_BYTE();
+				FN_UWORD argCount = READ_BYTE();
 
 				/* If call to this function is succesfull, there will be a
 				 * new frame on the CallFrame stack for the called function. */
@@ -498,9 +464,8 @@ run()
 				/* Complete execution if the frame we have just returned from
 				 * is the last one (i.e. the top-level script). */
 				if (vm->frameCount == 0) {
-
-					/* Pop the main script function from the stack. */
-					pop();
+					
+					pop();	/* Pop the main script function from the stack. */
 					return IR_OK;
 				}
 

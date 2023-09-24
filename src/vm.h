@@ -14,34 +14,34 @@ typedef struct Table Table;
  * 
  * ObjFunction* function:
  * 			current function.
- * uint8_t* ip;
- * 			current function's instruction pointer.
+ * FN_UWORD* ip;
+ * 			current function's instruction set.
  * Value* slots:
  * 			points into the VM's values stack at the first slot that
  * 			this function can use.
 */
 typedef struct {
 	ObjFunction* function;
-	uint8_t* ip;
+	FN_UBYTE* ip;
 	Value* slots;
 } CallFrame;
 
+#define STACK_MAX 256
 #define FRAMES_MAX 64
 
 /**
  * CallFrame frames[FRAMES_MAX]:
  * 			Each CallFrame has its own instruction pointer and its own pointer
  * 			to the ObjFunction that's executing.
- * uint32_t frameCount:
+ * FN_UWORD frameCount:
  * 			stores the current height of the CallFrame stack, i.e., the number of
  * 			ongoing function calls.
 */
 typedef struct {
 	CallFrame frames[FRAMES_MAX];
-	uint32_t frameCount;
-	Value* stack;
+	FN_UWORD frameCount;
+	Value stack[STACK_MAX];
 	Value* stackTop;
-	uint32_t stackSize;
 	Table* globals;
 	Table* interns;		/* String interning (see  section 20.5). */
 	Object* objects;	/* Pointer to the head of the list of objects on the heap. */
@@ -55,7 +55,8 @@ typedef enum {
 
 void initVM(VM* vm);
 void freeVM(VM* vm);
-void setVM(VM* vm);
+void objSetVM(VM* vm);
+Value pop(void);
 InterpretResult interpret(const char* source);
 
 #endif // !FUNVM_VM_H

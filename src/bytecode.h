@@ -1,6 +1,7 @@
 #ifndef FUNVM_BYTECODE_H
 #define FUNVM_BYTECODE_H
 
+#include "common.h"
 #include "value.h"
 
 /* Opcode - a one-byte operation code which
@@ -8,7 +9,6 @@
  * add, subtract, look up variable, etc. */
 typedef enum {
 	OP_CONSTANT,		/* Load the constant from Value pool (1 byte  offset). */
-	OP_CONSTANT_LONG,	/* Load the constant from Value pool (3 bytes offset). */
 	OP_NIL,				/* Push NIL value on the stack (dedicated ins). */
 	OP_TRUE,			/* Push TRUE value on the stack (dedicated ins). */
 	OP_FALSE,			/* Push FALSE value on the stack (dedicated ins). */
@@ -38,16 +38,16 @@ typedef enum {
 
 /* Bytecode - a dynamic array of instructions (opcodes). */
 typedef struct {
-	uint32_t count;		/* Number of elements in code array. */
-	uint32_t capacity;	/* Size of the code array. */
-	uint8_t* code;		/* A chunk of instructions. */
-	uint32_t* lines;
-	ConstantPool const_pool;
+	FN_UWORD count;		/* Number of elements in code array. */
+	FN_UWORD capacity;	/* Size of the code array. */
+	FN_UBYTE* code;		/* A chunk of instructions. */
+	FN_UWORD* lines;
+	ConstantPool constPool;
 } Bytecode;
 
 void initBytecode(Bytecode* bytecode);
 void freeBytecode(Bytecode* bytecode);
-void writeBytecode(Bytecode* bytecode, uint32_t opcode, uint32_t line);
-uint32_t addConstant(Bytecode* bytecode, Value constant);
+void writeBytecode(Bytecode* bytecode, FN_UBYTE opcode, FN_UWORD line);
+FN_UWORD addConstant(Bytecode* bytecode, Value constant);
 
 #endif // !FUNVM_BYTECODE_H

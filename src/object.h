@@ -60,17 +60,17 @@ struct Object {
 */
 typedef struct {
 	Object		object;
-	uint32_t	arity;		/* the number of params. */
+	FN_UBYTE		arity;		/* the number of params. */
 	Bytecode	bytecode;	/* function's own bytecode. */
 	ObjString*	name;		/* Function's name. */
 } ObjFunction;
 
 /** Typedef for pointer to the C function.
- * @param uint32_t: argument count.
+ * @param FN_UWORD: argument count.
  * @param Value*: pointer to the first argument on the stack.
  * @returns Value: the result value.
  */
-typedef Value (*NativeFn)(uint32_t argCount, Value* args);
+typedef Value (*NativeFn)(FN_UBYTE argCount, Value* args);
 
 /**
  * Native function representation.
@@ -87,15 +87,15 @@ typedef struct {
  */
 struct ObjString {
 	Object object;
-	int32_t length;
+	FN_UWORD length;
 	char* chars;
-	uint32_t hash;
+	FN_UWORD hash;
 };
 
 ObjFunction* newFunction(void);
 ObjNative* newNative(NativeFn function);
-ObjString* takeString(char* chars, int32_t length);
-ObjString* copyString(const char* chars, int32_t length);
+ObjString* takeString(char* chars, FN_UWORD length);
+ObjString* copyString(const char* chars, FN_UWORD length);
 void printObject(Value value);
 
 /** Safety check before downcasting from 'Object*' to one of the child object type.

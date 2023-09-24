@@ -1,0 +1,43 @@
+var var1;
+var var2 = 0;
+var var3 = "simple string";
+var var4 = 3.1415;
+var var5 = true;
+var var6 = false;
+var var7 = nil;
+
+print("uninitialized: ");
+println(var1);
+print("var2 = ");
+println(var2);
+print("var3 = ");
+println(var3);
+print("var4 = ");
+println(var4);
+print("var5 = ");
+println(var5);
+print("!var5 = ");
+println(!var5);
+print("var6 = ");
+println(var6);
+print("!var6 = ");
+println(!var6);
+print("var7 = ");
+println(var7);
+
+
+
+var b = "b";
+var b1 = b;
+println("[var b1 = b] = " + b1);
+println(b);
+println(b1);
+
+var b2 = "b2";
+println("b2 = " + b2);
+var b3 = b2;
+println(b3);
+
+var1 = var2 = var3 = var4 = var5 = var6 = var7 = "assignment";
+println(var1);
+

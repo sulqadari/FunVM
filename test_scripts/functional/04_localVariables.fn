@@ -1,0 +1,36 @@
+{
+	var a = "scope 1";
+	print("a = ");
+	println(a);
+	{
+		print("a = ");
+		println(a);
+
+		var a = "scope 2";
+		print("a = ");
+		println(a);
+		{
+			var b = "scope 3";
+			print("b = ");
+			println(b);
+			{
+				print("b = ");
+				println(b);
+
+				b = a;
+				println("b = " + b);
+			}
+			var d = "scope' 3";
+			print("d = ");
+			println(d);
+		}
+		var e = a + " scope' 2";
+		print("e = ");
+		println(e);
+	}
+	var f = a + " scope' 1";
+	print("f = ");
+	println(f);
+	print("a = ");
+	println(a);
+}

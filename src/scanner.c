@@ -7,7 +7,7 @@
 typedef struct {
 	const char* start;		/* Start of the current lexeme. */
 	const char* current;	/* Current character being looked at. */
-	int line;				/* for error reporting purposes. */
+	FN_UWORD line;		/* for error reporting purposes. */
 } Scanner;
 
 Scanner scanner;
@@ -89,7 +89,7 @@ makeToken(TokenType type)
 	Token token;
 	token.type = type;
 	token.start = scanner.start;
-	token.length = (int)(scanner.current - scanner.start);
+	token.length = (scanner.current - scanner.start);
 	token.line = scanner.line;
 	return token;
 }
@@ -100,7 +100,7 @@ errorToken(const char* message)
 	Token token;
 	token.type = TOKEN_ERROR;
 	token.start = message;
-	token.length = (int)strlen(message);
+	token.length = strlen(message);
 	token.line = scanner.line;
 	return token;
 }
@@ -130,6 +130,19 @@ skipWhiteSpace(void)
 					while ((peek() != '\n') && !isAtEnd())
 						advance();
 
+				/* Multiple line comments. */
+				} else if (peekNext() == '*') {
+					advance();
+					advance();
+					while (!isAtEnd()) {
+						if (advance() == '*') {
+
+							if (isAtEnd())
+								break;
+							if (advance() == '/')
+								break;
+						}
+					}
 				} else {
 					return;
 				}
@@ -141,7 +154,7 @@ skipWhiteSpace(void)
 }
 
 static TokenType
-checkKeyword(int start, int length,
+checkKeyword(int start, FN_UWORD length,
 			const char* rest, TokenType type)
 {
 	if (((scanner.current - scanner.start) == (start + length)) &&
