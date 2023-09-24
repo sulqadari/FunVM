@@ -84,7 +84,7 @@ newNative(NativeFn function)
  * It's sort of like a constructor in an OOP language.
  */
 static ObjString*
-allocateString(char* chars, uint16_t length, uint32_t hash)
+allocateString(char* chars, FN_UWORD length, FN_UWORD hash)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
 	/* Initialize the ObjString class */
@@ -101,13 +101,13 @@ allocateString(char* chars, uint16_t length, uint32_t hash)
 	return string;
 }
 
-static uint16_t
-hashString(const char* key, uint16_t length)
+static FN_UWORD
+hashString(const char* key, FN_UWORD length)
 {
-	uint32_t hash = 2166136261U;	// 81 1C 9D C5
+	FN_UWORD hash = 2166136261U;	// 81 1C 9D C5
 	
-	for (uint16_t i = 0; i < length; ++i) {
-		hash ^= (uint8_t)key[i];
+	for (FN_UWORD i = 0; i < length; ++i) {
+		hash ^= (FN_UBYTE)key[i];
 		hash *= 16777619;			// 01 00 01 93
 	}
 
@@ -120,9 +120,9 @@ hashString(const char* key, uint16_t length)
  * is to assign it to the new ObjString entity.
 */
 ObjString*
-takeString(char* chars, uint16_t length)
+takeString(char* chars, FN_UWORD length)
 {
-	uint32_t hash = hashString(chars, length);
+	FN_UWORD hash = hashString(chars, length);
 
 	/* Before taking the ownership over the string, look it up in the string set first. */
 	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
@@ -142,9 +142,9 @@ takeString(char* chars, uint16_t length)
  * instantiates 'ObjString' and initializes its fields.
 */
 ObjString*
-copyString(const char* chars, uint16_t length)
+copyString(const char* chars, FN_UWORD length)
 {
-	uint32_t hash = hashString(chars, length);
+	FN_UWORD hash = hashString(chars, length);
 
 	if (NULL == vm->interns) {
 		printf("vm->interns is NULL\n");

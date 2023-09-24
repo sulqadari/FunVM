@@ -24,9 +24,9 @@ static VM* vm;
  * Returns the elapsed type since the program started running, in seconds.
  */
 static Value
-clockNative(uint8_t argCount, Value* args)
+clockNative(FN_UBYTE argCount, Value* args)
 {
-	return NUMBER_PACK((double)clock() / CLOCKS_PER_SEC);
+	return NUMBER_PACK((FN_FLOAT)clock() / CLOCKS_PER_SEC);
 }
 
 /* Makes stackTop point to the beginning of the stack,
@@ -48,7 +48,7 @@ runtimeError(const char* format, ...)
 	va_end(args);
 	fputs("\n", stderr);
 
-	for (int32_t i = vm->frameCount - 1; i >= 0; --i) {
+	for (FN_WORD i = vm->frameCount - 1; i >= 0; --i) {
 
 		CallFrame* frame = &vm->frames[i];
 		ObjFunction* function = frame->function;
@@ -112,7 +112,7 @@ pop(void)
  * Returns a values from the stack at one index behind the given offset.
 */
 static Value
-peek(uint16_t offset)
+peek(FN_UWORD offset)
 {
 	return vm->stackTop[(-1) - offset];
 }
@@ -145,7 +145,7 @@ defineNative(const char* name, NativeFn function)
  * It sets up the 'slots' pointer to give the frame its own window into the stack.
  */
 static bool
-call(ObjFunction* function, uint16_t argCount)
+call(ObjFunction* function, FN_UWORD argCount)
 {
 	if (argCount != function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
@@ -168,7 +168,7 @@ call(ObjFunction* function, uint16_t argCount)
 }
 
 static bool
-callValue(Value callee, uint16_t argCount)
+callValue(Value callee, FN_UWORD argCount)
 {
 	if (IS_OBJECT(callee)) {
 		
@@ -213,7 +213,7 @@ concatenate()
 	ObjString* b = STRING_UNPACK(pop());
 	ObjString* a = STRING_UNPACK(pop());
 
-	uint16_t length = a->length + b->length;
+	FN_UWORD length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
 
 	memcpy(chars, a->chars, a->length);
@@ -229,7 +229,7 @@ concatenate()
 	(*frame->ip++)
 
 #define READ_SHORT()	\
-	(frame->ip += 2, (uint16_t) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
+	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's constPool. */
@@ -247,8 +247,8 @@ concatenate()
 			return IR_RUNTIME_ERROR;						\
 		}													\
 															\
-		double b = NUMBER_UNPACK(pop());					\
-		double a = NUMBER_UNPACK(pop());					\
+		FN_FLOAT b = NUMBER_UNPACK(pop());					\
+		FN_FLOAT a = NUMBER_UNPACK(pop());					\
 		push(valueType(a op b));							\
 	} while(false)
 
@@ -266,7 +266,7 @@ logRun(CallFrame* frame)
 	printf("\n");
 
 	disassembleInstruction(&frame->function->bytecode,
-			(uint16_t)(frame->ip - frame->function->bytecode.code));
+			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
 }
 #endif // !FUNVM_DEBUG
 
@@ -280,7 +280,7 @@ logRun(CallFrame* frame)
 static InterpretResult
 run()
 {
-	uint16_t ins;
+	FN_UWORD ins;
 	CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
 	for (;;) {
@@ -300,12 +300,12 @@ run()
 			case OP_POP:	pop();					break;
 
 			case OP_GET_LOCAL: {
-				uint16_t slot = READ_BYTE();
+				FN_UWORD slot = READ_BYTE();
 				push(frame->slots[slot]);
 			} break;
 
 			case OP_SET_LOCAL: {
-				uint16_t slot = READ_BYTE();
+				FN_UWORD slot = READ_BYTE();
 				frame->slots[slot] = peek(0);
 			} break;
 
@@ -375,8 +375,8 @@ run()
 				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
 					concatenate();
 				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-					double b = NUMBER_UNPACK(pop());
-					double a = NUMBER_UNPACK(pop());
+					FN_FLOAT b = NUMBER_UNPACK(pop());
+					FN_FLOAT a = NUMBER_UNPACK(pop());
 					push(NUMBER_PACK(a + b));
 				} else {
 					runtimeError("Operands must be two numbers or two strings.");
@@ -407,7 +407,7 @@ run()
 					return IR_RUNTIME_ERROR;
 				}
 
-				float temp = NUMBER_UNPACK(vm->stackTop[-1]);
+				FN_FLOAT temp = NUMBER_UNPACK(vm->stackTop[-1]);
 				vm->stackTop[-1] = NUMBER_PACK(-temp);
 			} break;
 
@@ -421,12 +421,12 @@ run()
 			} break;
 
 			case OP_JUMP: {
-				uint16_t offset = READ_SHORT();
+				FN_UWORD offset = READ_SHORT();
 				frame->ip += offset;
 			} break;
 
 			case OP_JUMP_IF_FALSE: {
-				uint16_t offset = READ_SHORT();
+				FN_UWORD offset = READ_SHORT();
 
 				/* Check the condition value which resides on top of the stack.
 				 * Apply this jump offset to vm->ip if it's falsey. */
@@ -436,12 +436,12 @@ run()
 			} break;
 
 			case OP_LOOP: {
-				uint16_t offset = READ_SHORT();
+				FN_UWORD offset = READ_SHORT();
 				frame->ip -= offset;
 			} break;
 
 			case OP_CALL: {
-				uint16_t argCount = READ_BYTE();
+				FN_UWORD argCount = READ_BYTE();
 
 				/* If call to this function is succesfull, there will be a
 				 * new frame on the CallFrame stack for the called function. */

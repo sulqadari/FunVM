@@ -14,15 +14,15 @@ initBytecode(Bytecode* bytecode)
 }
 
 void
-writeBytecode(Bytecode* bytecode, uint8_t opcode, uint16_t line)
+writeBytecode(Bytecode* bytecode, FN_UBYTE opcode, FN_UWORD line)
 {
 	/* Double bytecode array capacity if it doesn't have enough room. */
 	if (bytecode->capacity < bytecode->count + 1) {
-		uint16_t oldCapacity = bytecode->capacity;
+		FN_UWORD oldCapacity = bytecode->capacity;
 		bytecode->capacity	= INCREASE_CAPACITY(oldCapacity);
-		bytecode->code		= INCREASE_ARRAY(uint8_t, bytecode->code,
+		bytecode->code		= INCREASE_ARRAY(FN_UBYTE, bytecode->code,
 								oldCapacity, bytecode->capacity);
-		bytecode->lines		= INCREASE_ARRAY(uint16_t, bytecode->lines,
+		bytecode->lines		= INCREASE_ARRAY(FN_UWORD, bytecode->lines,
 								oldCapacity, bytecode->capacity);
 	}
 
@@ -34,17 +34,17 @@ writeBytecode(Bytecode* bytecode, uint8_t opcode, uint16_t line)
 void
 freeBytecode(Bytecode* bytecode)
 {
-	FREE_ARRAY(uint8_t, bytecode->code, bytecode->capacity);
-	FREE_ARRAY(uint16_t, bytecode->lines, bytecode->capacity);
+	FREE_ARRAY(FN_UBYTE, bytecode->code, bytecode->capacity);
+	FREE_ARRAY(FN_UWORD, bytecode->lines, bytecode->capacity);
 	freeConstantPool(&bytecode->constPool);
 	initBytecode(bytecode);
 }
 
 /**
  * Inserts the given Value into the constant pool of the bytecode chunk.
- * @returns uint16_t - index where the constant was appended.
+ * @returns FN_UWORD - index where the constant was appended.
 */
-uint16_t
+FN_UWORD
 addConstant(Bytecode* bytecode, Value constant)
 {
 	writeConstantPool(&bytecode->constPool, constant);

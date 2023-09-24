@@ -68,7 +68,7 @@ typedef struct {
  */
 typedef struct {
 	Token name;
-	int16_t depth; 
+	FN_WORD depth; 
 } Local;
 
 typedef enum {
@@ -114,8 +114,8 @@ typedef struct Compiler {
 	 * the VM's own internal use
 	 * (additional explanation can be found in initCompiler() body). */
 	Local locals[UIN8_COUNT];
-	uint16_t localCount;
-	uint16_t scopeDepth;
+	FN_UWORD localCount;
+	FN_UWORD scopeDepth;
 } Compiler;
 
 static Parser parser;
@@ -300,7 +300,7 @@ match(TokenType type)
  * waiting its turn to be processed. 
  */
 static void
-emitByte(uint16_t byte)
+emitByte(FN_UWORD byte)
 {
 	writeBytecode(currentContext(), byte, parser.previous.line);
 }
@@ -309,18 +309,18 @@ emitByte(uint16_t byte)
  * Writes an opcode followed by a one-byte operand.
  */
 static void
-emitBytes(uint16_t byte1, uint16_t byte2)
+emitBytes(FN_UWORD byte1, FN_UWORD byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
 }
 
 static void
-emitLoop(uint16_t loopStart)
+emitLoop(FN_UWORD loopStart)
 {
 	emitByte(OP_LOOP);
 
-	uint16_t offset = currentContext()->count - loopStart + 2;
+	FN_UWORD offset = currentContext()->count - loopStart + 2;
 	if (UINT16_MAX < offset)
 		error("Loop body too large.");
 	
@@ -509,10 +509,10 @@ binary(bool canAssign)
 /**
  * Steps through arguments as long as encounters commas after each expression.
  */
-static uint16_t
+static FN_UWORD
 argumentList(void)
 {
-	uint16_t argCount = 0;
+	FN_UWORD argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
@@ -530,7 +530,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	uint16_t argCount = argumentList();
+	FN_UWORD argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -568,12 +568,12 @@ grouping(bool canAssign)
 
 /**
  * Push the given value into Constant Pool.
- * @returns uint16_t - an offset within Constant pool where the value is stored.
+ * @returns FN_UWORD - an offset within Constant pool where the value is stored.
  */
-static uint16_t
+static FN_UWORD
 makeConstant(Value value)
 {
-	uint16_t offset = addConstant(currentContext(), value);
+	FN_UWORD offset = addConstant(currentContext(), value);
 
 	/* If the total number of constants in constant pool
 	 * exceeds 255 elements, then instead of OP_CONSTANT which
@@ -585,7 +585,7 @@ makeConstant(Value value)
 		return (0);
 	}
 
-	return (uint16_t)offset;
+	return (FN_UWORD)offset;
 }
 
 static void
@@ -603,8 +603,8 @@ emitConstant(Value value)
 static void
 number(bool canAssign)
 {
-	/* Convert the lexeme to a C double. */
-	double value = strtod(parser.previous.start, NULL);
+	/* Convert the lexeme to a C FN_FLOAT. */
+	FN_FLOAT value = strtod(parser.previous.start, NULL);
 	
 	/* Wrap it in a Value and store in the constant table. */
 	emitConstant(NUMBER_PACK(value));
@@ -612,7 +612,7 @@ number(bool canAssign)
 
 /**
  * Takes the string's characters directly from the lexeme,
- * trims surrounding double quotes and then creates a string object,
+ * trims surrounding FN_FLOAT quotes and then creates a string object,
  * wraps it in a 'Value' and stores in into the constant pool.
  * 
  * Also makes VM track the new object in the VM's linked list so that,
@@ -624,7 +624,7 @@ string(bool canAssign)
 	ObjString*  str = copyString(parser.previous.start + 1,
 								parser.previous.length - 2);
 	
-	/* Trim the leading double quote and exclude
+	/* Trim the leading FN_FLOAT quote and exclude
 	 * from the length both leading and trailing ones. */
 	emitConstant(OBJECT_PACK(str));
 }
@@ -648,10 +648,10 @@ identifiersEqual(Token* a, Token* b)
  * variables correctly shadow locals with the same name in surrounding
  * scopes.
  */
-static int16_t
+static FN_WORD
 resolveLocal(Compiler* compiler, Token* name)
 {
-	for (int16_t i = compiler->localCount - 1; i >= 0; --i) {
+	for (FN_WORD i = compiler->localCount - 1; i >= 0; --i) {
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 
@@ -668,9 +668,9 @@ resolveLocal(Compiler* compiler, Token* name)
 /**
  * Takes the given token and adds its lexeme to the bytecode's constant pool
  * as a string.
- * @returns uint16_t: an index of the constant in the constant pool.
+ * @returns FN_UWORD: an index of the constant in the constant pool.
  */
-static uint16_t
+static FN_UWORD
 identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
@@ -684,8 +684,8 @@ identifierConstant(Token* name)
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint16_t getOp, setOp;
-	int16_t offset = resolveLocal(currCplr, &name);
+	FN_UWORD getOp, setOp;
+	FN_WORD offset = resolveLocal(currCplr, &name);
 
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
@@ -902,8 +902,8 @@ markInitialized(void)
  * for conditional branching.
  * @returns the offset of the emitted instruction in the bytecode.
  */
-static uint16_t
-emitJump(uint16_t instruction)
+static FN_UWORD
+emitJump(FN_UWORD instruction)
 {
 	emitByte(instruction);
 	emitByte(0xFF);
@@ -921,22 +921,22 @@ emitJump(uint16_t instruction)
  * want the jump to land on. In the case of 'if' statement, that means right after
  * we compile the 'then' branch and before we compile the next statement.
  * 
- * @param uint16_t offset: the offset of OP_JUMP_IF_FALSE instruction
+ * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
  * to revert to.
  */
 static void
-patchJump(uint16_t offset)
+patchJump(FN_UWORD offset)
 {	
 	/* Calculate how far to jump.
 	 * '-3' is to adjust the bytecode for the jump offset itself. */
-	uint16_t jump = currentContext()->count - offset - 2;
+	FN_UWORD jump = currentContext()->count - offset - 2;
 
 	if (UINT16_MAX < jump)
 		error("Too much code to jump over.");
 	
 	/** Beginning from the op1, assign the actual offset value to jump to. */
-	currentContext()->code[offset] = (uint16_t)((jump >> 8) & 0xFF);
-	currentContext()->code[offset + 1] = (uint16_t)(jump & 0xFF);
+	currentContext()->code[offset] = (FN_UWORD)((jump >> 8) & 0xFF);
+	currentContext()->code[offset + 1] = (FN_UWORD)(jump & 0xFF);
 }
 
 /**
@@ -954,7 +954,7 @@ patchJump(uint16_t offset)
 static void
 and_(bool canAssign)
 {
-	uint16_t endJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD endJump = emitJump(OP_JUMP_IF_FALSE);
 	
 	emitByte(OP_POP);
 	parsePrecedence(PREC_AND);
@@ -972,8 +972,8 @@ and_(bool canAssign)
 static void
 or_(bool canAssign)
 {
-	uint16_t elseJump = emitJump(OP_JUMP_IF_FALSE);
-	uint16_t endJump = emitJump(OP_JUMP);
+	FN_UWORD elseJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD endJump = emitJump(OP_JUMP);
 
 	patchJump(elseJump);
 	emitByte(OP_POP);
@@ -1024,7 +1024,7 @@ block(void)
  * and returns.
  */
 static void
-defineVariable(uint16_t global)
+defineVariable(FN_UWORD global)
 {
 	/* 
 	 * is currCplr->scopeDepth is greater than 0, then we a in local
@@ -1096,7 +1096,7 @@ declareVariable(void)
  * to the bytecode's constant pool as a string, and then returns the
  * constant pool index where it was added.
  */
-static uint16_t
+static FN_UWORD
 parseVariable(const char* errorMessage)
 {
 	consume(TOKEN_IDENTIFIER, errorMessage);
@@ -1147,7 +1147,7 @@ function(FunctionType type)
 				errorAtCurrent("Can't have more than 127 params");
 			}
 
-			uint16_t constant = parseVariable("Expect parameter name.");
+			FN_UWORD constant = parseVariable("Expect parameter name.");
 			defineVariable(constant);
 		} while (match(TOKEN_COMMA));
 	}
@@ -1176,7 +1176,7 @@ function(FunctionType type)
 static void
 funDeclaration(void)
 {
-	uint16_t global = parseVariable("Expect function name");
+	FN_UWORD global = parseVariable("Expect function name");
 
 	/* Marking function as 'initialized' as soon as we compile the name
 	 * make it possible to support recursive local functions. */
@@ -1195,7 +1195,7 @@ static void
 varDeclaration(void)
 {
 	// Manage variable name (which follows right after the 'var' keyword)
-	uint16_t global = parseVariable("Expect variable name.");
+	FN_UWORD global = parseVariable("Expect variable name.");
 
 	/* Parse the initialization. */
 	if (match(TOKEN_EQUAL)) {	// is variable assigned an initialization expression?
@@ -1242,8 +1242,8 @@ forStatement(void)
 	}
 
 	/* The condition clause. */
-	uint16_t loopStart = currentContext()->count;
-	uint16_t exitJump = -1;
+	FN_UWORD loopStart = currentContext()->count;
+	FN_UWORD exitJump = -1;
 
 	/* Since this clause is optionalm we need to see if it's actually present.
 	 * The previous semicolon was consumed by previous clause, no that if
@@ -1272,10 +1272,10 @@ forStatement(void)
 	if (!match(TOKEN_RIGHT_PAREN)) {
 
 		/* Emit the unconditional jump that hops over the increment clause. */
-		uint16_t bodyJump = emitJump(OP_JUMP);
+		FN_UWORD bodyJump = emitJump(OP_JUMP);
 		
 		/* take the offset of the increment clause within bytecode. */
-		uint16_t incrementStart = currentContext()->count;
+		FN_UWORD incrementStart = currentContext()->count;
 		/* Compile the increment expression itself. The only thing we need
 		 * is its side effect, so.. */
 		expression();
@@ -1316,14 +1316,14 @@ forStatement(void)
 static void
 whileStatement(void)
 {
-	uint16_t loopStart = currentContext()->count;
+	FN_UWORD loopStart = currentContext()->count;
 
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'while' clause.");
 
 	/* To skip over the subsequent body statement if the condition if falsey. */
-	uint16_t exitJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD exitJump = emitJump(OP_JUMP_IF_FALSE);
 	
 	/* Pop the condition value from the stack if expression is falsey. */
 	emitByte(OP_POP);
@@ -1359,7 +1359,7 @@ ifStatement(void)
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'if' clause.");
 
 	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
-	uint16_t thenJump = emitJump(OP_JUMP_IF_FALSE);
+	FN_UWORD thenJump = emitJump(OP_JUMP_IF_FALSE);
 
 	/* If condition is truthy, then emit OP_POP to pull out condition value
 	 * from top of the stack right before evaluating the code in 'then' branch.
@@ -1371,7 +1371,7 @@ ifStatement(void)
 	statement();
 
 	/* Note that this branch is unconditional. */
-	uint16_t elseJump = emitJump(OP_JUMP);
+	FN_UWORD elseJump = emitJump(OP_JUMP);
 
 	/* Once we have compiled 'then' body, we know how far to jump.
 	 * Thus, proceed to 'backpatching' offset with the real value. */

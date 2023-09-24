@@ -3,37 +3,37 @@
 
 #include "debug.h"
 
-static int32_t
-simpleInstruction(const char* name, uint16_t offset)
+static FN_WORD
+simpleInstruction(const char* name, FN_UWORD offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
-static int32_t
-byteInstruction(const char* name, Bytecode* bytecode, uint16_t offset)
+static FN_WORD
+byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 {
-	uint16_t slot = bytecode->code[offset + 1];
+	FN_UWORD slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
 	return offset + 2;
 }
 
-static int32_t
-jumpInstruction(const char* name, int32_t sign, Bytecode* bytecode, uint16_t offset)
+static FN_WORD
+jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_UWORD offset)
 {
-	int32_t jump = 0;
+	FN_WORD jump = 0;
 
-	jump |= (int32_t)((bytecode->code[offset] & 0xFF) << 8);
-	jump |= (int32_t)(bytecode->code[offset + 1] & 0xFF);
+	jump |= (FN_WORD)((bytecode->code[offset] & 0xFF) << 8);
+	jump |= (FN_WORD)(bytecode->code[offset + 1] & 0xFF);
 
 	printf("	%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
 	return offset + 3;
 }
 
-static uint16_t
-constantInstruction(const char* name, Bytecode* bytecode, uint16_t offset)
+static FN_UWORD
+constantInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 {
-	uint8_t constant = bytecode->code[offset + 1];
+	FN_UBYTE constant = bytecode->code[offset + 1];
 
 	printf("	%-16s %4d : '", name, constant);
 	printValue(bytecode->constPool.pool[constant]);
@@ -42,8 +42,8 @@ constantInstruction(const char* name, Bytecode* bytecode, uint16_t offset)
 	return offset + 2;
 }
 
-int32_t
-disassembleInstruction(Bytecode* bytecode, uint16_t offset)
+FN_WORD
+disassembleInstruction(Bytecode* bytecode, FN_UWORD offset)
 {
 	printf("%04d	", offset);
 
@@ -57,7 +57,7 @@ disassembleInstruction(Bytecode* bytecode, uint16_t offset)
 		printf("%4d ", bytecode->lines[offset]);
 	}
 
-	uint8_t opcode = bytecode->code[offset];
+	FN_UBYTE opcode = bytecode->code[offset];
 	switch (opcode) {
 		case OP_CONSTANT:
 			return constantInstruction("OP_CONSTANT", bytecode, offset);
@@ -122,7 +122,7 @@ disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("\n=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (uint16_t offset = 0; offset < bytecode->count; ) {
+	for (FN_UWORD offset = 0; offset < bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);
 	}
 }
