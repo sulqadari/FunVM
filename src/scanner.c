@@ -132,15 +132,17 @@ skipWhiteSpace(void)
 
 				/* Multiple line comments. */
 				} else if (peekNext() == '*') {
-					
-					// advance(); // consume '/'
-					// advance(); // consume '*'
+					advance();
+					advance();
 					while (!isAtEnd()) {
-						if (advance() == '*')
+						if (advance() == '*') {
+
+							if (isAtEnd())
+								break;
 							if (advance() == '/')
 								break;
+						}
 					}
-
 				} else {
 					return;
 				}

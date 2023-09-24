@@ -113,7 +113,7 @@ typedef struct Compiler {
 	 * NOTE: the compiler implicitly claims stack slot zero for
 	 * the VM's own internal use
 	 * (additional explanation can be found in initCompiler() body). */
-	Local locals[UIN8_COUNT];
+	Local locals[UINT8_COUNT];
 	FN_UWORD localCount;
 	FN_WORD scopeDepth;
 } Compiler;
@@ -300,7 +300,7 @@ match(TokenType type)
  * waiting its turn to be processed. 
  */
 static void
-emitByte(FN_UWORD byte)
+emitByte(FN_UBYTE byte)
 {
 	writeBytecode(currentContext(), byte, parser.previous.line);
 }
@@ -309,7 +309,7 @@ emitByte(FN_UWORD byte)
  * Writes an opcode followed by a one-byte operand.
  */
 static void
-emitBytes(FN_UWORD byte1, FN_UWORD byte2)
+emitBytes(FN_UBYTE byte1, FN_UBYTE byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
@@ -517,7 +517,7 @@ argumentList(void)
 		do {
 			expression();
 			if (argCount > MAX_ARITY) {
-				error("Can't have more than 127 arguments");
+				error("Can't have more than 16 arguments");
 			}
 			argCount++;
 		} while (match(TOKEN_COMMA));
@@ -568,9 +568,9 @@ grouping(bool canAssign)
 
 /**
  * Push the given value into Constant Pool.
- * @returns FN_UWORD - an offset within Constant pool where the value is stored.
+ * @returns FN_UBYTE - an offset within Constant pool where the value is stored.
  */
-static FN_UWORD
+static FN_UBYTE
 makeConstant(Value value)
 {
 	FN_UWORD offset = addConstant(currentContext(), value);
@@ -585,7 +585,7 @@ makeConstant(Value value)
 		return (0);
 	}
 
-	return (FN_UWORD)offset;
+	return (FN_UBYTE)offset;
 }
 
 static void
@@ -863,7 +863,7 @@ parsePrecedence(Precedence precedence)
 static void
 addLocal(Token name)
 {
-	if (UIN8_COUNT <= currCplr->localCount) {
+	if (UINT8_COUNT <= currCplr->localCount) {
 		error("Too many local variables in function.");
 		return;
 	}
