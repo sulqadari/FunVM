@@ -133,10 +133,14 @@ skipWhiteSpace(void)
 				/* Multiple line comments. */
 				} else if (peekNext() == '*') {
 					
+					advance(); // consume '*'
+					advance(); // move to subsequent token
 					while (!isAtEnd()) {
-						if (advance() == '*')
-							if (advance() == '/')
-								break;
+						if ((peek() == '*') && (peekNext() == '/')) {
+							advance(); // consume closing '/'
+							break;	
+						}
+						advance();
 					}
 
 				} else {

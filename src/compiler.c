@@ -670,7 +670,7 @@ resolveLocal(Compiler* compiler, Token* name)
  * as a string.
  * @returns FN_ubyte: an index of the constant in the constant pool.
  */
-static FN_uint
+static FN_ubyte
 identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
@@ -697,13 +697,16 @@ namedVariable(Token name, bool canAssign)
 	}
 
 	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
-		expression();								// ..evaluate the expression and..
-		emitBytes(setOp, offset);		// ..set the value
-	} else {										// Otherwise
-		emitBytes(getOp, offset);		// get the variable's value.
+		expression();						// ..evaluate the expression and..
+		emitBytes(setOp, offset);			// ..set the value.
+	} else {								// Otherwise
+		emitBytes(getOp, offset);			// get the variable's value.
 	}
 }
 
+/**
+ * Accesses a variable's value using its identifier (i.e. name).
+*/
 static void
 variable(bool canAssign)
 {
@@ -834,7 +837,7 @@ parsePrecedence(Precedence precedence)
 	 * Since assignment is the lowest-precedence expression, the only time
 	 * we allow an ssignment is when parsing an assigment expression or
 	 * top-level expression like in an expression statement. */
-	bool canAssign = (precedence <= PREC_ASSIGNMENT);
+	bool canAssign = (PREC_ASSIGNMENT >= precedence);
 
 	/* Compile the prefix expression. */
 	prefixRule(canAssign);
@@ -882,74 +885,6 @@ addLocal(Token name)
 	local->depth = currCplr->scopeDepth;
 }
 
-/**
- * Declaring variable is when the variable is added to scope but
- * still haven't been initialized.
- * 
- * The point where the compiler records the existence of
- * the local variable.
- * Because global variables are late bound, the compiler doesn't
- * keep track of which declarations for them it has seen.
- * But for local variables, the compiler does need to remember that
- * the variables exists.
- * Thus, declaring a local variables - is adding it to the compiler's
- * list of variables in the current scope.
- */
-static void
-declareVariable(void)
-{
-	/* Just bail out if we're in the global scope. */
-	if (0 == currCplr->scopeDepth)
-		return;
-	
-	Token* name = &parser.previous;
-
-	/* Check if a variable with the same name have been declared
-	 * previously.
-	 * The current scope is always at the end of the locals[]. When we
-	 * declare a new variable, we start at the end and work backward,
-	 * looking for an existing variable with the same name.
-	 * 
-	 * NOTE: FunVM's semantic allows to have two or more variable
-	 * with the same name in *different* scopes. */
-	for (int i = currCplr->localCount - 1; i >= 0; --i) {
-
-		Local* local = &currCplr->locals[i];
-		if ((local->depth != -1) &&
-			(local->depth < currCplr->scopeDepth)) {
-			break;
-		}
-
-		if (identifiersEqual(name, &local->name))
-			error("A variable with the same name is already defined in this scope.");
-	}
-
-	addLocal(*name);
-}
-
-/**
- * Consumes the identifier token for the variable name, adds its lexeme
- * to the bytecode's constant pool as a string, and then returns the
- * constant pool index where it was added.
- */
-static FN_uint
-parseVariable(const char* errorMessage)
-{
-	consume(TOKEN_IDENTIFIER, errorMessage);
-
-	declareVariable();
-
-	/* Exit the function if we're in a local scope.
-	 * At runtime, locals aren't looked up by name. There is no need
-	 * to stuff the variable's name into the constant pool, so if
-	 * the declaration is inside a local scope, we return a dummy table
-	 * index instead. */
-	if (0 < currCplr->scopeDepth)
-		return 0;
-	
-	return identifierConstant(&parser.previous);
-}
-
 static void
 markInitialized(void)
 {
@@ -960,38 +895,6 @@ markInitialized(void)
 		return;
 
 	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
-}
-
-/**
- * Defining variable is when a variable becomes available for use.
- * 
- * In case of global variable this function emits the bytecode for
- * storing value in the global variable hash table.
- * 
- * In case of local variables this function marks it as initialized
- * and returns.
- */
-static void
-defineVariable(FN_uint global)
-{
-	/* 
-	 * is currCplr->scopeDepth is greater than 0, then we a in local
-	 * scope.
-	 * There is no code to create a local variable at runtime,
-	 * Consider the state the VM is in:
-	 * The variable is already initialized and the value is sitting
-	 * right on top of the stack as the only remaining temporary.
-	 * The locals are allocated at the top of the stack - right where
-	 * that value already is.
-	 * 
-	 * Thus, there's nothing to do: the temporary simply *becomes*
-	 * the local variable. */
-	if (0 < currCplr->scopeDepth) {
-		markInitialized();
-		return;
-	}
-
-	emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 /**
@@ -1112,6 +1015,106 @@ block(void)
 }
 
 /**
+ * Defining variable is when a variable becomes available for use.
+ * 
+ * In case of global variable this function emits the bytecode for
+ * storing value in the global variable hash table.
+ * 
+ * In case of local variables this function marks it as initialized
+ * and returns.
+ */
+static void
+defineVariable(FN_ubyte global)
+{
+	/* 
+	 * is currCplr->scopeDepth is greater than 0, then we a in local
+	 * scope.
+	 * There is no code to create a local variable at runtime,
+	 * Consider the state the VM is in:
+	 * The variable is already initialized and the value is sitting
+	 * right on top of the stack as the only remaining temporary.
+	 * The locals are allocated at the top of the stack - right where
+	 * that value already is.
+	 * 
+	 * Thus, there's nothing to do: the temporary simply *becomes*
+	 * the local variable. */
+	if (0 < currCplr->scopeDepth) {
+		markInitialized();
+		return;
+	}
+
+	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+/**
+ * Declaring variable is when the variable is added to scope but
+ * still haven't been initialized.
+ * 
+ * The point where the compiler records the existence of
+ * the local variable.
+ * Because global variables are late bound, the compiler doesn't
+ * keep track of which declarations for them it has seen.
+ * But for local variables, the compiler does need to remember that
+ * the variables exists.
+ * Thus, declaring a local variables - is adding it to the compiler's
+ * list of variables in the current scope.
+ */
+static void
+declareVariable(void)
+{
+	/* Just bail out if we're in the global scope. */
+	if (0 == currCplr->scopeDepth)
+		return;
+	
+	Token* name = &parser.previous;
+
+	/* Check if a variable with the same name have been declared
+	 * previously.
+	 * The current scope is always at the end of the locals[]. When we
+	 * declare a new variable, we start at the end and work backward,
+	 * looking for an existing variable with the same name.
+	 * 
+	 * NOTE: FunVM's semantic allows to have two or more variable
+	 * with the same name in *different* scopes. */
+	for (int i = currCplr->localCount - 1; i >= 0; --i) {
+
+		Local* local = &currCplr->locals[i];
+		if ((local->depth != -1) &&
+			(local->depth < currCplr->scopeDepth)) {
+			break;
+		}
+
+		if (identifiersEqual(name, &local->name))
+			error("A variable with the same name is already defined in this scope.");
+	}
+
+	addLocal(*name);
+}
+
+/**
+ * Consumes the identifier token for the variable name, adds its lexeme
+ * to the bytecode's constant pool as a string, and then returns the
+ * constant pool index where it was added.
+ */
+static FN_ubyte
+parseVariable(const char* errorMessage)
+{
+	consume(TOKEN_IDENTIFIER, errorMessage);
+
+	declareVariable();
+
+	/* Exit the function if we're in a local scope.
+	 * At runtime, locals aren't looked up by name. There is no need
+	 * to stuff the variable's name into the constant pool, so if
+	 * the declaration is inside a local scope, we return a dummy table
+	 * index instead. */
+	if (0 < currCplr->scopeDepth)
+		return 0;
+	
+	return identifierConstant(&parser.previous);
+}
+
+/**
  * Compiles the function itself - its parameter list and block body.
  * The code being generated by this function leaves the resulting
  * function object on top of hte stack.
@@ -1192,7 +1195,7 @@ static void
 varDeclaration(void)
 {
 	// Manage variable name (which follows right after the 'var' keyword)
-	FN_uint global = parseVariable("Expect variable name.");
+	FN_ubyte global = parseVariable("Expect variable name.");
 
 	/* Parse the initialization. */
 	if (match(TOKEN_EQUAL)) {	// is variable assigned an initialization expression?

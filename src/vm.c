@@ -310,8 +310,8 @@ run()
 			} break;
 
 			case OP_DEFINE_GLOBAL: {
-				// Value val = pop(); see NOTE.
-				// get the name of the variable from the constant pool
+				// get the name of the variable from the constant pool.
+				// Why not use 'Value val = pop()' instead? See NOTE.
 				ObjString* name = READ_STRING();
 
 				/* Take the value from the top of the stack and
@@ -319,7 +319,7 @@ run()
 				 * Throw an exception if variable have alredy been declared. */
 				if (!tableSet(vm->globals, name, peek(0))) {
 					runtimeError("Variable '%s' is already defined.",
-																		name->chars);
+														name->chars);
 					return IR_RUNTIME_ERROR;
 				}
 
