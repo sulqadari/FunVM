@@ -677,11 +677,17 @@ resolveLocal(Compiler* compiler, Token* name)
 		LocalVariable* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 
-			/* Prevent a local variable to be initialized with its own
-			 * uninitialized state.
+			/* 
+			 * If we enter this if() branch, it means that we've found
+			 * a variable with the same name. Now consider, that a user
+			 * tries to do the following:
+			 * 
 			 * {
 			 *     var a = a;
 			 * }
+			 * 
+			 * Thus, the (-1) is the sentinel which prevents a local variable
+			 * to be initialized with its own uninitialized state.
 	 		 */
 			if ((-1) == local->depth)
 				error("Can't read local variable in its own initializer.");
