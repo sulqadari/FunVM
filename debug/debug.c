@@ -4,14 +4,14 @@
 #include "debug.h"
 
 static FN_UWORD
-simpleInstruction(const char* name, FN_UWORD offset)
+simpleInstruction(const char* name, FN_WORD offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
 static FN_UWORD
-byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
+byteInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 {
 	FN_UBYTE slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
@@ -19,19 +19,18 @@ byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 }
 
 static FN_UWORD
-jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_UWORD offset)
+jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_WORD offset)
 {
-	FN_WORD jump = 0;
-
-	jump |= (FN_WORD)((bytecode->code[offset] & 0xFF) << 8);
-	jump |= (FN_WORD)(bytecode->code[offset + 1] & 0xFF);
+	FN_UWORD jump = 0;
+	jump |= (FN_UWORD)((bytecode->code[offset + 1] << 8) & 0xFF);
+	jump |= (FN_UWORD)( bytecode->code[offset + 2] & 0xFF);
 
 	printf("	%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
 	return offset + 3;
 }
 
 static FN_UWORD
-constantInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
+constantInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 {
 	FN_UBYTE constant = bytecode->code[offset + 1];
 
@@ -43,7 +42,7 @@ constantInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 }
 
 FN_UWORD
-disassembleInstruction(Bytecode* bytecode, FN_UWORD offset)
+disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 {
 	printf("%04d	", offset);
 
@@ -122,7 +121,7 @@ disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("\n=== %s ===\n"
 		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (FN_UWORD offset = 0; offset < bytecode->count; ) {
+	for (FN_WORD offset = 0; offset < (FN_WORD)bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);
 	}
 }

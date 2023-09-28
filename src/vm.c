@@ -229,7 +229,7 @@ concatenate()
 	(*frame->ip++)
 
 #define READ_SHORT()	\
-	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
+	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | ((frame->ip[-1]) & 0xFF) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's constPool. */

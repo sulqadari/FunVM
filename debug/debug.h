@@ -4,6 +4,6 @@
 #include "bytecode.h"
 
 void disassembleBytecode(Bytecode* bytecode, const char* name);
-FN_WORD disassembleInstruction(Bytecode* bytecode, FN_UWORD offset);
+FN_UWORD disassembleInstruction(Bytecode* bytecode, FN_WORD offset);
 
 #endif // !FUNVM_DEBUG_H
