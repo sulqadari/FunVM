@@ -919,9 +919,11 @@ emitJump(FN_UBYTE instruction)
  * Consider example:
  * 
  * [0]  OP_FALSE | OP_TRUE	// an expression of if() clause
+ *
  * [1]  OP_JUMP_IF_FALSE,	// emitJump(OP_JUMP_IF_FALSE) returns index [2]
  * [2]  0xFF,				// placeholder for operand1
  * [3]  0xFF,				// placeholder for operand2
+ *
  * [4]  OP_POP,				// Used to pop the OP_FALSE[0] from top of the stack
  * [5]  OP_CONSTANT,		// first bytecode in 'then' branch
  * [6]  ptr to 'if ',
@@ -929,10 +931,11 @@ emitJump(FN_UBYTE instruction)
  * [8]  OP_CONSTANT,
  * [9]  ptr to 'statement',
  * [10] OP_PRINTLN,			// last bytecode in 'then' branch
+ *
  * [11] OP_JUMP,			// here emitJump(OP_JUMP) returns [12].
  * [12] 0xFF,				// placeholder for operand1
  * [13] 0xFF,				// placeholder for operand2
- * 		calling patchJump(thenJump)
+ * 		calling patchJump(thenJump) whish updates OP_JUMP_IF_FALSE operands with 0014 index
  * [14] OP_POP,				// Used to pop the OP_TRUE[0] off from top of the stack
  * [15] OP_CONSTANT,		// the first bytecode after 'else' branch
  * [16] ptr to 'else ',
@@ -940,7 +943,7 @@ emitJump(FN_UBYTE instruction)
  * [18] OP_CONSTANT,
  * [19] ptr to 'statement',
  * [20] OP_PRINTLN,			// the last bytecode in the 'else' branch
- *		calling patchJump(elseJump);
+ *		calling patchJump(elseJump) which updates OP_JUMP operands with 0021 index
  * [21] OP_NIL,
  * [22] OP_RETURN
  *
