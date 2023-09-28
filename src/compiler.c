@@ -917,49 +917,32 @@ emitJump(FN_UBYTE instruction)
  * in two operands of OP_JUMP and OP_JUMP_IF_FALSE bytecodes.
  *
  * Consider example:
+ * if (true) {
+ * 	println("if statement.");
+ * } else {
+ * 	println("else statement.");
+ * }
+ * Which have been translated to the following bytecode:
+ *
+ * 0000		1 	OP_TRUE         
+ * 0001		| 	OP_JUMP_IF_FALSE    1 -> 11				// thenJump = 0002
+ * 0002		| 	0xFF
+ * 0003		| 	0xFF
+ * 0004		| 	OP_POP          
+ * 0005		2 	OP_CONSTANT         0 : 'if statement.'
+ * 0006		|	ptr to 'if statement.' in Constant pool
+ * 0007		| 	OP_PRINTLN      
+ * 0008		3 	OP_JUMP             8 -> 15				// elseJump = 0009
+ * 0009		|	0xFF
+ * 0010		|	0xFF									// calling patchJump(thenJump)
+ * 0011		| 	OP_POP          
+ * 0012		4 	OP_CONSTANT         1 : 'else statement.'
+ * 0013		|	ptr to 'else statement.' in Constant pool
+ * 0014		| 	OP_PRINTLN      						// calling patchJump(elseJump)
+ * 0015		6 	OP_NIL          
+ * 0016		| 	OP_RETURN
+ *
  * 
- * [0]  OP_FALSE | OP_TRUE	// an expression of if() clause
- *
- * [1]  OP_JUMP_IF_FALSE,	// emitJump(OP_JUMP_IF_FALSE) returns index [2]
- * [2]  0xFF,				// placeholder for operand1
- * [3]  0xFF,				// placeholder for operand2
- *
- * [4]  OP_POP,				// Used to pop the OP_FALSE[0] from top of the stack
- * [5]  OP_CONSTANT,		// first bytecode in 'then' branch
- * [6]  ptr to 'if ',
- * [7]  OP_PRINT,
- * [8]  OP_CONSTANT,
- * [9]  ptr to 'statement',
- * [10] OP_PRINTLN,			// last bytecode in 'then' branch
- *
- * [11] OP_JUMP,			// here emitJump(OP_JUMP) returns [12].
- * [12] 0xFF,				// placeholder for operand1
- * [13] 0xFF,				// placeholder for operand2
- * 		calling patchJump(thenJump) whish updates OP_JUMP_IF_FALSE operands with 0014 index
- * [14] OP_POP,				// Used to pop the OP_TRUE[0] off from top of the stack
- * [15] OP_CONSTANT,		// the first bytecode after 'else' branch
- * [16] ptr to 'else ',
- * [17] OP_PRINT,
- * [18] OP_CONSTANT,
- * [19] ptr to 'statement',
- * [20] OP_PRINTLN,			// the last bytecode in the 'else' branch
- *		calling patchJump(elseJump) which updates OP_JUMP operands with 0021 index
- * [21] OP_NIL,
- * [22] OP_RETURN
- *
- * Following part calculates the offset to jump to in case if(OP_FALSE):
- * Note '-2' is to adjust the bytecode for the jump offset itself
- * jump = (FN_UWORD)(bytecode.count - [offset] - 2) =  (14 - ([2] - 2)) = [14];
- * 
- * Index [14] is exactly the first opcode right after 'then' block,
- * thus, store it in OP_JUMP_IF_FALSE operands:
- * 
- * code[offset] = (jump >> 8) & 0xFF;
- * code[offset + 1] = jump & 0xFF;
- *
- * which expands to:
- * code[2] = (0014 >> 8) & 0xFF = 00;
- * code[3] = 0014 & 0xFF = 14;
  * 
  * 
  * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
@@ -969,7 +952,7 @@ static void
 patchJump(FN_UWORD offset)
 {
 	/* Calculate how far to jump. */
-	FN_UWORD jump = currentContext()->count - (offset - 2);
+	FN_UWORD jump = currentContext()->count - offset - 2;
 
 	if (UINT16_MAX <= jump)
 		error("Too much code to jump over.");
