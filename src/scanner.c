@@ -204,6 +204,7 @@ identifierType(void)
 		break;
 		case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
 		case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
+		case 'N': return checkKeyword(1, 2, "um", TOKEN_NUMBER_ARRAY);
 	}
 
 	return TOKEN_IDENTIFIER;
@@ -277,6 +278,8 @@ scanToken(void)
 		case '+': return makeToken(TOKEN_PLUS);
 		case '/': return makeToken(TOKEN_SLASH);
 		case '*': return makeToken(TOKEN_STAR);
+		case '[': return makeToken(TOKEN_LEFT_SQUARE_BRACKET);
+		case ']': return makeToken(TOKEN_RIGHT_SQUARE_BRACKET);
 		case '&': {
 			if (match('&'))
 				return makeToken(TOKEN_AND);

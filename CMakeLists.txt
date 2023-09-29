@@ -25,6 +25,7 @@ set(scriptFiles
 	./test_scripts/functional/07_or.fn
 	./test_scripts/functional/08_while.fn
 	./test_scripts/functional/09_for.fn
+	./test_scripts/functional/10_array.fn
 	./test_scripts/functional/test_funcDecl.fn
 	./test_scripts/functional/test_funcCall.fn
 )
