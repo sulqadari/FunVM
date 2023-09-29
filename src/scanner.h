@@ -1,6 +1,8 @@
 #ifndef FUNVM_SCANNER_H
 #define FUNVM_SCANNER_H
 
+#include "common.h"
+
 typedef enum {
 	// Single-character tokens.
 	TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,

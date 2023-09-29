@@ -1,0 +1,12 @@
+{
+	"name": "C++ Launch",
+	"type": "cppdbg",
+	"request": "launch",
+	"program": "${fileDirname}/${fileBasenameNoExtension}",
+	"args": [
+		"${workspaceFolder}/test_scripts/functional/09_for.fn"
+	],
+	"environment": [],
+	"cwd": "${workspaceFolder}"
+  }
+  
