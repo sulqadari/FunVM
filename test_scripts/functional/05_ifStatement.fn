@@ -1,44 +1,44 @@
+if (true) {
+       println("if ()");
+ } else {
+       println("else");
+ }
+
 var truthy = true;
 var falsey = false;
 
 println(truthy);
 println(falsey);
 
-if (falsey) {
-	println("shall not be printed out.");
-} else {
-	println("entering else branch.");
+if (truthy) {
+       println("Test have been passed successfully.");
 }
 
 if (truthy) {
-	println("Test have been passed successfully.");
-}
-
-if (truthy) {
-	println(1);
-	truthy = false;
-	if (falsey) {
-		println(2);
-		if (truthy) {
-			println(3);
-			if (truthy) {
-				println(4);
-				if (truthy) {
-					println(5);
-					if (truthy) {
-						println(6);
-					}
-				}
-			}
-		}
-	} else {
-		println("skipping nested if-else block");
-		if (!truthy)
-			println("inside if() branch nested into else");
-		
-		if (truthy)
-			println("Shall not be printed.");
-		else
-			println("Everything find.");
-	}
+       println(1);
+       truthy = false;
+       if (!falsey) {
+               println(2);
+               if (truthy) {
+                       println(3);
+                       if (truthy) {
+                               println(4);
+                               if (truthy) {
+                                       println(5);
+                                       if (truthy) {
+                                               println(6);
+                                       }
+                               }
+                       }
+               }
+       } else {
+               println("skipping nested ifelse block");
+               if (!truthy)
+                       println("inside if() branch nested into else");
+               
+               if (truthy)
+                       println("Shall not be printed.");
+               else
+                       println("Everything find.");
+       }
 }

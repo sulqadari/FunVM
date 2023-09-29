@@ -26,6 +26,8 @@ jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_WORD offs
 	jump |= (FN_UWORD)( bytecode->code[offset + 2] & 0xFF);
 
 	printf("	%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+	printf("%04d	   | 	%-16s %4d\n", offset + 1, "op1", bytecode->code[offset + 1]);
+	printf("%04d	   | 	%-16s %4d\n", offset + 2, "op2", bytecode->code[offset + 2]);
 	return offset + 3;
 }
 
@@ -34,9 +36,10 @@ constantInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 {
 	FN_UBYTE constant = bytecode->code[offset + 1];
 
-	printf("	%-16s %4d : '", name, constant);
+	printf("	%-16s %4d\n", name, constant);
+	printf("%04d	   | 	%-16s `", offset + 1, "op1");
 	printValue(bytecode->constPool.pool[constant]);
-	printf("'\n");
+	printf("`\n");
 	
 	return offset + 2;
 }

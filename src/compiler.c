@@ -917,34 +917,40 @@ emitJump(FN_UBYTE instruction)
  * in two operands of OP_JUMP and OP_JUMP_IF_FALSE bytecodes.
  *
  * Consider example:
- * if (true) {
- * 	println("if statement.");
+ * if (false) {
+ * 	println("if ()");
  * } else {
- * 	println("else statement.");
+ * 	println("else");
  * }
  * Which have been translated to the following bytecode:
  *
- * 0000		1 	OP_TRUE         
- * 0001		| 	OP_JUMP_IF_FALSE    1 -> 11				// thenJump = 0002
- * 0002		| 	0xFF
- * 0003		| 	0xFF
- * 0004		| 	OP_POP          
- * 0005		2 	OP_CONSTANT         0 : 'if statement.'
- * 0006		|	ptr to 'if statement.' in Constant pool
- * 0007		| 	OP_PRINTLN      
- * 0008		3 	OP_JUMP             8 -> 15				// elseJump = 0009
- * 0009		|	0xFF
- * 0010		|	0xFF									// calling patchJump(thenJump)
- * 0011		| 	OP_POP          
- * 0012		4 	OP_CONSTANT         1 : 'else statement.'
- * 0013		|	ptr to 'else statement.' in Constant pool
- * 0014		| 	OP_PRINTLN      						// calling patchJump(elseJump)
- * 0015		6 	OP_NIL          
- * 0016		| 	OP_RETURN
+ * 0000       1    OP_FALSE        
+ * 0001       |    OP_JUMP_IF_FALSE    1 -> 11
+ * 0002       |    op1                 0
+ * 0003       |    op2                 7
+ * 0004       |    OP_POP          
+ * 0005       2    OP_CONSTANT         0
+ * 0006       |    op1              if ()'
+ * 0007       |    OP_PRINTLN      
+ * 0008       3    OP_JUMP             8 -> 15
+ * 0009       |    op1                 0
+ * 0010       |    op2                 4
+ * 0011       |    OP_POP          
+ * 0012       4    OP_CONSTANT         1
+ * 0013       |    op1              else'
+ * 0014       |    OP_PRINTLN      
+ * 0015       6    OP_NIL          
+ * 0016       |    OP_RETURN
  *
- * 
- * 
- * 
+ * Here, at runtime the 'OP_FALSE' results in adding to 'frame->ip' instruction
+ * pointer value 7, which results in stepping over to 0011:
+ * frame->ip = 0000;
+ * ins = *frame->ip++;						// frame->ip == 0001
+ * push(BOOL_PACK(false));					// push OP_FALSE onto the stack
+ * ins = *frame->ip++;						// frame->ip == 0002
+ * offset = (frame->ip[0] | frame->ip[1])	// offset == 07
+ * frame->ip += 2;							// frame->ip == 0004
+ * frame->ip += offset						// frame->ip == 0011
  * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
  * to jump to.
  */
