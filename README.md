@@ -26,3 +26,11 @@ this statement, the implementation in this repo goes after the following goals:
 2.1. try-catch;
 
 2.2. multi-threading.
+
+3. Running on STM32F103 AKA "Blue pill" or LPC55:
+
+3.1. TODO
+
+3.N. TODO
+
+3.N - 1. TODO
