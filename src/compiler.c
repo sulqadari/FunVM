@@ -333,19 +333,6 @@ emitBytes(FN_UBYTE byte1, FN_UBYTE byte2)
 	emitByte(byte2);
 }
 
-static void
-emitLoop(FN_UWORD loopStart)
-{
-	emitByte(OP_LOOP);
-
-	FN_UWORD offset = currentContext()->count - loopStart + 2;
-	if (UINT16_MAX < offset)
-		error("Loop body too large.");
-	
-	emitByte((offset >> 8) & 0xff);
-	emitByte(offset & 0xff);
-}
-
 /**
  * Initialises the compiler. One of the important part
  * of this procedure is initializing the top-level 'main()'
@@ -600,6 +587,9 @@ makeConstant(Value value)
 	 * comes into play, which spawns over four bytes:
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (UINT8_MAX < offset) {
+		printf("offset = %d\n", offset);
+		printf("constant pool count: %d\n", currCplr->function->bytecode.constPool.count);
+		printf("constant pool capacity: %d\n", currCplr->function->bytecode.constPool.capacity);
 		error("Exceed the maximum size of Constant pool.");
 		return (0);
 	}
@@ -927,14 +917,14 @@ emitJump(FN_UBYTE instruction)
  * 0000       1    OP_FALSE        
  * 0001       |    OP_JUMP_IF_FALSE    1 -> 11
  * 0002       |    op1                 0
- * 0003       |    op2                 7
+ * 0003       |    op2                 7	// the distance to jump over
  * 0004       |    OP_POP          
  * 0005       2    OP_CONSTANT         0
  * 0006       |    op1              if ()'
  * 0007       |    OP_PRINTLN      
  * 0008       3    OP_JUMP             8 -> 15
  * 0009       |    op1                 0
- * 0010       |    op2                 4
+ * 0010       |    op2                 4	// the distance to jump over
  * 0011       |    OP_POP          
  * 0012       4    OP_CONSTANT         1
  * 0013       |    op1              else'
@@ -942,15 +932,17 @@ emitJump(FN_UBYTE instruction)
  * 0015       6    OP_NIL          
  * 0016       |    OP_RETURN
  *
- * Here, at runtime the 'OP_FALSE' results in adding to 'frame->ip' instruction
- * pointer value 7, which results in stepping over to 0011:
+ * Here, at runtime the 'OP_FALSE' results in adding '07' to the
+ * 'frame->ip' instruction pointer, which results in stepping over to 0011:
+ *
  * frame->ip = 0000;
- * ins = *frame->ip++;						// frame->ip == 0001
+ * ins = *frame->ip++;						// ins == OP_FALSE; frame->ip == 0001
  * push(BOOL_PACK(false));					// push OP_FALSE onto the stack
- * ins = *frame->ip++;						// frame->ip == 0002
+ * ins = *frame->ip++;						// ins == OP_JUMP_IF_FALSE; frame->ip == 0002
  * offset = (frame->ip[0] | frame->ip[1])	// offset == 07
  * frame->ip += 2;							// frame->ip == 0004
  * frame->ip += offset						// frame->ip == 0011
+ *
  * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
  * to jump to.
  */
@@ -979,6 +971,28 @@ patchJump(FN_UWORD offset)
  * Otherwise, we discard the left-hand value and evaluate the right operand
  * which becomes the result of the whole '&&' expression.
  * 
+ * Consider this example and bytecode it has produced:
+ * if (true && true)
+ *     println("true && true");
+ *
+ * 0000	   1 	OP_TRUE         
+ * 0001	   | 	OP_JUMP_IF_FALSE    1 -> 6
+ * 0002	   | 	op1                 0
+ * 0003	   | 	op2                 2
+ * 0004	   | 	OP_POP          
+ * 0005	   | 	OP_TRUE         
+ * 0006	   | 	OP_JUMP_IF_FALSE    6 -> 16
+ * 0007	   | 	op1                 0
+ * 0008	   | 	op2                 7
+ * 0009	   | 	OP_POP          
+ * 0010	   2 	OP_CONSTANT         0
+ * 0011	   | 	op1              `true && true`
+ * 0012	   | 	OP_PRINTLN      
+ * 0013	   | 	OP_JUMP            13 -> 17
+ * 0014	   | 	op1                 0
+ * 0015	   | 	op2                 1
+ * 0016	   | 	OP_POP          
+ * 0017
  */
 static void
 and_(bool canAssign)
@@ -1300,6 +1314,20 @@ expressionStatement(void)
 	expression();
 	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
 	emitByte(OP_POP);
+}
+
+
+static void
+emitLoop(FN_UWORD loopStart)
+{
+	emitByte(OP_LOOP);
+
+	FN_UWORD offset = currentContext()->count - loopStart + 2;
+	if (UINT16_MAX < offset)
+		error("Loop body too large.");
+	
+	emitByte((FN_UBYTE)((offset >> 8) & 0xff));
+	emitByte((FN_UBYTE) (offset & 0xff));
 }
 
 static void

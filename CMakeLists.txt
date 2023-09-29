@@ -21,9 +21,10 @@ set(scriptFiles
 	./test_scripts/functional/03_globalVariables.fn
 	./test_scripts/functional/04_localVariables.fn
 	./test_scripts/functional/05_ifStatement.fn
-	./test_scripts/functional/test_orAnd.fn
-	./test_scripts/functional/test_while.fn
-	./test_scripts/functional/test_for.fn
+	./test_scripts/functional/06_and.fn
+	./test_scripts/functional/07_or.fn
+	./test_scripts/functional/08_while.fn
+	./test_scripts/functional/09_for.fn
 	./test_scripts/functional/test_funcDecl.fn
 	./test_scripts/functional/test_funcCall.fn
 )

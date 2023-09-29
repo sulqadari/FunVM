@@ -257,6 +257,9 @@ concatenate()
 static void
 logRun(CallFrame* frame)
 {
+	disassembleInstruction(&frame->function->bytecode,
+			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
+
 	printf("		");
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
 		printf("[ ");
@@ -265,8 +268,6 @@ logRun(CallFrame* frame)
 	}
 	printf("\n");
 
-	disassembleInstruction(&frame->function->bytecode,
-			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
 }
 #endif // !FUNVM_DEBUG
 

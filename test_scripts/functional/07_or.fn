@@ -1,0 +1,13 @@
+if (true || true)
+	println("true || true");
+
+if (false || true)
+	println("false || true");
+
+if (true || false)
+	println("true || false");
+
+if (false || false)
+	println("step over");
+else
+	println("false || false");
