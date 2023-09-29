@@ -8,7 +8,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2				\
 	-Wformat -Wformat-security"
 )
 
-option(FUNVM_DEBUG "Debug mode and unit tests" OFF)
+option(FUNVM_DEBUG "Debug mode and unit tests" ON)
 
 configure_file(funvmConfig.h.in funvmConfig.h)
 
@@ -20,10 +20,11 @@ set(scriptFiles
 	./test_scripts/functional/02_strings.fn
 	./test_scripts/functional/03_globalVariables.fn
 	./test_scripts/functional/04_localVariables.fn
-	./test_scripts/functional/test_ifStatement.fn
-	./test_scripts/functional/test_orAnd.fn
-	./test_scripts/functional/test_while.fn
-	./test_scripts/functional/test_for.fn
+	./test_scripts/functional/05_ifStatement.fn
+	./test_scripts/functional/06_and.fn
+	./test_scripts/functional/07_or.fn
+	./test_scripts/functional/08_while.fn
+	./test_scripts/functional/09_for.fn
 	./test_scripts/functional/test_funcDecl.fn
 	./test_scripts/functional/test_funcCall.fn
 )

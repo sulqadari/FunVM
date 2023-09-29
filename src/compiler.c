@@ -333,19 +333,6 @@ emitBytes(FN_UBYTE byte1, FN_UBYTE byte2)
 	emitByte(byte2);
 }
 
-static void
-emitLoop(FN_UWORD loopStart)
-{
-	emitByte(OP_LOOP);
-
-	FN_UWORD offset = currentContext()->count - loopStart + 2;
-	if (UINT16_MAX < offset)
-		error("Loop body too large.");
-	
-	emitByte((offset >> 8) & 0xff);
-	emitByte(offset & 0xff);
-}
-
 /**
  * Initialises the compiler. One of the important part
  * of this procedure is initializing the top-level 'main()'
@@ -600,6 +587,9 @@ makeConstant(Value value)
 	 * comes into play, which spawns over four bytes:
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (UINT8_MAX < offset) {
+		printf("offset = %d\n", offset);
+		printf("constant pool count: %d\n", currCplr->function->bytecode.constPool.count);
+		printf("constant pool capacity: %d\n", currCplr->function->bytecode.constPool.capacity);
 		error("Exceed the maximum size of Constant pool.");
 		return (0);
 	}
@@ -677,11 +667,17 @@ resolveLocal(Compiler* compiler, Token* name)
 		LocalVariable* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 
-			/* Prevent a local variable to be initialized with its own
-			 * uninitialized state.
+			/* 
+			 * If we enter this if() branch, it means that we've found
+			 * a variable with the same name. Now consider, that a user
+			 * tries to do the following:
+			 * 
 			 * {
 			 *     var a = a;
 			 * }
+			 * 
+			 * Thus, the (-1) is the sentinel which prevents a local variable
+			 * to be initialized with its own uninitialized state.
 	 		 */
 			if ((-1) == local->depth)
 				error("Can't read local variable in its own initializer.");
@@ -891,43 +887,77 @@ parsePrecedence(Precedence precedence)
 /**
  * Generates a bytecode instruction and placeholder operand
  * for conditional branching.
- * @returns the offset of the emitted instruction in the bytecode.
+ * @returns the offset of the emitted OP_JUMP_IF_FALSE instruction
+ * in the bytecode.
  */
 static FN_UWORD
-emitJump(FN_UWORD instruction)
+emitJump(FN_UBYTE instruction)
 {
 	emitByte(instruction);
 	emitByte(0xFF);
 	emitByte(0xFF);
 	
-	/* ins, off1, off2, off3. Thus, to get the offset of the instruction
-	 * we need to subtract three operands. */
+	/* ins, off1, off2. Thus, to get the offset of the instruction
+	 * we need to subtract two operands. */
 	return currentContext()->count - 2;
 }
 
 /**
- * Moves backward in the bytecode to the point where OP_JUMP_IF_FALSE instruction
- * resides.
- * This function is called right before we emit the next instruction that we
- * want the jump to land on. In the case of 'if' statement, that means right after
- * we compile the 'then' branch and before we compile the next statement.
- * 
+ * Calculates the distance to jump over and stores its length value
+ * in two operands of OP_JUMP and OP_JUMP_IF_FALSE bytecodes.
+ *
+ * Consider example:
+ * if (false) {
+ * 	println("if ()");
+ * } else {
+ * 	println("else");
+ * }
+ * Which have been translated to the following bytecode:
+ *
+ * 0000       1    OP_FALSE        
+ * 0001       |    OP_JUMP_IF_FALSE    1 -> 11
+ * 0002       |    op1                 0
+ * 0003       |    op2                 7	// the distance to jump over
+ * 0004       |    OP_POP          
+ * 0005       2    OP_CONSTANT         0
+ * 0006       |    op1              if ()'
+ * 0007       |    OP_PRINTLN      
+ * 0008       3    OP_JUMP             8 -> 15
+ * 0009       |    op1                 0
+ * 0010       |    op2                 4	// the distance to jump over
+ * 0011       |    OP_POP          
+ * 0012       4    OP_CONSTANT         1
+ * 0013       |    op1              else'
+ * 0014       |    OP_PRINTLN      
+ * 0015       6    OP_NIL          
+ * 0016       |    OP_RETURN
+ *
+ * Here, at runtime the 'OP_FALSE' results in adding '07' to the
+ * 'frame->ip' instruction pointer, which results in stepping over to 0011:
+ *
+ * frame->ip = 0000;
+ * ins = *frame->ip++;						// ins == OP_FALSE; frame->ip == 0001
+ * push(BOOL_PACK(false));					// push OP_FALSE onto the stack
+ * ins = *frame->ip++;						// ins == OP_JUMP_IF_FALSE; frame->ip == 0002
+ * offset = (frame->ip[0] | frame->ip[1])	// offset == 07
+ * frame->ip += 2;							// frame->ip == 0004
+ * frame->ip += offset						// frame->ip == 0011
+ *
  * @param FN_UWORD offset: the offset of OP_JUMP_IF_FALSE instruction
- * to revert to.
+ * to jump to.
  */
 static void
 patchJump(FN_UWORD offset)
-{	
-	/* Calculate how far to jump.
-	 * '-3' is to adjust the bytecode for the jump offset itself. */
+{
+	/* Calculate how far to jump. */
 	FN_UWORD jump = currentContext()->count - offset - 2;
 
-	if (UINT16_MAX < jump)
+	if (UINT16_MAX <= jump)
 		error("Too much code to jump over.");
-	
+
 	/** Beginning from the op1, assign the actual offset value to jump to. */
-	currentContext()->code[offset] = (FN_UWORD)((jump >> 8) & 0xFF);
-	currentContext()->code[offset + 1] = (FN_UWORD)(jump & 0xFF);
+	currentContext()->code[offset]		= (FN_UBYTE)((jump >> 8) & 0xFF);
+	currentContext()->code[offset + 1]	= (FN_UBYTE)(jump & 0xFF);
 }
 
 /**
@@ -941,6 +971,28 @@ patchJump(FN_UWORD offset)
  * Otherwise, we discard the left-hand value and evaluate the right operand
  * which becomes the result of the whole '&&' expression.
  * 
+ * Consider this example and bytecode it has produced:
+ * if (true && true)
+ *     println("true && true");
+ *
+ * 0000	   1 	OP_TRUE         
+ * 0001	   | 	OP_JUMP_IF_FALSE    1 -> 6
+ * 0002	   | 	op1                 0
+ * 0003	   | 	op2                 2
+ * 0004	   | 	OP_POP          
+ * 0005	   | 	OP_TRUE         
+ * 0006	   | 	OP_JUMP_IF_FALSE    6 -> 16
+ * 0007	   | 	op1                 0
+ * 0008	   | 	op2                 7
+ * 0009	   | 	OP_POP          
+ * 0010	   2 	OP_CONSTANT         0
+ * 0011	   | 	op1              `true && true`
+ * 0012	   | 	OP_PRINTLN      
+ * 0013	   | 	OP_JUMP            13 -> 17
+ * 0014	   | 	op1                 0
+ * 0015	   | 	op2                 1
+ * 0016	   | 	OP_POP          
+ * 0017
  */
 static void
 and_(bool canAssign)
@@ -1110,17 +1162,18 @@ declareVariable(void)
 	 *	    ^__here,
 	 *
 	 * go backward through the array and examine variables
-	 * until we encounter a one which is out of the current scope.
+	 * until we encounter one which is out of the current scope.
 	 */
 	for (FN_WORD i = currCplr->localCount - 1; i >= 0; --i) {
+
 		/* Get the pointer to the element. */
 		LocalVariable* local = &currCplr->locals[i];
-		/* Stop searching if variable is in uninitialized state.. */
-		if ((local->depth != -1) &&
-			/* ..and it doesn't belong to the current scope. */
-			(local->depth < currCplr->scopeDepth)) {
-			break;
-		}
+		
+		/* Stop searching if variable belongs to the outer scope.
+		 * The left-hand expression handles special case when
+		 * a local variable is uninitialized. */
+		if ((local->depth != -1) && (local->depth < currCplr->scopeDepth))
+			break;	/* ..stop searching */
 
 		/* Otherwise check, if there is already a variable present
 		 * with the name we are abount to assign to new variable. */
@@ -1263,6 +1316,20 @@ expressionStatement(void)
 	emitByte(OP_POP);
 }
 
+
+static void
+emitLoop(FN_UWORD loopStart)
+{
+	emitByte(OP_LOOP);
+
+	FN_UWORD offset = currentContext()->count - loopStart + 2;
+	if (UINT16_MAX < offset)
+		error("Loop body too large.");
+	
+	emitByte((FN_UBYTE)((offset >> 8) & 0xff));
+	emitByte((FN_UBYTE) (offset & 0xff));
+}
+
 static void
 forStatement(void)
 {
@@ -1394,35 +1461,49 @@ whileStatement(void)
 static void
 ifStatement(void)
 {
-	/* Compile the condition expresiion. The resulting value will be placed
-	 * on top of the stack and used to determine whether to execute the
-	 * 'then' branch or skip it. */
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+
+	if (check(TOKEN_RIGHT_PAREN))
+		errorAtCurrent("Expect expression inside 'if' clause.");
+
+	/* Compile the condition expression. The resulting *condition value*
+	 * will be placed on top of the stack and used to determine
+	 * whether to execute the 'then' branch or skip it. */
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'if' clause.");
 
-	/* Get the offset of the emitted OP_JUMP_IF_FALSE instruction. */
+	/* Get the index of OP_JUMP_IF_FALSE opcode in bytecode array.
+	 * We'll need it later, after 'then' body being compilled and we know
+	 * where exactly its blob of bytecode ends up. Then, the operands of
+	 * OP_JUMP_IF_FALSE will be backpatched with the real offset value to
+	 * jump to. */
 	FN_UWORD thenJump = emitJump(OP_JUMP_IF_FALSE);
 
-	/* If condition is truthy, then emit OP_POP to pull out condition value
-	 * from top of the stack right before evaluating the code in 'then' branch.
-	 * This way we obey the rule that each statement after being executed MUST
-	 * to have zero stack effect - its length should be as tall as it was before. */
+	/* If condition value is 'truthy':
+	 * emit OP_POP instruction right before the code inside the 'then' branch 
+	 * to pull out it from top of the stack.
+	 * 
+	 * This way we obey the rule that each statement after being executed
+	 * MUST to have 'zero stack effect' - its length should be as tall as
+	 * it was before then. */
 	emitByte(OP_POP);
 
 	/* Compile the 'then' body. */
 	statement();
 
-	/* Note that this branch is unconditional. */
+	/* Jump over the 'else' branch. This opcode ensures that
+	 * in case the execution flow enters the 'then' branch,
+	 * it would not fall through into 'else', but step it over.
+	 * Thus, the OP_JUMP shall be compilled unconditionally. */
 	FN_UWORD elseJump = emitJump(OP_JUMP);
 
 	/* Once we have compiled 'then' body, we know how far to jump.
-	 * Thus, proceed to 'backpatching' offset with the real value. */
+	 * Thus, backpatch 'then' jump before compiling the 'else' clause. */
 	patchJump(thenJump);
 
-	/* If condition expression have been evaluated to 'falsey' and
-	 * execution flow jumped over to 'else' branch, the previous instruction
-	 * OP_POP left unexecuted. Thus, fix this case. */
+	/* If condition value is 'falsey':
+	 * emit OP_POP instruction right before the code inside the 'else' branch 
+	 * to pull out it from top of the stack. */
 	emitByte(OP_POP);
 
 	if (match(TOKEN_ELSE))

@@ -4,14 +4,14 @@
 #include "debug.h"
 
 static FN_UWORD
-simpleInstruction(const char* name, FN_UWORD offset)
+simpleInstruction(const char* name, FN_WORD offset)
 {
 	printf("	%-16s\n", name);
 	return offset + 1;
 }
 
 static FN_UWORD
-byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
+byteInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 {
 	FN_UBYTE slot = bytecode->code[offset + 1];
 	printf("	%-16s %4d\n", name, slot);
@@ -19,31 +19,35 @@ byteInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
 }
 
 static FN_UWORD
-jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_UWORD offset)
+jumpInstruction(const char* name, FN_WORD sign, Bytecode* bytecode, FN_WORD offset)
 {
-	FN_WORD jump = 0;
-
-	jump |= (FN_WORD)((bytecode->code[offset] & 0xFF) << 8);
-	jump |= (FN_WORD)(bytecode->code[offset + 1] & 0xFF);
+	FN_UWORD jump = 0;
+	jump |= (FN_UWORD)((bytecode->code[offset + 1] << 8) & 0xFF);
+	jump |= (FN_UWORD)( bytecode->code[offset + 2] & 0xFF);
 
 	printf("	%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+	printf("%04d	   | 	%-16s   "
+	"					`%d`\n", offset + 1, "op1", bytecode->code[offset + 1]);
+	printf("%04d	   | 	%-16s   "
+	"					`%d`\n", offset + 2, "op2", bytecode->code[offset + 2]);
 	return offset + 3;
 }
 
 static FN_UWORD
-constantInstruction(const char* name, Bytecode* bytecode, FN_UWORD offset)
+constantInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 {
 	FN_UBYTE constant = bytecode->code[offset + 1];
 
-	printf("	%-16s %4d : '", name, constant);
+	printf("	%-16s %4d\n", name, constant);
+	printf("%04d	   | 	%-16s   					`", offset + 1, "op1");
 	printValue(bytecode->constPool.pool[constant]);
-	printf("'\n");
+	printf("`\n");
 	
 	return offset + 2;
 }
 
 FN_UWORD
-disassembleInstruction(Bytecode* bytecode, FN_UWORD offset)
+disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 {
 	printf("%04d	", offset);
 
@@ -121,8 +125,8 @@ void
 disassembleBytecode(Bytecode* bytecode, const char* name)
 {
 	printf("\n=== %s ===\n"
-		"offset | line |    opcode    | cp_off : 'val'\n", name);
-	for (FN_UWORD offset = 0; offset < bytecode->count; ) {
+		"offset | line |    opcode    	   | Pool offset | Operand Value\n", name);
+	for (FN_WORD offset = 0; offset < (FN_WORD)bytecode->count; ) {
 		offset = disassembleInstruction(bytecode, offset);
 	}
 }

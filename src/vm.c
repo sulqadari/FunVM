@@ -229,7 +229,7 @@ concatenate()
 	(*frame->ip++)
 
 #define READ_SHORT()	\
-	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | (frame->ip[-1]) ))
+	(frame->ip += 2, (FN_UWORD) ((frame->ip[-2] <<  8) | ((frame->ip[-1]) & 0xFF) ))
 
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's constPool. */
@@ -257,6 +257,9 @@ concatenate()
 static void
 logRun(CallFrame* frame)
 {
+	disassembleInstruction(&frame->function->bytecode,
+			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
+
 	printf("		");
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
 		printf("[ ");
@@ -265,8 +268,6 @@ logRun(CallFrame* frame)
 	}
 	printf("\n");
 
-	disassembleInstruction(&frame->function->bytecode,
-			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
 }
 #endif // !FUNVM_DEBUG
 
