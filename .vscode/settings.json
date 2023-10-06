@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.fn": "java",
+        "type_traits": "c"
+    }
+}
