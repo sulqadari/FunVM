@@ -53,8 +53,7 @@ allocateObject(size_t size, ObjType type)
 
 /**
  * Creates an instance of ObjFunction.
- * The initial state is left blank which will be filled in at
- * the function creation stage.
+ * The initial state is left blank which will be filled in later.
  */
 ObjFunction*
 newFunction(void)
