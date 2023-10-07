@@ -79,6 +79,11 @@ typedef struct {
 	FN_WORD depth; 
 } LocalVariable;
 
+/*
+ * The distinction this enum provides is meaningful in two places:
+ * - 
+ * - 
+ */
 typedef enum {
 	TYPE_FUNCTION,
 	TYPE_SCRIPT
@@ -114,23 +119,15 @@ typedef struct Compiler {
 	 * for the top-level code. */
 	struct Compiler* enclosing;
 
-	/* Instead of pointing directly to a Bytecode that the
-	 * compiler writes to, it instead has a reference to the
-	 * function object being built. */
+	/* A reference to the function object being built. */
 	ObjFunction* function;
 
-	/* Distinguishes compilation between top-level code and
-	 * the body of a function.
-	 * Note that most of the compiler's logic doesn't care about
-	 * this distinction, except few points. */
+	/* Used to inform whether compiler processes top-level code
+	 * (i.e. Global script) or just another function. */
 	FunctionType type;
 
 	/* Keeps track of which stack slots are associated with which
-	 * local variables or temporaries.
-	 *
-	 * NOTE: the compiler implicitly claims stack slot zero for
-	 * the VM's own internal use.
-	 * (additional explanation can be found in initCompiler() body). */
+	 * local variables or temporaries. */
 	LocalVariable locals[UINT8_COUNT];
 	FN_WORD localCount;
 	FN_WORD scopeDepth;
@@ -344,24 +341,27 @@ initCompiler(Compiler* compiler, FunctionType type)
 	/* Cache the current Compiler as the parent. */
 	compiler->enclosing = currCplr;
 
-	/* Allocate a new function object to compile into.
-	 * NOTE: functions are created during compilation and
-	 * simply invoked at runtime. */
-	compiler->function = newFunction();
+	/* Garbage collection-related paranoia. */
+	compiler->function = NULL;
 	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
 
+	/* Allocate a new function object to compile into.
+	 * NOTE: functions are created during compilation and
+	 * simply invoked at runtime. */
+	compiler->function = newFunction();
 	currCplr = compiler;
 
-	/* Grab the name of the function or method. */
+	/* Grab the name of scoped function or a method. */
 	if (TYPE_SCRIPT != type) {
 		currCplr->function->name = copyString(parser.previous.start,
 											parser.previous.length);
 	}
-	/* Claim the zeroth stack slot for MV's internal use. Giving
-	 * the empty name protects from [un]intentional referencing
-	 * from a user's space. */
+
+	/* Claim the zeroth stack slot for MV's internal use.
+	 * This slot has no name, thus can't be referenced from the
+	 * user space. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
 	local->name.start = "";
@@ -379,12 +379,14 @@ emitReturn(void)
 /**
  * Returns the main function which contains a chunk of bytecode
  * compiled by the compiler.
-*/
+ */
 static ObjFunction*
 endCompiler(void)
 {
 	emitReturn();
-	ObjFunction* mainFunction = currCplr->function;
+
+	/* Grab the function created by the current compiler. */
+	ObjFunction* function = currCplr->function;
 
 #ifdef FUNVM_DEBUG
 	if (!parser.hadError) {
@@ -392,15 +394,16 @@ endCompiler(void)
 		/* Notice the check in here to see if the function's name is NULL?
 		 * User-defined functions have name, whilst implicit function
 		 * we create for the top-level code doesn't. */
-		disassembleBytecode(currentContext(),
-		(mainFunction->name != NULL) ? mainFunction->name->chars : "<script>");
+		disassembleBytecode(currentContext(), (function->name != NULL) ?
+										function->name->chars : "<script>");
 	}
 #endif // !FUNVM_DEBUG
 
 	/* When a Compiler finishes, it pops itself off the stack by
-	 *restoring previous compiler to be the new current one. */
+	 * restoring previous compiler to be the new current one. */
 	currCplr = currCplr->enclosing;
-	return mainFunction;
+
+	return function;
 }
 
 /**
@@ -576,7 +579,7 @@ grouping(bool canAssign)
  * Push the given value into Constant Pool.
  * @returns FN_UBYTE - an offset within Constant pool where the value is stored.
  */
-static FN_UBYTE
+static FN_UWORD
 makeConstant(Value value)
 {
 	FN_UWORD offset = addConstant(currentContext(), value);
@@ -588,19 +591,22 @@ makeConstant(Value value)
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (UINT8_MAX < offset) {
 		printf("offset = %d\n", offset);
-		printf("constant pool count: %d\n", currCplr->function->bytecode.constPool.count);
-		printf("constant pool capacity: %d\n", currCplr->function->bytecode.constPool.capacity);
+		printf("constant pool count: %d\n",
+				currCplr->function->bytecode.constPool.count);
+		printf("constant pool capacity: %d\n",
+				currCplr->function->bytecode.constPool.capacity);
 		error("Exceed the maximum size of Constant pool.");
 		return (0);
 	}
 
-	return (FN_UBYTE)offset;
+	return offset;
 }
 
 static void
 emitConstant(Value value)
 {
-	emitBytes(OP_CONSTANT, makeConstant(value));
+	FN_UWORD offset = makeConstant(value);
+	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
 }
 
 
@@ -694,11 +700,13 @@ resolveLocal(Compiler* compiler, Token* name)
  * the bytecode's constant pool as a string.
  * @returns FN_UWORD: an index of the constant in the constant pool.
  */
-static FN_UBYTE
+static FN_UWORD
 identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
-	return makeConstant(OBJECT_PACK(str));
+	FN_UWORD offset = makeConstant(OBJECT_PACK(str));
+
+	return offset;
 }
 
 /**
@@ -1100,7 +1108,7 @@ defineVariable(FN_UWORD global)
 		return;
 	}
 
-	emitBytes(OP_DEFINE_GLOBAL, global);
+	emitBytes(OP_DEFINE_GLOBAL, (FN_UBYTE)global);
 }
 
 /**
@@ -1240,7 +1248,7 @@ function(FunctionType type)
 		do {
 			currCplr->function->arity++;
 			if (currCplr->function->arity > MAX_ARITY) {
-				errorAtCurrent("Can't have more than 127 params");
+				errorAtCurrent("Can't have more than 16 params.");
 			}
 
 			FN_UWORD constant = parseVariable("Expect parameter name.");
@@ -1258,7 +1266,9 @@ function(FunctionType type)
 	/* Store the function object being produced by the current Compiler
 	 * as a constant in the *surrounding* function's constant table. */
 	ObjFunction* function = endCompiler();
-	emitBytes(OP_CONSTANT, makeConstant(OBJECT_PACK(function)));
+	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
+
+	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
 }
 
 /**
@@ -1655,5 +1665,5 @@ compile(const char* source)
 
 	ObjFunction* mainFunction = endCompiler();
 
-	return (parser.hadError) ? NULL : mainFunction;
+	return ((parser.hadError) ? NULL : mainFunction);
 }
