@@ -105,7 +105,7 @@ typedef enum {
  *  
  * The Complier struct contains the following fields:
  * LocalVariable locals[]:	array of local variables of fixed size (see NOTE)
- *					Ordered in declaration appearance sequence.
+ *					ordered in declaration appearance sequence.
 
  * localCount:		tracks the number of locals are in the scope
 
@@ -1647,7 +1647,7 @@ ObjFunction*
 compile(const char* source)
 {
 	Compiler compiler;
-	
+
 	initScanner(source);
 	initCompiler(&compiler, TYPE_SCRIPT);
 
