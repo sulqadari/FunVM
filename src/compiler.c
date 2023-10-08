@@ -359,9 +359,10 @@ initCompiler(Compiler* compiler, FunctionType type)
 											parser.previous.length);
 	}
 
-	/* Claim the zeroth stack slot for MV's internal use.
-	 * This slot has no name, thus can't be referenced from the
-	 * user space. */
+	/* At the Compiler::locals[0] the VM stores the function being called.
+	 * 
+	 * The entry at this slot will have no name, thus can't be referenced
+	 * from the user space. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
 	local->name.start = "";
@@ -1232,6 +1233,7 @@ static void
 function(FunctionType type)
 {
 	Compiler compiler;
+
 	/* Make this compiler the current one. Note that
 	 * we don't need to dynamically allocate a new Compiler struct
 	 * since all of them are reside on the C stack.*/

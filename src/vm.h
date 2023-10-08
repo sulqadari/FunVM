@@ -4,13 +4,16 @@
 #include "value.h"
 #include "bytecode.h"
 #include "object.h"
-// #include "table.h"
+#include "table.h"
 #include "compiler.h"
 
 typedef struct Table Table;
 
 /**
  * Represents a single ongoing function call.
+ * 
+ * Each CallFrame has its own 'ip' and pointer to the ObjFunction that it's
+ * executing, from which we can get to the function's bytecode.
  * 
  * The function call is straightforward - simply setting 'ip' to point to the
  * first instruction in that function's bytecode.
@@ -30,13 +33,16 @@ typedef struct Table Table;
  * Thus, 'return address' is the property of invocation and not the function itself.
  * 
  * ObjFunction* function:
- * 			current function.
+ * 			A function being called.
+ * 			Used to look up constants and for other things.
+ * 
  * FN_UBYTE* ip;
- * 			The caller's instruction pointer used sd 'return address'.
- * 			The VM will jump to the 'ip' of the caller's CallFrame and
- * 			resume from there. 
+ * 			Caller's 'ip',
+ * 			Used as return address to resume from.
+ * 
  * Value* slots:
- * 			points into the VM's value stack at the first slot that
+ * 			The "Frame Pointer".
+ * 			Points into the VM's value stack at the first slot that
  * 			current function can use.
 */
 typedef struct {
@@ -49,15 +55,33 @@ typedef struct {
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 /**
+ * The main structure of Virtual Machine.
+ * 
  * Every time we call a function, the VM determines the first stack slot where
  * a given function's variables begin.
  * 
  * CallFrame frames[FRAMES_MAX]:
  * 			Each CallFrame has its own instruction pointer and its own pointer
  * 			to the ObjFunction that's executing.
+ * 
  * FN_UWORD frameCount:
  * 			stores the current height of the CallFrame stack, i.e., the number of
  * 			ongoing function calls.
+ * 
+ * Value stack[STACK_MAX]:
+ * 			The stack to keep track of local variables and temporary values.
+ * 
+ * Value* stackTop:
+ * 			The most-right slot of the stack being used.
+ * 
+ * Table* globals:
+ * 			Hash Table of global variables.
+ * 
+ * Table* interns:
+ * 			Hash Table of interns. see "String interning" section 20.5.
+ * 
+ * Object* objects:
+ * 			Pointer to the head of the list of objects on the heap.
 */
 typedef struct {
 	CallFrame frames[FRAMES_MAX];
@@ -65,8 +89,8 @@ typedef struct {
 	Value stack[STACK_MAX];
 	Value* stackTop;
 	Table* globals;
-	Table* interns;		/* String interning (see  section 20.5). */
-	Object* objects;	/* Pointer to the head of the list of objects on the heap. */
+	Table* interns;
+	Object* objects;
 } VM;
 
 typedef enum {

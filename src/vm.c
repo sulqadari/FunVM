@@ -143,6 +143,7 @@ defineNative(const char* name, NativeFn function)
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
  * It sets up the 'slots' pointer to give the frame its own window into the stack.
+ * @param ObjFunction*: contains the compiled code.
  */
 static bool
 call(ObjFunction* function, FN_UWORD argCount)
@@ -158,12 +159,26 @@ call(ObjFunction* function, FN_UWORD argCount)
 		return false;
 	}
 
+	/* Fetch subsequent frame slot from the CallFrame array. */
 	CallFrame* frame = &vm->frames[vm->frameCount++];
+
+	/* Reference the function. */
 	frame->function = function;
+
+	/* get pointer to the beginning of the bytecode
+	 * dedicated for this frame. */
 	frame->ip = function->bytecode.code;
-	/* the (-1) is to account for stack slot zero, which the
+
+	/* Set up stack window (aka "Frame pointer").
+	 * The following expression resolves the level of indirection.
+	 * Consider example:
+	 * vm->stackTop = 1;
+	 * argCount = 0;
+	 * then, the stack window starts from the zeroth slot.
+	 * the (-1) is to account for stack slot zero, which the
 	 * compiler set aside for when we add methods. */
 	frame->slots = vm->stackTop - argCount - 1;
+
 	return true;
 }
 
@@ -264,10 +279,8 @@ logRun(CallFrame* frame)
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
 		printf("[ ");
 		printValue(*slot);
-		printf(" ]");
+		printf(" ]\n");
 	}
-	printf("\n");
-
 }
 #endif // !FUNVM_DEBUG
 
@@ -282,12 +295,23 @@ static InterpretResult
 run()
 {
 	FN_UBYTE ins;
-	CallFrame* frame = &vm->frames[vm->frameCount - 1];
+
+	/* Store the topmost CallFrame. Its 'ip' field will be used for initial
+	 * access to the bytecode instruction set. */
+	register CallFrame* frame = &vm->frames[vm->frameCount - 1];
+
+#ifdef FUNVM_DEBUG
+	printf( "\n************************************\n"
+			"    Firing up Virtual Machine"
+			"\n************************************\n");
+#endif // !FUNVM_DEBUG
 
 	for (;;) {
+
 #ifdef FUNVM_DEBUG
 		logRun(frame);
 #endif // !FUNVM_DEBUG
+
 		switch (ins = READ_BYTE()) {
 
 			case OP_CONSTANT: {
@@ -300,6 +324,10 @@ run()
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
 			case OP_POP:	pop();					break;
 
+			/* Read the given local slot from the current frame's
+			 * 'slots' array. The slot is read relative to the beginning
+			 * of that frame, and the level of indirection is calculated
+			 * at compile time. */
 			case OP_GET_LOCAL: {
 				FN_UBYTE slot = READ_BYTE();
 				push(frame->slots[slot]);
@@ -430,7 +458,7 @@ run()
 				FN_UWORD offset = READ_SHORT();
 
 				/* Check the condition value which resides on top of the stack.
-				 * Apply this jump offset to vm->ip if it's falsey. */
+				 * Apply this jump offset to frame->ip if it's falsey. */
 				if (isFalsey(peek(0)))
 					frame->ip += offset;
 
@@ -450,8 +478,8 @@ run()
 					return IR_RUNTIME_ERROR;
 				}
 
-				/* The run() function has its own cached pointer
-				 to the current frame, thus, update it. */
+				/* The vm->frameCount was incremented in callValue().
+				 * thus we need to use the previous index, not current one. */
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 
@@ -490,18 +518,17 @@ run()
 InterpretResult
 interpret(const char* source)
 {
+	/* Pass the source code to the compiler which in turn
+	 * returns a new ObjFunction* containing the top-level code. */
 	ObjFunction* function = compile(source);
 	if (NULL == function)
 		return IR_COMPILE_ERROR;
 
+	/* Store the function on the stack. */
 	push(OBJECT_PACK(function));
-	call(function, 0);
 
-#ifdef FUNVM_DEBUG
-		printf( "\n************************************\n"
-				"    Firing up Virtual Machine"
-				"\n************************************\n");
-#endif // !FUNVM_DEBUG
+	/* Prepare an initial CallFrame to execute its code. */
+	call(function, 0);
 
 	return run();
 }
