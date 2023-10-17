@@ -79,6 +79,11 @@ typedef struct {
 	FN_WORD depth; 
 } LocalVariable;
 
+/*
+ * The distinction this enum provides is meaningful in two places:
+ * - 
+ * - 
+ */
 typedef enum {
 	TYPE_FUNCTION,
 	TYPE_SCRIPT
@@ -88,6 +93,12 @@ typedef enum {
  * Compiler tracks the scopes and variables within them
  * at compile time, taking most of the advantages from 
  * stack-based local variable declaration pattern.
+ * 
+ * The Compiler stores data like: which slots are owned by which local
+ * variables, how many block of nesting we're currently in, etc.
+ * Because all these metadata is specific to a single function, when
+ * we need to create a new one, the 'function()' function creates a new
+ * separate compiler on the 'C' stack for each function being compiled.
  * 
  * The compiler simulates the stack during compilation to note
  * on which stack offset variable lives. These offsets
@@ -100,7 +111,7 @@ typedef enum {
  *  
  * The Complier struct contains the following fields:
  * LocalVariable locals[]:	array of local variables of fixed size (see NOTE)
- *					Ordered in declaration appearance sequence.
+ *					ordered in declaration appearance sequence.
 
  * localCount:		tracks the number of locals are in the scope
 
@@ -114,23 +125,15 @@ typedef struct Compiler {
 	 * for the top-level code. */
 	struct Compiler* enclosing;
 
-	/* Instead of pointing directly to a Bytecode that the
-	 * compiler writes to, it instead has a reference to the
-	 * function object being built. */
+	/* A reference to the function object being built. */
 	ObjFunction* function;
 
-	/* Distinguishes compilation between top-level code and
-	 * the body of a function.
-	 * Note that most of the compiler's logic doesn't care about
-	 * this distinction, except few points. */
+	/* Used to inform whether compiler processes top-level code
+	 * (i.e. Global script) or just another function. */
 	FunctionType type;
 
 	/* Keeps track of which stack slots are associated with which
-	 * local variables or temporaries.
-	 *
-	 * NOTE: the compiler implicitly claims stack slot zero for
-	 * the VM's own internal use.
-	 * (additional explanation can be found in initCompiler() body). */
+	 * local variables or temporaries. */
 	LocalVariable locals[UINT8_COUNT];
 	FN_WORD localCount;
 	FN_WORD scopeDepth;
@@ -350,24 +353,28 @@ initCompiler(Compiler* compiler, FunctionType type)
 	/* Cache the current Compiler as the parent. */
 	compiler->enclosing = currCplr;
 
-	/* Allocate a new function object to compile into.
-	 * NOTE: functions are created during compilation and
-	 * simply invoked at runtime. */
-	compiler->function = newFunction();
+	/* Garbage collection-related paranoia. */
+	compiler->function = NULL;
 	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
 
+	/* Allocate a new function object to compile into.
+	 * NOTE: functions are created during compilation and
+	 * simply invoked at runtime. */
+	compiler->function = newFunction();
 	currCplr = compiler;
 
-	/* Grab the name of the function or method. */
+	/* Grab the name of scoped function or a method. */
 	if (TYPE_SCRIPT != type) {
 		currCplr->function->name = copyString(parser.previous.start,
 											parser.previous.length);
 	}
-	/* Claim the zeroth stack slot for MV's internal use. Giving
-	 * the empty name protects from [un]intentional referencing
-	 * from a user's space. */
+
+	/* At the Compiler::locals[0] the VM stores the function being called.
+	 * 
+	 * The entry at this slot will have no name, thus can't be referenced
+	 * from the user space. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
 	local->name.start = "";
@@ -385,12 +392,14 @@ emitReturn(void)
 /**
  * Returns the main function which contains a chunk of bytecode
  * compiled by the compiler.
-*/
+ */
 static ObjFunction*
 endCompiler(void)
 {
 	emitReturn();
-	ObjFunction* mainFunction = currCplr->function;
+
+	/* Grab the function created by the current compiler. */
+	ObjFunction* function = currCplr->function;
 
 #ifdef FUNVM_DEBUG
 	if (!parser.hadError) {
@@ -398,15 +407,16 @@ endCompiler(void)
 		/* Notice the check in here to see if the function's name is NULL?
 		 * User-defined functions have name, whilst implicit function
 		 * we create for the top-level code doesn't. */
-		disassembleBytecode(currentContext(),
-		(mainFunction->name != NULL) ? mainFunction->name->chars : "<script>");
+		disassembleBytecode(currentContext(), (function->name != NULL) ?
+										function->name->chars : "<script>");
 	}
 #endif // !FUNVM_DEBUG
 
 	/* When a Compiler finishes, it pops itself off the stack by
-	 *restoring previous compiler to be the new current one. */
+	 * restoring previous compiler to be the new current one. */
 	currCplr = currCplr->enclosing;
-	return mainFunction;
+
+	return function;
 }
 
 /**
@@ -520,15 +530,17 @@ binary(bool canAssign)
 
 /**
  * Steps through arguments as long as encounters commas after each expression.
+ * NOTE: the equality of number of parameters and the number of arguments is checked
+ * at runtime 
  */
-static FN_UWORD
+static FN_UBYTE
 argumentList(void)
 {
-	FN_UWORD argCount = 0;
+	FN_UBYTE argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
-			if (argCount > MAX_ARITY) {
+			if (MAX_ARITY <= argCount) {
 				error("Can't have more than 16 arguments");
 			}
 			argCount++;
@@ -542,7 +554,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	FN_UWORD argCount = argumentList();
+	FN_UBYTE argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -582,7 +594,7 @@ grouping(bool canAssign)
  * Push the given value into Constant Pool.
  * @returns FN_UBYTE - an offset within Constant pool where the value is stored.
  */
-static FN_UBYTE
+static FN_UWORD
 makeConstant(Value value)
 {
 	FN_UWORD offset = addConstant(currentContext(), value);
@@ -594,19 +606,22 @@ makeConstant(Value value)
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (UINT8_MAX < offset) {
 		printf("offset = %d\n", offset);
-		printf("constant pool count: %d\n", currCplr->function->bytecode.constPool.count);
-		printf("constant pool capacity: %d\n", currCplr->function->bytecode.constPool.capacity);
+		printf("constant pool count: %d\n",
+				currCplr->function->bytecode.constPool.count);
+		printf("constant pool capacity: %d\n",
+				currCplr->function->bytecode.constPool.capacity);
 		error("Exceed the maximum size of Constant pool.");
 		return (0);
 	}
 
-	return (FN_UBYTE)offset;
+	return offset;
 }
 
 static void
 emitConstant(Value value)
 {
-	emitBytes(OP_CONSTANT, makeConstant(value));
+	FN_UWORD offset = makeConstant(value);
+	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
 }
 
 
@@ -700,11 +715,13 @@ resolveLocal(Compiler* compiler, Token* name)
  * the bytecode's constant pool as a string.
  * @returns FN_UWORD: an index of the constant in the constant pool.
  */
-static FN_UBYTE
+static FN_UWORD
 identifierConstant(Token* name)
 {
 	ObjString* str = copyString(name->start, name->length);
-	return makeConstant(OBJECT_PACK(str));
+	FN_UWORD offset = makeConstant(OBJECT_PACK(str));
+
+	return offset;
 }
 
 /**
@@ -1066,10 +1083,9 @@ block(void)
 static void
 markInitialized(void)
 {
-	/* When top-level function declaration calls this function,
-	 * there is no local variable to mark initialized - the function
-	 * is bound to a global variable. */
-	if (0 >= currCplr->scopeDepth)
+	/* In case we define a top-level function there is no local variables
+	 * to mark as initialized - the function is bound to a global variable. */
+	if (0 == currCplr->scopeDepth)
 		return;
 
 	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
@@ -1083,6 +1099,9 @@ markInitialized(void)
  * 
  * In case of local variables this function marks it as initialized
  * and returns.
+ *
+ * In case of function declaration it simply uses variable as a reference
+ * to it.
  */
 static void
 defineVariable(FN_UWORD global)
@@ -1106,7 +1125,7 @@ defineVariable(FN_UWORD global)
 		return;
 	}
 
-	emitBytes(OP_DEFINE_GLOBAL, global);
+	emitBytes(OP_DEFINE_GLOBAL, (FN_UBYTE)global);
 }
 
 /**
@@ -1135,7 +1154,9 @@ addLocal(Token name)
 	 * }
 	 * Splitting a variable's declaration into two phases (declaration
 	 * and initialization) addresses this issue.
-	 **/
+	 * Later, once the variable's intializer has been compiled, this
+	 * sentinel will be discarded.
+	 */
 	local->depth = -1;
 }
 
@@ -1219,20 +1240,29 @@ parseVariable(const char* errorMessage)
 /**
  * Compiles the function itself - its parameter list and block body.
  * The code being generated by this function leaves the resulting
- * function object on top of hte stack.
+ * function object on top of the stack, which will be assigned to
+ * dedicated variable using defineVariable() inside funDeclaration(void).
  * 
- * This function creates a separate Compiler for each function being
- * compiled to make it possible to track data like which slots are
- * owned by which local variables, how many blocks of nesting we're
- * currently, etc.
+ * A stack of Compilers:
+ * The compiler stores data like which slots are owned by which locals,
+ * how manu blocks of nesting we're currently in, etc. All of that is
+ * specific to a single function.
+ * To provide the front-end to handle compiling multiple functions nested
+ * within each other, this function creates a separate Compiler for each
+ * function being compiled.
+ * 
 */
 static void
 function(FunctionType type)
 {
 	Compiler compiler;
+
 	/* Make this compiler the current one. Note that
 	 * we don't need to dynamically allocate a new Compiler struct
-	 * since all of them are reside on the C stack.*/
+	 * since all of them are reside on the C stack.
+	 * Starting from this point, all of the functions that emit
+	 * bytecode will write to the Bytecode owned by this
+	 * compiler's function.*/
 	initCompiler(&compiler, type);
 
 	/* Doesn't have corresponding endScope() because we end Compiler
@@ -1243,11 +1273,15 @@ function(FunctionType type)
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
 
 	if (!check(TOKEN_RIGHT_PAREN)) {
+
+		/* Semantically, a parameter is simply a local variable declared in
+		 * the outermost lexical scope of the function body.
+		 * Unlike local variables, there's no code here to initialize the
+		 * parameter's value. */
 		do {
 			currCplr->function->arity++;
-			if (currCplr->function->arity > MAX_ARITY) {
-				errorAtCurrent("Can't have more than 127 params");
-			}
+			if (MAX_ARITY < currCplr->function->arity)
+				errorAtCurrent("Can't have more than 16 params.");
 
 			FN_UWORD constant = parseVariable("Expect parameter name.");
 			defineVariable(constant);
@@ -1261,28 +1295,41 @@ function(FunctionType type)
 	 * write to the chunk owned by the new Compiler's function. */
 	block();
 
+	/* Fetch the current compiler's function object. */
+	ObjFunction* function = endCompiler();
+
 	/* Store the function object being produced by the current Compiler
 	 * as a constant in the *surrounding* function's constant table. */
-	ObjFunction* function = endCompiler();
-	emitBytes(OP_CONSTANT, makeConstant(OBJECT_PACK(function)));
+	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
+	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
 }
 
 /**
- * Functions are first-class values, and a function declaration simply
- * creates and stores one in a newly declared variable. Thus, this function
- * parses the name just like any other variable declaration.
- * A function declaration at the top level will bind the function to a global
- * variable, and inside a block or other function, a function declaration
- * creates a local variable.
+ * Declares function.
+ * 
+ * Functions are first-class values i.e. applicable to be passed over as
+ * a function arguments.
+ * The "declaration" stands for simply creating and storing a function
+ * in a newly declared variable.
+ * 
+ * A function has been declared at the top level will be bound to
+ * a global variable.
+ * In opposite side, declaring function inside a block or other function
+ * leads to binding it to a local variable.
 */
 static void
 funDeclaration(void)
 {
+	/* Parse the name just like any other variable declaration. */
 	FN_UWORD global = parseVariable("Expect function name");
 
-	/* Marking function as 'initialized' as soon as we compile the name
-	 * make it possible to support recursive local functions. */
+	/* Mark function as 'initialized' as soon as we compile the name and
+	 * before its body have been compiled.
+	 * It's safe for a function to refer to its own name inside its body.
+	 * This trick provides support for recursive calls. */
 	markInitialized();
+
+	/* Compile the body of the function. */
 	function(TYPE_FUNCTION);
 
 	/* Get the function object from top of the stack and store it
@@ -1557,6 +1604,9 @@ printLnStatement(void)
 	emitByte(OP_PRINTLN);
 }
 
+/**
+ * Handles the return statement.
+ */
 static void
 returnStatement(void)
 {
@@ -1564,6 +1614,9 @@ returnStatement(void)
 		error("Can't return from top-level code.");
 	}
 	
+	/* The return value expression is optional, so the parser looks for a semicolon
+     * token to tell if a value was provided. Thus, if the semicolon follows right
+	 * after 'return' token, then there is no value to return. Return NILL instead. */
 	if (match(TOKEN_SEMICOLON)) {
 		emitReturn();
 	} else {
@@ -1670,7 +1723,7 @@ ObjFunction*
 compile(const char* source)
 {
 	Compiler compiler;
-	
+
 	initScanner(source);
 	initCompiler(&compiler, TYPE_SCRIPT);
 
@@ -1688,5 +1741,5 @@ compile(const char* source)
 
 	ObjFunction* mainFunction = endCompiler();
 
-	return (parser.hadError) ? NULL : mainFunction;
+	return ((parser.hadError) ? NULL : mainFunction);
 }

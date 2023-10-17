@@ -60,17 +60,17 @@ struct Object {
 */
 typedef struct {
 	Object		object;
-	FN_UBYTE		arity;		/* the number of params. */
+	FN_UBYTE	arity;		/* the number of params. */
 	Bytecode	bytecode;	/* function's own bytecode. */
 	ObjString*	name;		/* Function's name. */
 } ObjFunction;
 
 /** Typedef for pointer to the C function.
- * @param FN_UWORD: argument count.
- * @param Value*: pointer to the first argument on the stack.
+ * @param FN_BYTE: argument count.
+ * @param Value*: pointer to the first argument on the FunVM stack.
  * @returns Value: the result value.
  */
-typedef Value (*NativeFn)(FN_UBYTE argCount, Value* args);
+typedef Value (*NativeFn)(FN_BYTE argCount, Value* args);
 
 /**
  * Native function representation.
@@ -98,14 +98,15 @@ ObjString* takeString(char* chars, FN_UWORD length);
 ObjString* copyString(const char* chars, FN_UWORD length);
 void printObject(Value value);
 
-/** Safety check before downcasting from 'Object*' to one of the child object type.
- *
+/**
+ * Safety check before downcasting from 'Object*' to one of the child object type.
+ * 
  * The reason for this kind of checks is that, the stack keeps data
  * as 'Value' type which in case of, say, 'ObjString' expands to 'Value::Object*', i.e.,
  * before any kind of object to be inserted to the stack, it have to be 
  * "upcasted" to 'Object*'.
  * Thus, to handle 'Object*' as an 'ObjString*' we have to downcast it and be sure,
- * that the target entiry is exactly of type 'ObjString*'. */
+ * that the target entry is exactly of type 'ObjString*'. */
 static inline bool
 isObjType(Value value, ObjType type)
 {

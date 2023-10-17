@@ -53,8 +53,7 @@ allocateObject(size_t size, ObjType type)
 
 /**
  * Creates an instance of ObjFunction.
- * The initial state is left blank which will be filled in at
- * the function creation stage.
+ * The initial state is left blank which will be filled in later.
  */
 ObjFunction*
 newFunction(void)
@@ -68,8 +67,9 @@ newFunction(void)
 }
 
 /**
- * Takes a C function pointer to wrap in an ObjNative.
- * It sets up the object header and stores the function.
+ * Takes a C function pointer and wraps it in an ObjNative by setting up
+ * ObjNative's header 'OBJ_NATIVE' identifier and storing pointer to the
+ * argument value in ObjNative's function field.
  */
 ObjNative*
 newNative(NativeFn function)

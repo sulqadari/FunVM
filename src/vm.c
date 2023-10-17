@@ -24,7 +24,7 @@ static VM* vm;
  * Returns the elapsed type since the program started running, in seconds.
  */
 static Value
-clockNative(FN_UBYTE argCount, Value* args)
+clockNative(FN_BYTE argCount, Value* args)
 {
 	return NUMBER_PACK((FN_FLOAT)clock() / CLOCKS_PER_SEC);
 }
@@ -56,7 +56,7 @@ runtimeError(const char* format, ...)
 		/* (-1) is because the frame->ip is already sitting on the next 
 		 * instruction to be executed but we want the stack trace to point to
 		 * the previous failed instruction. */
-		size_t instruction = (frame->ip - (function->bytecode.code - 1));
+		FN_UWORD instruction = (frame->ip - function->bytecode.code - 1);
 		fprintf(stderr, "[line %d] in ", function->bytecode.lines[instruction]);
 
 		if (NULL == function->name)
@@ -66,32 +66,6 @@ runtimeError(const char* format, ...)
 	}
 
 	resetStack();
-}
-
-static void defineNative(const char* name, NativeFn function);
-
-void
-initVM(VM* _vm)
-{
-	vm = _vm;
-	vm->stackTop = NULL;
-	vm->objects = NULL;
-	initTable(&vm->globals);
-	initTable(&vm->interns);
-
-	resetStack();
-	objSetVM(vm);
-	defineNative("clock", clockNative);
-}
-
-void
-freeVM(VM* vm)
-{
-	freeTable(vm->globals);
-	freeTable(vm->interns);
-
-	/* Release heap. */
-	freeObjects(vm);
 }
 
 static void
@@ -127,9 +101,9 @@ static void
 defineNative(const char* name, NativeFn function)
 {
 	/* Store the name of the native function on top of the stack. */
-	push(OBJECT_PACK(copyString(name, (size_t)strlen(name))));
+	push(OBJECT_PACK(copyString(name, (FN_UWORD)strlen(name))));
 
-	/* Wrap the function in an ObjNative and push onto the stack. */
+	/* Wrap the function in an ObjNative struct and push onto the stack. */
 	push(OBJECT_PACK(newNative(function)));
 
 	/* Store in a global variable with the given name. */
@@ -138,18 +112,43 @@ defineNative(const char* name, NativeFn function)
 	pop();
 }
 
+void
+initVM(VM* _vm)
+{
+	vm = _vm;
+	vm->stackTop = NULL;
+	vm->objects = NULL;
+	initTable(&vm->globals);
+	initTable(&vm->interns);
+
+	resetStack();
+	objSetVM(vm);
+	defineNative("clock", clockNative);
+}
+
+void
+freeVM(VM* vm)
+{
+	freeTable(vm->globals);
+	freeTable(vm->interns);
+
+	/* Release heap. */
+	freeObjects(vm);
+}
+
 /**
  * Initializes the next CallFrame on the stack to be called.
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
  * It sets up the 'slots' pointer to give the frame its own window into the stack.
+ * @param ObjFunction*: contains the compiled code.
  */
 static bool
-call(ObjFunction* function, FN_UWORD argCount)
+call(ObjFunction* function, FN_WORD argCount)
 {
 	if (argCount != function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
-			function->arity, argCount);
+										function->arity, argCount);
 		return false;
 	}
 
@@ -158,17 +157,31 @@ call(ObjFunction* function, FN_UWORD argCount)
 		return false;
 	}
 
+	/* Fetch subsequent frame slot from the CallFrame array. */
 	CallFrame* frame = &vm->frames[vm->frameCount++];
+
+	/* Reference the function being called. */
 	frame->function = function;
+
+	/* get pointer to the beginning of the bytecode
+	 * dedicated for this frame. */
 	frame->ip = function->bytecode.code;
-	/* the (-1) is to account for stack slot zero, which the
+
+	/* Set up stack window (aka "Frame pointer").
+	 * The following expression resolves the level of indirection.
+	 * Consider example:
+	 * vm->stackTop = 1;
+	 * argCount = 0;
+	 * then, the stack window starts from the zeroth slot.
+	 * the (-1) is to account for stack slot zero, which the
 	 * compiler set aside for when we add methods. */
 	frame->slots = vm->stackTop - argCount - 1;
+
 	return true;
 }
 
 static bool
-callValue(Value callee, FN_UWORD argCount)
+callValue(Value callee, FN_BYTE argCount)
 {
 	if (IS_OBJECT(callee)) {
 		
@@ -183,7 +196,9 @@ callValue(Value callee, FN_UWORD argCount)
 			case OBJ_NATIVE: {
 				NativeFn native = NATIVE_UNPACK(callee);
 				Value result = native(argCount, vm->stackTop - argCount);
-				vm->stackTop -= argCount - 1;
+
+				/* Discard */
+				vm->stackTop -= argCount + 1;
 				push(result);
 				return true;
 			}
@@ -264,10 +279,8 @@ logRun(CallFrame* frame)
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
 		printf("[ ");
 		printValue(*slot);
-		printf(" ]");
+		printf(" ]\n");
 	}
-	printf("\n");
-
 }
 #endif // !FUNVM_DEBUG
 
@@ -282,12 +295,23 @@ static InterpretResult
 run()
 {
 	FN_UBYTE ins;
-	CallFrame* frame = &vm->frames[vm->frameCount - 1];
+
+	/* Store the topmost CallFrame. Its 'ip' field will be used for initial
+	 * access to the bytecode instruction set. */
+	register CallFrame* frame = &vm->frames[vm->frameCount - 1];
+
+#ifdef FUNVM_DEBUG
+	printf( "\n************************************\n"
+			"    Firing up Virtual Machine"
+			"\n************************************\n");
+#endif // !FUNVM_DEBUG
 
 	for (;;) {
+
 #ifdef FUNVM_DEBUG
 		logRun(frame);
 #endif // !FUNVM_DEBUG
+
 		switch (ins = READ_BYTE()) {
 
 			case OP_CONSTANT: {
@@ -300,6 +324,10 @@ run()
 			case OP_FALSE:	push(BOOL_PACK(false));	break;
 			case OP_POP:	pop();					break;
 
+			/* Read the given local slot from the current frame's
+			 * 'slots' array. The slot is read relative to the beginning
+			 * of that frame, and the level of indirection is calculated
+			 * at compile time. */
 			case OP_GET_LOCAL: {
 				FN_UBYTE slot = READ_BYTE();
 				push(frame->slots[slot]);
@@ -430,7 +458,7 @@ run()
 				FN_UWORD offset = READ_SHORT();
 
 				/* Check the condition value which resides on top of the stack.
-				 * Apply this jump offset to vm->ip if it's falsey. */
+				 * Apply this jump offset to frame->ip if it's falsey. */
 				if (isFalsey(peek(0)))
 					frame->ip += offset;
 
@@ -442,39 +470,48 @@ run()
 			} break;
 
 			case OP_CALL: {
-				FN_UWORD argCount = READ_BYTE();
+				
+				/* Fetch the number of arguments from
+				 * the operand of OP_CALL instruction. */
+				FN_BYTE argCount = READ_BYTE();
+				/* Use this number as an offset to the function being called. */
+				Value callee = peek((argCount & 0x000000FF));
 
-				/* If call to this function is succesfull, there will be a
-				 * new frame on the CallFrame stack for the called function. */
-				if (!callValue(peek(argCount), argCount)) {
+				/* Among other important things this function call does is
+				 * incrementing vm->frameCount variable. */
+				if (!callValue(callee, argCount)) {
 					return IR_RUNTIME_ERROR;
 				}
 
-				/* The run() function has its own cached pointer
-				 to the current frame, thus, update it. */
+				/* On successful call of callValue(), there will be a new frame on the
+				 * CallFrame stack for the called function.
+				 * Since the bytecode dispatch loop reads from the 'frame' variable,
+				 * when the VM goes to execute the next instruction, it will read the 'ip'
+				 * from the newly called function's CallFrame and jump to its code. */
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 
 			case OP_RETURN: {
 
-				/* Drop the return value if we're about to complete
-				 * the top-level script. */
+				/* We're about to discard the called function's entire stack window,
+				 * so we pop that return value off and hand on to it. */
 				Value result = pop();
+
+				/* discard the CallFrame for the returning function. Previously
+				 * it was incremented in call() function. */
 				vm->frameCount--;
 
 				/* Complete execution if the frame we have just returned from
 				 * is the last one (i.e. the top-level script). */
-				if (vm->frameCount == 0) {
+				if (0 == vm->frameCount) {
 					
 					pop();	/* Pop the main script function from the stack. */
 					return IR_OK;
 				}
 
-				/* Discard all of the slots the callee was using for its params
-				 * and local variables, i.e. the same slots the caller used
-				 * to pass the arguments. Now that the call is done, the caller
-				 * doesn't need them anymore. This means that top of the stack ends
-				 * up right at the beginning of the returning function's stack window. */
+				/* Point the top of the stack to the beginning fo the returning
+				 * function's stack window. This results in discarding all of
+				 * the slots the callee was using for its params and locals. */
 				vm->stackTop = frame->slots;
 
 				/* Push the return value back onto the stack at the lower location. */
@@ -490,18 +527,17 @@ run()
 InterpretResult
 interpret(const char* source)
 {
+	/* Pass the source code to the compiler which in turn
+	 * returns a new ObjFunction* containing the top-level code. */
 	ObjFunction* function = compile(source);
 	if (NULL == function)
 		return IR_COMPILE_ERROR;
 
+	/* Store the function on the stack. */
 	push(OBJECT_PACK(function));
-	call(function, 0);
 
-#ifdef FUNVM_DEBUG
-		printf( "\n************************************\n"
-				"    Firing up Virtual Machine"
-				"\n************************************\n");
-#endif // !FUNVM_DEBUG
+	/* Set up the first frame for executing the top-level function. */
+	call(function, 0);
 
 	return run();
 }

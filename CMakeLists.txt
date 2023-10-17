@@ -14,29 +14,6 @@ configure_file(funvmConfig.h.in funvmConfig.h)
 
 add_subdirectory(src)
 
-set(scriptFiles
-	./test_scripts/functional/run.sh
-	./test_scripts/functional/01_expressions.fn
-	./test_scripts/functional/02_strings.fn
-	./test_scripts/functional/03_globalVariables.fn
-	./test_scripts/functional/04_localVariables.fn
-	./test_scripts/functional/05_ifStatement.fn
-	./test_scripts/functional/06_and.fn
-	./test_scripts/functional/07_or.fn
-	./test_scripts/functional/08_while.fn
-	./test_scripts/functional/09_for.fn
-	./test_scripts/functional/10_array.fn
-	./test_scripts/functional/test_funcDecl.fn
-	./test_scripts/functional/test_funcCall.fn
-)
-
-foreach(scriptFile IN LISTS scriptFiles)
-	file(GENERATE 
-		OUTPUT ${scriptFile}
-		INPUT ${scriptFile}
-	)
-endforeach()
-
 if(FUNVM_DEBUG)
 	add_subdirectory(debug)
 	add_subdirectory(tests)

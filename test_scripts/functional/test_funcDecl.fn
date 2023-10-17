@@ -1,5 +1,0 @@
-fun fun1() {
-	println("inside fun1()");
-}
-
-println(fun1);
