@@ -24,7 +24,7 @@ static VM* vm;
  * Returns the elapsed type since the program started running, in seconds.
  */
 static Value
-clockNative(FN_UBYTE argCount, Value* args)
+clockNative(FN_BYTE argCount, Value* args)
 {
 	return NUMBER_PACK((FN_FLOAT)clock() / CLOCKS_PER_SEC);
 }
@@ -56,7 +56,7 @@ runtimeError(const char* format, ...)
 		/* (-1) is because the frame->ip is already sitting on the next 
 		 * instruction to be executed but we want the stack trace to point to
 		 * the previous failed instruction. */
-		size_t instruction = (frame->ip - (function->bytecode.code - 1));
+		FN_UWORD instruction = (frame->ip - function->bytecode.code - 1);
 		fprintf(stderr, "[line %d] in ", function->bytecode.lines[instruction]);
 
 		if (NULL == function->name)
@@ -66,32 +66,6 @@ runtimeError(const char* format, ...)
 	}
 
 	resetStack();
-}
-
-static void defineNative(const char* name, NativeFn function);
-
-void
-initVM(VM* _vm)
-{
-	vm = _vm;
-	vm->stackTop = NULL;
-	vm->objects = NULL;
-	initTable(&vm->globals);
-	initTable(&vm->interns);
-
-	resetStack();
-	objSetVM(vm);
-	defineNative("clock", clockNative);
-}
-
-void
-freeVM(VM* vm)
-{
-	freeTable(vm->globals);
-	freeTable(vm->interns);
-
-	/* Release heap. */
-	freeObjects(vm);
 }
 
 static void
@@ -127,15 +101,39 @@ static void
 defineNative(const char* name, NativeFn function)
 {
 	/* Store the name of the native function on top of the stack. */
-	push(OBJECT_PACK(copyString(name, (size_t)strlen(name))));
+	push(OBJECT_PACK(copyString(name, (FN_UWORD)strlen(name))));
 
-	/* Wrap the function in an ObjNative and push onto the stack. */
+	/* Wrap the function in an ObjNative struct and push onto the stack. */
 	push(OBJECT_PACK(newNative(function)));
 
 	/* Store in a global variable with the given name. */
 	tableSet(vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
 	pop();
 	pop();
+}
+
+void
+initVM(VM* _vm)
+{
+	vm = _vm;
+	vm->stackTop = NULL;
+	vm->objects = NULL;
+	initTable(&vm->globals);
+	initTable(&vm->interns);
+
+	resetStack();
+	objSetVM(vm);
+	defineNative("clock", clockNative);
+}
+
+void
+freeVM(VM* vm)
+{
+	freeTable(vm->globals);
+	freeTable(vm->interns);
+
+	/* Release heap. */
+	freeObjects(vm);
 }
 
 /**
@@ -146,11 +144,11 @@ defineNative(const char* name, NativeFn function)
  * @param ObjFunction*: contains the compiled code.
  */
 static bool
-call(ObjFunction* function, FN_UWORD argCount)
+call(ObjFunction* function, FN_WORD argCount)
 {
 	if (argCount != function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
-			function->arity, argCount);
+										function->arity, argCount);
 		return false;
 	}
 
@@ -162,7 +160,7 @@ call(ObjFunction* function, FN_UWORD argCount)
 	/* Fetch subsequent frame slot from the CallFrame array. */
 	CallFrame* frame = &vm->frames[vm->frameCount++];
 
-	/* Reference the function. */
+	/* Reference the function being called. */
 	frame->function = function;
 
 	/* get pointer to the beginning of the bytecode
@@ -183,7 +181,7 @@ call(ObjFunction* function, FN_UWORD argCount)
 }
 
 static bool
-callValue(Value callee, FN_UWORD argCount)
+callValue(Value callee, FN_BYTE argCount)
 {
 	if (IS_OBJECT(callee)) {
 		
@@ -198,7 +196,9 @@ callValue(Value callee, FN_UWORD argCount)
 			case OBJ_NATIVE: {
 				NativeFn native = NATIVE_UNPACK(callee);
 				Value result = native(argCount, vm->stackTop - argCount);
-				vm->stackTop -= argCount - 1;
+
+				/* Discard */
+				vm->stackTop -= argCount + 1;
 				push(result);
 				return true;
 			}
@@ -470,39 +470,48 @@ run()
 			} break;
 
 			case OP_CALL: {
-				FN_UWORD argCount = READ_BYTE();
+				
+				/* Fetch the number of arguments from
+				 * the operand of OP_CALL instruction. */
+				FN_BYTE argCount = READ_BYTE();
+				/* Use this number as an offset to the function being called. */
+				Value callee = peek((argCount & 0x000000FF));
 
-				/* If call to this function is succesfull, there will be a
-				 * new frame on the CallFrame stack for the called function. */
-				if (!callValue(peek(argCount), argCount)) {
+				/* Among other important things this function call does is
+				 * incrementing vm->frameCount variable. */
+				if (!callValue(callee, argCount)) {
 					return IR_RUNTIME_ERROR;
 				}
 
-				/* The vm->frameCount was incremented in callValue().
-				 * thus we need to use the previous index, not current one. */
+				/* On successful call of callValue(), there will be a new frame on the
+				 * CallFrame stack for the called function.
+				 * Since the bytecode dispatch loop reads from the 'frame' variable,
+				 * when the VM goes to execute the next instruction, it will read the 'ip'
+				 * from the newly called function's CallFrame and jump to its code. */
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 
 			case OP_RETURN: {
 
-				/* Drop the return value if we're about to complete
-				 * the top-level script. */
+				/* We're about to discard the called function's entire stack window,
+				 * so we pop that return value off and hand on to it. */
 				Value result = pop();
+
+				/* discard the CallFrame for the returning function. Previously
+				 * it was incremented in call() function. */
 				vm->frameCount--;
 
 				/* Complete execution if the frame we have just returned from
 				 * is the last one (i.e. the top-level script). */
-				if (vm->frameCount == 0) {
+				if (0 == vm->frameCount) {
 					
 					pop();	/* Pop the main script function from the stack. */
 					return IR_OK;
 				}
 
-				/* Discard all of the slots the callee was using for its params
-				 * and local variables, i.e. the same slots the caller used
-				 * to pass the arguments. Now that the call is done, the caller
-				 * doesn't need them anymore. This means that top of the stack ends
-				 * up right at the beginning of the returning function's stack window. */
+				/* Point the top of the stack to the beginning fo the returning
+				 * function's stack window. This results in discarding all of
+				 * the slots the callee was using for its params and locals. */
 				vm->stackTop = frame->slots;
 
 				/* Push the return value back onto the stack at the lower location. */
@@ -527,7 +536,7 @@ interpret(const char* source)
 	/* Store the function on the stack. */
 	push(OBJECT_PACK(function));
 
-	/* Prepare an initial CallFrame to execute its code. */
+	/* Set up the first frame for executing the top-level function. */
 	call(function, 0);
 
 	return run();

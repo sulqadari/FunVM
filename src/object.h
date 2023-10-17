@@ -66,11 +66,11 @@ typedef struct {
 } ObjFunction;
 
 /** Typedef for pointer to the C function.
- * @param FN_UWORD: argument count.
- * @param Value*: pointer to the first argument on the stack.
+ * @param FN_BYTE: argument count.
+ * @param Value*: pointer to the first argument on the FunVM stack.
  * @returns Value: the result value.
  */
-typedef Value (*NativeFn)(FN_UBYTE argCount, Value* args);
+typedef Value (*NativeFn)(FN_BYTE argCount, Value* args);
 
 /**
  * Native function representation.

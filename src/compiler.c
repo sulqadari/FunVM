@@ -524,15 +524,17 @@ binary(bool canAssign)
 
 /**
  * Steps through arguments as long as encounters commas after each expression.
+ * NOTE: the equality of number of parameters and the number of arguments is checked
+ * at runtime 
  */
-static FN_UWORD
+static FN_UBYTE
 argumentList(void)
 {
-	FN_UWORD argCount = 0;
+	FN_UBYTE argCount = 0;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			expression();
-			if (argCount > MAX_ARITY) {
+			if (MAX_ARITY <= argCount) {
 				error("Can't have more than 16 arguments");
 			}
 			argCount++;
@@ -546,7 +548,7 @@ argumentList(void)
 static void
 call(bool canAssign)
 {
-	FN_UWORD argCount = argumentList();
+	FN_UBYTE argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
 }
 
@@ -1578,6 +1580,9 @@ printLnStatement(void)
 	emitByte(OP_PRINTLN);
 }
 
+/**
+ * Handles the return statement.
+ */
 static void
 returnStatement(void)
 {
@@ -1585,6 +1590,9 @@ returnStatement(void)
 		error("Can't return from top-level code.");
 	}
 	
+	/* The return value expression is optional, so the parser looks for a semicolon
+     * token to tell if a value was provided. Thus, if the semicolon follows right
+	 * after 'return' token, then there is no value to return. Return NILL instead. */
 	if (match(TOKEN_SEMICOLON)) {
 		emitReturn();
 	} else {
