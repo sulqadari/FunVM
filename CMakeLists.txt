@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(FunVM VERSION 0.2)
+project(FunVM VERSION 0.11)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2				\
 	-Wall -Wextra -Wno-unused-parameter						\
