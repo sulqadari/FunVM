@@ -295,12 +295,6 @@ check(const TokenType type)
 	return type == parser.current.type;
 }
 
-static TokenType
-peek(void)
-{
-	return parser.current.type;
-}
-
 /**
  * Consumes the current token if and only if it has the given type.
  * @returns bool: true if match, false otherwise.
@@ -1337,24 +1331,6 @@ funDeclaration(void)
 	defineVariable(global);
 }
 
-
-static void
-arrayDeclaration(void)
-{
-	FN_UWORD global = parseVariable("Expect array name.");
-	consume(TOKEN_LEFT_SQUARE_BRACKET, "Expect '[' after array name");
-
-	do {
-		if (peek() != TOKEN_NUMBER) {
-			errorAtCurrent("Only number array is supported");
-		}
-		parsePrecedence(PREC_PRIMARY);
-	} while (match(TOKEN_COMMA));
-
-	consume(TOKEN_RIGHT_SQUARE_BRACKET, "Expect ']' after variable declaration.");
-	consume(TOKEN_SEMICOLON, "Expect ';' after array declaration.");
-}
-
 /**
  * Parses variable declaration.
  */
@@ -1688,21 +1664,12 @@ statement(void)
 static void
 declaration(void)
 {
-	TokenType tType = peek();
-	switch (tType) {
-		case TOKEN_FUN:
-			advance();
-			funDeclaration();
-		break;
-		case TOKEN_VAR:
-			advance();
-			varDeclaration();
-		break;
-		case TOKEN_NUMBER_ARRAY:
-			advance();
-			arrayDeclaration();
-		break;
-		default: statement();
+	if (match(TOKEN_FUN)) {
+		funDeclaration();
+	} else if (match(TOKEN_VAR)) {
+		varDeclaration();
+	} else {
+		statement();
 	}
 
 	/* The synchronization point. */

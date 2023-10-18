@@ -1,5 +1,4 @@
-/*
-print("1 + 1 = "); */
+print("1 + 1 = ");
 println(1 + 1);
 print("(1 + (1 + .. (1n255)) .. ) = ");
 println(

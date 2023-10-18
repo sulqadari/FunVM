@@ -129,20 +129,6 @@ skipWhiteSpace(void)
 					 * character on the next turn of the outer loop. */
 					while ((peek() != '\n') && !isAtEnd())
 						advance();
-
-				/* Multiple line comments. */
-				} else if (peekNext() == '*') {
-					advance();
-					advance();
-					while (!isAtEnd()) {
-						if (advance() == '*') {
-
-							if (isAtEnd())
-								break;
-							if (advance() == '/')
-								break;
-						}
-					}
 				} else {
 					return;
 				}
@@ -204,7 +190,6 @@ identifierType(void)
 		break;
 		case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
 		case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
-		case 'N': return checkKeyword(1, 2, "um", TOKEN_NUMBER_ARRAY);
 	}
 
 	return TOKEN_IDENTIFIER;

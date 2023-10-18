@@ -4,7 +4,7 @@ fun greeting(n) {
 
 greeting("Hello, Functions");
 
-/* Outer function which will call the inner one. */
+// Outer function which will call the inner one.
 fun outer(a) {
 	inner(a);
 }
@@ -16,10 +16,10 @@ fun inner(b) {
 
 outer(42);
 
-/* Late binding: the global variable gA is referenced
- * inside this function *before* it had been defined.
- * Inportant point is that this function must be called
- * *after* actual definition of the global variable. */
+// Late binding: the global variable gA is referenced
+// inside this function *before* it had been defined.
+// Inportant point is that this function must be called
+// *after* actual definition of the global variable.
 fun printGlobal() {
 	print("gA = ");
 	println(gA);
@@ -28,7 +28,7 @@ fun printGlobal() {
 var gA = 42;
 printGlobal();
 
-/* Recursive call. The limit is 62 call frames. */
+// Recursive call. The limit is 62 call frames.
 fun recursiveCall(n) {
 	if (n == 62)
 		return n;
