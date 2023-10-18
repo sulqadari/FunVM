@@ -3,7 +3,7 @@ echo "************ RUNNING FUNCTIONAL TESTS ****************"
 echo " "
 
 
-for currScript in ./test_scripts/functional/*.fn
+for currScript in ./tests/functional/*.fn
 do
 	echo "*** $currScript ***"
 	./build/FunVM $currScript
