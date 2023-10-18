@@ -113,7 +113,14 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return jumpInstruction("OP_LOOP", -1, bytecode, offset);
 		case OP_CALL:
 			return byteInstruction("OP_CALL", bytecode, offset);
-		case OP_RETURN:
+		case OP_CLOSURE: {
+			offset++;
+			FN_UBYTE constant = bytecode->code[offset++];
+			printf("%-16s %4d ", "OP_CLOSURE", constant);
+			printValue(bytecode->constPool.pool[constant]);
+			printf("\n");
+			return offset;
+		} case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		default:
 			printf("Unknown opcode %d\n", opcode);

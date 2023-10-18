@@ -28,7 +28,24 @@ fun printGlobal() {
 var gA = 42;
 printGlobal();
 
-// Recursive call. The limit is 62 call frames.
+{
+	fun scopedFun(a1) {
+		print("inside outer scope: ");
+		println(a1);
+	}
+
+	scopedFun(gA);
+	{
+		fun inside(a2) {
+			print("inside innermost scope: ");
+			println(a2);
+		}
+
+		inside(gA);
+	}
+}
+
+Recursive call. The limit is 62 call frames.
 fun recursiveCall(n) {
 	if (n == 62)
 		return n;

@@ -51,6 +51,14 @@ allocateObject(size_t size, ObjType type)
 	return object;
 }
 
+ObjClosure*
+newClosure(ObjFunction* function)
+{
+	ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+	closure->function = function;
+	return closure;
+}
+
 /**
  * Creates an instance of ObjFunction.
  * The initial state is left blank which will be filled in later.
@@ -185,6 +193,9 @@ printObject(Value value)
 		} break;
 		case OBJ_FUNCTION:
 			printFunction(FUNCTION_UNPACK(value));
+		break;
+		case OBJ_CLOSURE:
+			printFunction(CLOSURE_UNPACK(value)->function);
 		break;
 	}
 }

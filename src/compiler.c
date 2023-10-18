@@ -1295,7 +1295,7 @@ function(FunctionType type)
 	/* Store the function object being produced by the current Compiler
 	 * as a constant in the *surrounding* function's constant table. */
 	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
-	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
+	emitBytes(OP_CLOSURE, (FN_UBYTE)offset);
 }
 
 /**

@@ -46,7 +46,7 @@ typedef struct Table Table;
  * 			current function can use.
 */
 typedef struct {
-	ObjFunction* function;
+	ObjClosure* closure;
 	FN_UBYTE* ip;
 	Value* slots;
 } CallFrame;

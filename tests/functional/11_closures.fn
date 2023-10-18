@@ -1,0 +1,22 @@
+// var x = "global";
+// fun closureFn() {
+//   var x = "outer";
+//   // var y = "outer";
+//   fun inner() {
+//     println(x);
+// 	//println(y); runtime error "undefined variable"
+//   }
+//   inner();
+// }
+// closureFn();
+
+fun makeClosure() {
+	var local = "local";
+	fun closure() {
+		return local;
+	}
+	return closure;
+}
+
+var closure = makeClosure();
+println(closure());

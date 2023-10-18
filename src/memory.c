@@ -49,6 +49,10 @@ freeObject(Object* object)
 			freeBytecode(&function->bytecode);
 			FREE(ObjFunction, object);
 		} break;
+
+		case OBJ_CLOSURE: {
+			FREE(ObjClosure, object);
+		} break;
 	}
 }
 

@@ -10,12 +10,15 @@
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
+#define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
+
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
 
 #define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
 /* Safety check macro. */
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
+#define CLOSURE_UNPACK(value)	((ObjClosure*)OBJECT_UNPACK(value))
 #define FUNCTION_UNPACK(value)	((ObjFunction*)OBJECT_UNPACK(value))
 
 #define NATIVE_UNPACK(value)	(((ObjNative*)OBJECT_UNPACK(value))->function)
@@ -29,7 +32,8 @@
 typedef enum {
 	OBJ_STRING,
 	OBJ_NATIVE,
-	OBJ_FUNCTION
+	OBJ_FUNCTION,
+	OBJ_CLOSURE
 } ObjType;
 
 /**
@@ -92,6 +96,17 @@ struct ObjString {
 	FN_UWORD hash;
 };
 
+/**
+ * Wraps the function but does not own it because there may be multiple
+ * closures that all reference the same function, and none of them claims
+ * any special privilege over it.
+ */
+typedef struct {
+	Object object;
+	ObjFunction* function;
+} ObjClosure;
+
+ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction(void);
 ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, FN_UWORD length);
