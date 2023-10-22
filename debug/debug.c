@@ -4,6 +4,7 @@
 #include "debug.h"
 #include "object.h"
 #include "value.h"
+#include "common.h"
 
 static FN_UWORD
 simpleInstruction(const char* name, FN_WORD offset)
