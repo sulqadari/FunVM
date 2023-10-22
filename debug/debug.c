@@ -2,6 +2,8 @@
 #include <stdint.h>
 
 #include "debug.h"
+#include "object.h"
+#include "value.h"
 
 static FN_UWORD
 simpleInstruction(const char* name, FN_WORD offset)
@@ -83,6 +85,12 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return constantInstruction("OP_SET_GLOBAL", bytecode, offset);
 		case OP_GET_GLOBAL:
 			return constantInstruction("OP_GET_GLOBAL", bytecode, offset);
+		
+		case OP_SET_UPVALUE:
+			return byteInstruction("OP_SET_UPVALUE", bytecode, offset);
+		case OP_GET_UPVALUE:
+			return byteInstruction("OP_GET_UPVALUE", bytecode, offset);
+
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:
@@ -119,6 +127,17 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			printf("%-16s %4d ", "OP_CLOSURE", constant);
 			printValue(bytecode->constPool.pool[constant]);
 			printf("\n");
+
+			ObjFunction* function = FUNCTION_UNPACK(
+									bytecode->ConstPool.pool[constant]);
+			
+			for (FN_WORD j = 0; j < function->upvalueCount; ++j) {
+				FN_WORD isLocal = bytecode->code[offset++];
+				FN_WORD index = bytecode->code[offset++];
+				printf("%04d	|			%s %d\n",
+						offset - 2, isLocal ? "local" : "upvalue", index);
+			}
+
 			return offset;
 		} case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);

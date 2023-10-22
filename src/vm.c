@@ -148,7 +148,7 @@ call(ObjClosure* closure, FN_WORD argCount)
 {
 	if (argCount != closure->function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
-								closure->function->arity, argCount);
+						closure->function->arity, argCount);
 		return false;
 	}
 
@@ -187,6 +187,7 @@ callValue(Value callee, FN_BYTE argCount)
 		goto _runtimeError;
 		
 	switch (OBJECT_TYPE(callee)) {
+		
 		/* If the object being called is a native function, we invoke
 			* the C function right then and there. The value returned by
 			* this call is stored onto the stack. */
@@ -202,6 +203,7 @@ callValue(Value callee, FN_BYTE argCount)
 		
 		case OBJ_CLOSURE:
 			return call(CLOSURE_UNPACK(callee), argCount);
+		
 		default:
 			/* Non-callabe object type. */
 		break;

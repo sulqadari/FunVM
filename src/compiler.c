@@ -79,6 +79,11 @@ typedef struct {
 	FN_WORD depth; 
 } LocalVariable;
 
+typedef struct {
+	FN_UBYTE index;
+	bool isLocal;
+} Upvalue;
+
 /*
  * The distinction this enum provides is meaningful in two places:
  * - 
@@ -136,6 +141,8 @@ typedef struct Compiler {
 	 * local variables or temporaries. */
 	LocalVariable locals[UINT8_COUNT];
 	FN_WORD localCount;
+
+	Upvalue upvalues[UINT8_COUNT];
 	FN_WORD scopeDepth;
 } Compiler;
 
@@ -679,18 +686,14 @@ static FN_WORD
 resolveLocal(Compiler* compiler, Token* name)
 {
 	for (FN_WORD i = compiler->localCount - 1; i >= 0; --i) {
+
 		LocalVariable* local = &compiler->locals[i];
+
+		/* Return the index if names match. */
 		if (identifiersEqual(name, &local->name)) {
 
-			/* 
-			 * If we enter this if() branch, it means that we've found
-			 * a variable with the same name. Now consider, that a user
-			 * tries to do the following:
-			 * 
-			 * {
-			 *     var a = a;
-			 * }
-			 * 
+			/* Now consider that a user tries to do the following:
+			 * { var a = a; }
 			 * Thus, the (-1) is the sentinel which prevents a local variable
 			 * to be initialized with its own uninitialized state.
 	 		 */
@@ -700,6 +703,66 @@ resolveLocal(Compiler* compiler, Token* name)
 			return i;
 		}
 	}
+
+	return (-1);
+}
+
+/**
+ * @param Compiler* the compiler of the current function.
+ * @param FN_BYTE	the index of upvalue in Upvalues array.
+ * @param bool		whether the closure captures a local variable or
+ * an upvalue from the surrounding function.
+*/
+static FN_WORD
+addUpvalue(Compiler* compiler, FN_UBYTE index, bool isLocal)
+{
+	FN_WORD upvalueCount = compiler->function->upvalueCount;
+
+	/* Reuse an upvalue if the function already has an upvalue that
+	 * closes over a variable under the given index. */
+	for (FN_WORD i = 0; i < upvalueCount; ++i) {
+		Upvalue* upvalue = &compiler->upvalues[i];
+		if (upvalue->index == index && upvalue->isLocal == isLocal) {
+			return i;
+		}
+	}
+
+	if (UINT8_COUNT == upvalueCount) {
+		error("Too many closure variables in function.");
+		return 0;
+	}
+
+	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	compiler->upvalues[upvalueCount].index = index;
+	return compiler->function->upvalueCount++;
+}
+
+/**
+ * Looks for a local variable declared in any of the surrounding
+ * scopes and functions. If it finds one, it returns an "upvalue index"
+ * for that variable.
+ * This function is called after failing to resolve a local variable in the
+ * current function's scope, so we know the variable isn't in the current
+ * compiler.
+*/
+static FN_WORD
+resolveUpvalue(Compiler* compiler, Token* name)
+{
+	/* If there is no eclosing function,
+	 * the variable is treated as global. */
+	if (NULL == compiler->enclosing)
+		return (-1);
+	
+	/* Find the matching variable in the enclosing function. */
+	FN_WORD local = resolveLocal(compiler->enclosing, name);
+	if ((-1) != local)
+		return addUpvalue(compiler, (FN_UWORD)local, true);
+	
+	/* Recursively look up a local variable beyond the immediately
+	 * enclosing function. */
+	FN_WORD upvalue = resolveUpvalue(compiler->enclosing, name);
+	if ((-1) != upvalue)
+		return addUpvalue(compiler, (FN_UWORD)local, false);
 
 	return (-1);
 }
@@ -734,6 +797,9 @@ namedVariable(Token name, bool canAssign)
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
+	} else if ((offset = resolveUpvalue(currCplr, &name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
 	} else {
 		offset = identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
@@ -825,7 +891,7 @@ ParseRule rules[] = {
 	[TOKEN_GREATER_EQUAL]	= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS]			= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS_EQUAL]		= {NULL,     binary,   PREC_COMPARISON},
-	[TOKEN_IDENTIFIER]		= {variable,     NULL,   PREC_NONE},
+	[TOKEN_IDENTIFIER]		= {variable,	NULL,   PREC_NONE},
 	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
 	[TOKEN_AND]				= {NULL,     and_,   PREC_AND},
@@ -1296,6 +1362,11 @@ function(FunctionType type)
 	 * as a constant in the *surrounding* function's constant table. */
 	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
 	emitBytes(OP_CLOSURE, (FN_UBYTE)offset);
+
+	for (FN_WORD i = 0; i < function->upvalueCount; ++i) {
+		emitByte(compiler.upvalues->isLocal ? 1 : 0);
+		emitByte(compiler.upvalues[i].index);
+	}
 }
 
 /**

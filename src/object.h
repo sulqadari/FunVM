@@ -65,6 +65,7 @@ struct Object {
 typedef struct {
 	Object		object;
 	FN_UBYTE	arity;		/* the number of params. */
+	FN_WORD		upvalueCount;
 	Bytecode	bytecode;	/* function's own bytecode. */
 	ObjString*	name;		/* Function's name. */
 } ObjFunction;

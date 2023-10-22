@@ -68,6 +68,7 @@ newFunction(void)
 {
 	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
 	function->arity = 0;
+	function->upvalueCount = 0;
 	function->name = NULL;
 	initBytecode(&function->bytecode);
 	
