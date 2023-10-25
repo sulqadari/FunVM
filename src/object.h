@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "common.h"
 #include "value.h"
 #include "bytecode.h"
 
@@ -33,7 +34,8 @@ typedef enum {
 	OBJ_STRING,
 	OBJ_NATIVE,
 	OBJ_FUNCTION,
-	OBJ_CLOSURE
+	OBJ_CLOSURE,
+	OBJ_UPVALUE
 } ObjType;
 
 /**
@@ -98,6 +100,18 @@ struct ObjString {
 };
 
 /**
+ * Runtime representation for upvalues.
+ * The instance of this object is assigned to actuyal variable,
+ * not a copy.
+ * Because multiple closures can close over the same variable, the instance
+ * of ObjUpvalue doesn't own the variable it references.
+ */
+typedef struct ObjUpvalue {
+	Object object;
+	Value* location;	/* Points to the closed-over variable. */
+} ObjUpvalue;
+
+/**
  * Wraps the function but does not own it because there may be multiple
  * closures that all reference the same function, and none of them claims
  * any special privilege over it.
@@ -105,9 +119,12 @@ struct ObjString {
 typedef struct {
 	Object object;
 	ObjFunction* function;
+	ObjUpvalue** upvalues;
+	FN_WORD upvalueCount;
 } ObjClosure;
 
 ObjClosure* newClosure(ObjFunction* function);
+ObjUpvalue* newUpvalue(Value* slot);
 ObjFunction* newFunction(void);
 ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, FN_UWORD length);

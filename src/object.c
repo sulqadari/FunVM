@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -54,9 +55,28 @@ allocateObject(size_t size, ObjType type)
 ObjClosure*
 newClosure(ObjFunction* function)
 {
+	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+	for (FN_WORD i = 0; i < function->upvalueCount; ++i)
+		upvalues[i] = NULL;
+
 	ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
 	closure->function = function;
+
+	closure->upvalues = upvalues;
+	closure->upvalueCount = function->upvalueCount;
+	
 	return closure;
+}
+
+/**
+ * @param Value* an address of the slot where the closed-over variable lives.
+ */
+ObjUpvalue*
+newUpvalue(Value* slot)
+{
+	ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+	upvalue->location = slot;
+	return upvalue;
 }
 
 /**
@@ -197,6 +217,9 @@ printObject(Value value)
 		break;
 		case OBJ_CLOSURE:
 			printFunction(CLOSURE_UNPACK(value)->function);
+		break;
+		case OBJ_UPVALUE:
+			printf("upvalue\n");
 		break;
 	}
 }
