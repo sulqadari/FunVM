@@ -52,6 +52,11 @@ allocateObject(size_t size, ObjType type)
 	return object;
 }
 
+/**
+ * Creates closure.
+ * Takes a pointer to the ObjFunction it wraps and returns a pointer
+ * to closure just created.
+ */
 ObjClosure*
 newClosure(ObjFunction* function)
 {

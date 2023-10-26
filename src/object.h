@@ -115,10 +115,19 @@ typedef struct ObjUpvalue {
  * Wraps the function but does not own it because there may be multiple
  * closures that all reference the same function, and none of them claims
  * any special privilege over it.
+ *
+ * There are two implementation strategies for local variables: those
+ * that aren't used in closures, are leaved as the are on the stack.
+ * When local is captured by a closure, it will be lifted onto the heap
+ * where it can live as long as needed.
+ *
+ * The runtime representation of the closure captures the local variable
+ * surrounding the function as they exist when the function declaration
+ * *is executed*, not just when it is compiled.
  */
 typedef struct {
 	Object object;
-	ObjFunction* function;
+	ObjFunction* function;	/* pointer to the underlined function. */
 	ObjUpvalue** upvalues;
 	FN_WORD upvalueCount;
 } ObjClosure;

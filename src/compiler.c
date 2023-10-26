@@ -785,6 +785,8 @@ identifierConstant(Token* name)
  * Implements an access either to local or global variable. Whichever
  * type of variable we are targeted at, this function handles both type
  * of operation - setting and getting a value.
+ *
+ * Also handles closures.
  */
 static void
 namedVariable(Token name, bool canAssign)

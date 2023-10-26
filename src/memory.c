@@ -42,7 +42,9 @@ freeObject(Object* object)
 			FREE(ObjNative, object);
 		} break;
 
-		/* Note that function's name is an instance of ObjString
+		/* Cannot be deleted until all objects referencing it are gone.
+		 * 
+		 * Note that function's name is an instance of ObjString
 		 * which will be garbage collected once we delete the function. */
 		case OBJ_FUNCTION: {
 			ObjFunction* function = (ObjFunction*)object;

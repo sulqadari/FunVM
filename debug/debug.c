@@ -144,7 +144,7 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_RETURN", offset);
 		default:
 			printf("Unknown opcode %d\n", opcode);
-			return offset + 1;
+			return offset;
 	}
 }
 

@@ -35,7 +35,7 @@ typedef enum {
 	OP_JUMP_IF_FALSE,
 	OP_LOOP,
 	OP_CALL,
-	OP_CLOSURE,			/* takes a single operand as Constant pool index for the function. */
+	OP_CLOSURE,			/* take the function at the given Constant table's index. */
 	OP_RETURN			/* Return from the current function. */
 } Opcode;
 
