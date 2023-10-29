@@ -130,7 +130,7 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			printf("\n");
 
 			ObjFunction* function = FUNCTION_UNPACK(
-									bytecode->ConstPool.pool[constant]);
+									bytecode->constPool.pool[constant]);
 			
 			for (FN_WORD j = 0; j < function->upvalueCount; ++j) {
 				FN_WORD isLocal = bytecode->code[offset++];

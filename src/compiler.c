@@ -709,12 +709,12 @@ resolveLocal(Compiler* compiler, Token* name)
 
 /**
  * @param Compiler* the compiler of the current function.
- * @param FN_BYTE	the index of upvalue in Upvalues array.
+ * @param FN_UBYTE	the index of upvalue in Upvalues array.
  * @param bool		whether the closure captures a local variable or
  * an upvalue from the surrounding function.
 */
 static FN_WORD
-addUpvalue(Compiler* compiler, FN_UBYTE index, bool isLocal)
+addUpvalue(Compiler* compiler, const FN_UBYTE index, const bool isLocal)
 {
 	FN_WORD upvalueCount = compiler->function->upvalueCount;
 
@@ -722,7 +722,7 @@ addUpvalue(Compiler* compiler, FN_UBYTE index, bool isLocal)
 	 * closes over a variable under the given index. */
 	for (FN_WORD i = 0; i < upvalueCount; ++i) {
 		Upvalue* upvalue = &compiler->upvalues[i];
-		if (upvalue->index == index && upvalue->isLocal == isLocal) {
+		if (index == upvalue->index && isLocal == upvalue->isLocal) {
 			return i;
 		}
 	}
@@ -738,12 +738,13 @@ addUpvalue(Compiler* compiler, FN_UBYTE index, bool isLocal)
 }
 
 /**
- * Looks for a local variable declared in any of the surrounding
- * scopes and functions. If it finds one, it returns an "upvalue index"
- * for that variable.
+ * Looks for a local variable declared in any of the surrounding functions.
+ * If it finds one, it returns an "upvalue index" for that variable.
  * This function is called after failing to resolve a local variable in the
  * current function's scope, so we know the variable isn't in the current
  * compiler.
+ * @param Compiler*
+ * @param Token*
 */
 static FN_WORD
 resolveUpvalue(Compiler* compiler, Token* name)
@@ -753,16 +754,18 @@ resolveUpvalue(Compiler* compiler, Token* name)
 	if (NULL == compiler->enclosing)
 		return (-1);
 	
-	/* Find the matching variable in the enclosing function. */
+	/* Base case:
+	 * Find the matching variable in the enclosing function. */
 	FN_WORD local = resolveLocal(compiler->enclosing, name);
 	if ((-1) != local)
-		return addUpvalue(compiler, (FN_UWORD)local, true);
+		return addUpvalue(compiler, (FN_UBYTE)local, true);
 	
-	/* Recursively look up a local variable beyond the immediately
+	/* Post-order traversal:
+	 * Recursively look up a local variable beyond the immediately
 	 * enclosing function. */
 	FN_WORD upvalue = resolveUpvalue(compiler->enclosing, name);
 	if ((-1) != upvalue)
-		return addUpvalue(compiler, (FN_UWORD)local, false);
+		return addUpvalue(compiler, (FN_UBYTE)local, false);
 
 	return (-1);
 }
@@ -1365,6 +1368,12 @@ function(FunctionType type)
 	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
 	emitBytes(OP_CLOSURE, (FN_UBYTE)offset);
 
+	/* OP_CLOSURE has the operands set of variable length.
+	 * For each upvalue the closure captures, there are two single-byte
+	 * operands. Each pair of operands has the following meaning:
+	 * first operand:	'1' for local variable. '0' - for one of the
+	 * 					function's upvalues.
+	 * second operand:	upvaue index. */
 	for (FN_WORD i = 0; i < function->upvalueCount; ++i) {
 		emitByte(compiler.upvalues->isLocal ? 1 : 0);
 		emitByte(compiler.upvalues[i].index);
