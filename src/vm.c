@@ -407,12 +407,19 @@ run()
 			} break;
 			
 			case OP_GET_UPVALUE: {
+				/* the 'slot' - is the operand of GET_OPVALUE instruction which
+				 * stores an index into the current function's upvalue array. */
 				FN_UBYTE slot = READ_BYTE();
+
+				/* Dereference its location pointer to read the value in
+				 * the given slot. */
 				push(*frame->closure->upvalues[slot]->location);
 			} break;
 
 			case OP_SET_UPVALUE: {
 				FN_UBYTE slot = READ_BYTE();
+				/* Take the value on top of the stack and store it onto the slot
+				 * pointed to by the chosen upvalue. */
 				*frame->closure->upvalues[slot]->location = peek(slot);
 			} break;
 
@@ -510,13 +517,6 @@ run()
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 
-			/* This instruction is emitted at the end of a function declaration.
-			 * At the moment of executing that declaration, the current function
-			 * is the surrounding one.
-			 * This implies that the current function's closure is stored in the
-			 * CallFrame at the top of the callstack. Thus, to grab an upvalue
-			 * from the enclosing function, we can read it right from the 'frame'
-			 * local variable, which caches a reference to that CallFrame. */
 			case OP_CLOSURE: {
 				/* Load the compiled function from the Constant pool. */
 				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());
@@ -529,15 +529,28 @@ run()
 				for (FN_WORD i = 0; i < closure->upvalueCount; ++i) {
 					FN_UBYTE isLocal = READ_BYTE();
 					FN_UBYTE index = READ_BYTE();
+
+					/* If the upvalue closes over a local variable in the enclosing
+					 * function. */
 					if (isLocal) {
-						/* upvalue closes over a local variable in the enclosing
-						 * function.
-						 * Grab a pointer to the captured local's slot in the
-						 * surrounding function's stack window. That window
-						 * begins at 'frame->slots', which points to slot zero.*/
+
+						/* The index is the pointer to the slot in the enclosing
+						 * function's stack window. That window begins at 'frame->slots',
+						 * which points to slot zero, thus we do the pointer arithmetic
+						 * to grab that local slot. */
 						closure->upvalues[i] = captureUpvalue(frame->slots + index);
 					} else {
-						/* Capture an upvalue from the surrounding function. */
+
+						/* Capture an upvalue from the surrounding (one hop over
+						 * enclosing one) function.
+						 * 
+						 * The current function is the one that surrounds the closure
+						 * havve just been created. And this closure is stored in 
+						 * the function is the surrounding one, and its closure
+						 * is stored CallFrame at the top of the callstack (line 519).
+						 * So, to grab an upvalue from the enclosing function, we can
+						 * read it right from the 'frame' variable.
+						 * */
 						closure->upvalues[i] = frame->closure->upvalues[index];
 					}
 				}

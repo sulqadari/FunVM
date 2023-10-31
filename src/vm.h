@@ -32,8 +32,8 @@ typedef struct Table Table;
  * a single function.
  * Thus, 'return address' is the property of invocation and not the function itself.
  * 
- * ObjFunction* function:
- * 			A function being called.
+ * ObjClosure* closure:
+ * 			Contains a function being called.
  * 			Used to look up constants and for other things.
  * 
  * FN_UBYTE* ip;

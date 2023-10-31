@@ -101,7 +101,7 @@ struct ObjString {
 
 /**
  * Runtime representation for upvalues.
- * The instance of this object is assigned to actuyal variable,
+ * The instance of this object is assigned to actual variable,
  * not a copy.
  * Because multiple closures can close over the same variable, the instance
  * of ObjUpvalue doesn't own the variable it references.
