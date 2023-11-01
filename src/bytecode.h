@@ -36,6 +36,7 @@ typedef enum {
 	OP_LOOP,
 	OP_CALL,
 	OP_CLOSURE,			/* take the function at the given Constant table's index. */
+	OP_CLOSE_UPVALUE,
 	OP_RETURN			/* Return from the current function. */
 } Opcode;
 

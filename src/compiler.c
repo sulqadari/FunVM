@@ -73,10 +73,13 @@ typedef struct {
  * 					initialized with the current value of
  * 					Compiler::scopeDepth every time 'addLocal()'
  * 					is called.
+ * bool isCaptured:	'true' if the local variable is vaptured by
+ *					 any later nested function diclaration.
  */
 typedef struct {
 	Token name;
-	FN_WORD depth; 
+	FN_WORD depth;
+	bool isCaptured;
 } LocalVariable;
 
 typedef struct {
@@ -109,6 +112,14 @@ typedef enum {
  * on which stack offset variable lives. These offsets
  * are used as operands for the bytecode instructions that read
  * and read store local variables.
+ * 
+ * Compiler need to know which locals are closed over. The Upvalue upvalues[]
+ * array is good for answering "Which variables does this closure use?", but
+ * it's poorly suited for answering, "Does any function capture this local
+ * variable?". In other word, the compiler maintains pointers from
+ * upvalues to the locals they capture, but not in the other direction.
+ * To fix that there is extra tracking inside the existing LocalVariable struct
+ * so that we can tell if a given local variable is captured by a closure.
  * 
  * NOTE: Since the instruction operand being used to encode
  * a local is a single byte, the current VM implementation has
@@ -378,6 +389,7 @@ initCompiler(Compiler* compiler, FunctionType type)
 	 * from the user space. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
+	local->isCaptured = false;
 	local->name.start = "";
 	local->name.length = 0;
 }
@@ -447,8 +459,17 @@ endScope(void)
 	while ((0 < currCplr->localCount) &&
 			(currCplr->locals[currCplr->localCount - 1].depth >
 			currCplr->scopeDepth)) {
+		
+		/* Hoist the local variable onto the heap if it's capured.
+		 * OP_CLOSE_UPVALUE requires no operand because the variable
+		 * always on top of the stack at the point that this instruction
+		 * executes. */
+		if (currCplr->locals[currCplr->localCount - 1].isCaptured) {
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			emitByte(OP_POP);
+		}
 
-		emitByte(OP_POP);
 		currCplr->localCount--;
 	}
 }
@@ -757,9 +778,11 @@ resolveUpvalue(Compiler* compiler, Token* name)
 	/* Base case:
 	 * Find the matching variable in the enclosing function. */
 	FN_WORD local = resolveLocal(compiler->enclosing, name);
-	if ((-1) != local)
+	if ((-1) != local) {
+		/* Mark local variable as captured. */
+		compiler->enclosing->locals[local].isCaptured = true;
 		return addUpvalue(compiler, (FN_UBYTE)local, true);
-	
+	}
 	/* Post-order traversal:
 	 * Recursively look up a local variable beyond the immediately
 	 * enclosing function. */
@@ -1222,7 +1245,10 @@ addLocal(Token name)
 	 * Later, once the variable's intializer has been compiled, this
 	 * sentinel will be discarded.
 	 */
-	local->depth = -1;
+	local->depth = (-1);
+
+	/* Initially, all locals are not capured. */
+	local->isCaptured = false;
 }
 
 /**

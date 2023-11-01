@@ -1,8 +1,45 @@
-fun outer() {
-  var x = "outside";
-  fun inner() {
-    println(x);
-  }
-  inner();
+var returnClosure;
+
+// 'Open upvalue': refers to an upvalue that points
+// to a local variable still on the stack.
+fun printClosure() {
+	var x = false;
+	var z = "printClosure()";
+
+	fun inner() {
+		println(z);
+	}
+	inner();
 }
-outer();
+
+// 'Closed upvalue': refers to a variable which is moved
+// to the heap.
+fun get() {
+	var x = "returnClosure()";
+		fun inner() {
+		println(x);
+	}
+
+	return inner;
+}
+returnClosure = get();
+
+printClosure();
+returnClosure(); // Prints 'false' while 'returnClosure()' is expected.
+
+var globalSet;
+var globalGet;
+
+fun main() {
+	var a = "initial";
+
+	fun set() { a = "updated"; }
+	fun get() { println(a); }
+
+	globalSet = set;
+	globalGet = get;
+}
+
+main();
+globalSet();
+globalGet();

@@ -140,7 +140,9 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			}
 
 			return offset;
-		} case OP_RETURN:
+		} case OP_CLOSE_UPVALUE:
+			return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		default:
 			printf("Unknown opcode %d\n", opcode);
