@@ -90,6 +90,7 @@ typedef struct {
 	Value* stackTop;
 	Table* globals;
 	Table* interns;
+	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
 	Object* objects;
 } VM;
 

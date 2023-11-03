@@ -73,7 +73,7 @@ typedef struct {
  * 					initialized with the current value of
  * 					Compiler::scopeDepth every time 'addLocal()'
  * 					is called.
- * bool isCaptured:	'true' if the local variable is vaptured by
+ * bool isCaptured:	'true' if the local variable is captured by
  *					 any later nested function diclaration.
  */
 typedef struct {
@@ -389,6 +389,9 @@ initCompiler(Compiler* compiler, FunctionType type)
 	 * from the user space. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
 	local->depth = 0;
+	
+	/* The special "slot zero local" that the compiler implicitly
+	 * declares is not captured. */
 	local->isCaptured = false;
 	local->name.start = "";
 	local->name.length = 0;

@@ -36,6 +36,7 @@ resetStack(void)
 {
 	vm->stackTop = vm->stack;
 	vm->frameCount = 0;
+	vm->openUpvalues = NULL;
 }
 
 static void
@@ -214,10 +215,35 @@ _runtimeError:
 	return false;
 }
 
+/**
+ * Creates an upvalue and ensures that there is only one ever
+ * a single ObjUpvalue for any given local slot, thus if two closures
+ * capture the same varibale, they will get the same upvalue.
+ */
 static ObjUpvalue*
 captureUpvalue(Value* local)
 {
+	ObjUpvalue* previous = NULL;
+	ObjUpvalue* upvalue = vm->openUpvalues;
+	
+	/* Using pointer comparison, iterate past every upvalue
+	 * pointing to slots above the one we're looking for. */
+	while (upvalue != NULL && upvalue->location > local) {
+		previous = upvalue;
+		upvalue = upvalue->next;
+	}
+
+	if (upvalue != NULL && upvalue->location == local)
+		return upvalue;
+
 	ObjUpvalue* createdUpvalue = newUpvalue(local);
+	createdUpvalue->next = upvalue;
+
+	if (NULL == previous)
+		vm->openUpvalues = createdUpvalue;
+	else
+		previous->next = createdUpvalue;
+	
 	return createdUpvalue;
 }
 

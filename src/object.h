@@ -109,6 +109,7 @@ struct ObjString {
 typedef struct ObjUpvalue {
 	Object object;
 	Value* location;	/* Points to the closed-over variable. */
+	struct ObjUpvalue* next;	/* linked list of upvalues. */	
 } ObjUpvalue;
 
 /**
