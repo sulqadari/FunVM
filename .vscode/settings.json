@@ -1,6 +1,9 @@
 {
     "files.associations": {
-        "*.fn": "java",
-        "type_traits": "c"
-    }
+		"*.fn": "java",
+		"00_Preface": "markdown",
+		"type_traits": "c",
+		"bytecode.h": "c",
+		"common.h": "c"
+	}
 }

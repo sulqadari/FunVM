@@ -1,32 +1,52 @@
+var intVal = 35;
+var strVal = "Hello";
+
 fun greeting(n) {
 	println(n);
 }
 
-greeting("Hello, Functions");
+greeting(strVal + " Functions!");
 
-// Outer function which will call the inner one.
-fun outer(a) {
-	inner(a);
-}
-
-fun inner(b) {
-	print("inside inner(): ");
-	println(b);
-}
-
-outer(42);
-
-// Late binding: the global variable gA is referenced
+// Late binding: the global variable "lateBind" is referenced
 // inside this function *before* it had been defined.
 // Inportant point is that this function must be called
-// *after* actual definition of the global variable.
+// *after* actual definition of the global variable being referenced.
 fun printGlobal() {
-	print("gA = ");
-	println(gA);
+	print("intVal = ");
+	println(lateBind);
 }
 
-var gA = 42;
+var lateBind = 42;
 printGlobal();
+
+// Another example of late binding:
+// the outer() function references the inner() one
+// before the the latter is declared.
+fun outer() {
+	inner();
+}
+
+fun inner() {
+	println("the inner() is called from outer().");
+}
+
+outer();
+
+// Functions inside the scopes.
+{
+	fun scopedFun(arg1) {
+		println(arg1);
+	}
+	scopedFun("the first level of nesting.");
+
+	if (intVal) {
+		scopedFun("the second level of nesting.");
+
+		if (lateBind) {
+			scopedFun("the third level of nesting.");
+		}
+	}
+}
 
 // Recursive call. The limit is 62 call frames.
 fun recursiveCall(n) {
@@ -37,4 +57,4 @@ fun recursiveCall(n) {
 	return recursiveCall(n);
 }
 
-println(recursiveCall(0));
+println(recursiveCall(62));

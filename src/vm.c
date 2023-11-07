@@ -36,6 +36,7 @@ resetStack(void)
 {
 	vm->stackTop = vm->stack;
 	vm->frameCount = 0;
+	vm->openUpvalues = NULL;
 }
 
 static void
@@ -51,7 +52,7 @@ runtimeError(const char* format, ...)
 	for (FN_WORD i = vm->frameCount - 1; i >= 0; --i) {
 
 		CallFrame* frame = &vm->frames[i];
-		ObjFunction* function = frame->function;
+		ObjFunction* function = frame->closure->function;
 
 		/* (-1) is because the frame->ip is already sitting on the next 
 		 * instruction to be executed but we want the stack trace to point to
@@ -141,14 +142,14 @@ freeVM(VM* vm)
  * This function stores a pointer to the function being called and points
  * the frame's 'ip' to the beginning of the function's bytecode.
  * It sets up the 'slots' pointer to give the frame its own window into the stack.
- * @param ObjFunction*: contains the compiled code.
+ * @param ObjClosure*: contains the function with its own compiled code.
  */
 static bool
-call(ObjFunction* function, FN_WORD argCount)
+call(ObjClosure* closure, FN_WORD argCount)
 {
-	if (argCount != function->arity) {
+	if (argCount != closure->function->arity) {
 		runtimeError("Expected %d arguments, but got %d.",
-										function->arity, argCount);
+						closure->function->arity, argCount);
 		return false;
 	}
 
@@ -161,11 +162,11 @@ call(ObjFunction* function, FN_WORD argCount)
 	CallFrame* frame = &vm->frames[vm->frameCount++];
 
 	/* Reference the function being called. */
-	frame->function = function;
+	frame->closure = closure;
 
 	/* get pointer to the beginning of the bytecode
 	 * dedicated for this frame. */
-	frame->ip = function->bytecode.code;
+	frame->ip = closure->function->bytecode.code;
 
 	/* Set up stack window (aka "Frame pointer").
 	 * The following expression resolves the level of indirection.
@@ -183,33 +184,97 @@ call(ObjFunction* function, FN_WORD argCount)
 static bool
 callValue(Value callee, FN_BYTE argCount)
 {
-	if (IS_OBJECT(callee)) {
+	if (!IS_OBJECT(callee)) 
+		goto _runtimeError;
 		
-		switch (OBJECT_TYPE(callee)) {
-			
-			case OBJ_FUNCTION:
-				return call(FUNCTION_UNPACK(callee), argCount);
-			
-			/* If the object being called is a native function, we invoke
-			 * the C function right then and there. The value returned by
-			 * this call is stored onto the stack. */
-			case OBJ_NATIVE: {
-				NativeFn native = NATIVE_UNPACK(callee);
-				Value result = native(argCount, vm->stackTop - argCount);
+	switch (OBJECT_TYPE(callee)) {
+		
+		/* If the object being called is a native function, we invoke
+			* the C function right then and there. The value returned by
+			* this call is stored onto the stack. */
+		case OBJ_NATIVE: {
+			NativeFn native = NATIVE_UNPACK(callee);
+			Value result = native(argCount, vm->stackTop - argCount);
 
-				/* Discard */
-				vm->stackTop -= argCount + 1;
-				push(result);
-				return true;
-			}
-			default:
-				/* Non-callabe object type. */
-			break;
+			/* Discard */
+			vm->stackTop -= argCount + 1;
+			push(result);
+			return true;
 		}
+		
+		case OBJ_CLOSURE:
+			return call(CLOSURE_UNPACK(callee), argCount);
+		
+		default:
+			/* Non-callabe object type. */
+		break;
 	}
 
+_runtimeError:
 	runtimeError("Can only call functions and classes.");
 	return false;
+}
+
+/**
+ * Creates an upvalue and ensures that there is only one ever
+ * a single ObjUpvalue for any given local slot, thus if two closures
+ * capture the same varibale, they will get the same upvalue.
+ */
+static ObjUpvalue*
+captureUpvalue(Value* local)
+{
+	ObjUpvalue* previous = NULL;
+	ObjUpvalue* upvalue = vm->openUpvalues;
+	
+	/* Using pointer comparison, iterate past every upvalue
+	 * pointing to slots above the one we're looking for. */
+	while (upvalue != NULL && upvalue->location > local) {
+		previous = upvalue;
+		upvalue = upvalue->next;
+	}
+
+	if (upvalue != NULL && upvalue->location == local)
+		return upvalue;
+
+	ObjUpvalue* createdUpvalue = newUpvalue(local);
+	createdUpvalue->next = upvalue;
+
+	if (NULL == previous)
+		vm->openUpvalues = createdUpvalue;
+	else
+		previous->next = createdUpvalue;
+	
+	return createdUpvalue;
+}
+
+/**
+ * Closes the upvalue and moves the local variable from
+ * the stack to hte heap.
+ * This function closes every open upvalue it can find that
+ * points to given slot index or any slot above it on the stack.
+ * @param Value* pointer to a stack slot.
+ */
+static void
+closeUpvalues(Value* last)
+{
+	/* Walk the VM's list of upvalues from top to bottom.
+	 * Close the upvalue is its location points into the range of
+	 * slots we're closing. */
+	while ((NULL != vm->openUpvalues) &&
+	(last <= vm->openUpvalues->location)) {
+
+		ObjUpvalue* upvalue = vm->openUpvalues;
+		
+		/* Copy the variable's value. */
+		upvalue->closed = *upvalue->location;
+
+		/* When the variable moves from the stack to 'closed' field,
+		 * we update 'location' to the address of the ObjUpvalue's own
+		 * closed field. This way, OP_GET_UPVALUE and OP_SET_UPVALUE
+		 * instructions */
+		upvalue->location = &upvalue->closed;
+		vm->openUpvalues = upvalue->next;
+	}
 }
 
 /** The 'falsiness' rule.
@@ -249,7 +314,7 @@ concatenate()
 /* Read the next byte from the bytecode, treat it as an index,
  * and look up the corresponding Value in the bytecode's constPool. */
 #define READ_CONSTANT() \
-	(frame->function->bytecode.constPool.pool[READ_BYTE()])
+	(frame->closure->function->bytecode.constPool.pool[READ_BYTE()])
 
 
 #define READ_STRING() \
@@ -272,8 +337,8 @@ concatenate()
 static void
 logRun(CallFrame* frame)
 {
-	disassembleInstruction(&frame->function->bytecode,
-			(FN_UWORD)(frame->ip - frame->function->bytecode.code));
+	disassembleInstruction(&frame->closure->function->bytecode,
+			(FN_UWORD)(frame->ip - frame->closure->function->bytecode.code));
 
 	printf("		");
 	for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
@@ -397,6 +462,23 @@ run()
 				push(BOOL_PACK(valuesEqual(a, b)));
 			} break;
 			
+			case OP_GET_UPVALUE: {
+				/* the 'slot' - is the operand of GET_OPVALUE instruction which
+				 * stores an index into the current function's upvalue array. */
+				FN_UBYTE slot = READ_BYTE();
+
+				/* Dereference its location pointer to read the value in
+				 * the given slot. */
+				push(*frame->closure->upvalues[slot]->location);
+			} break;
+
+			case OP_SET_UPVALUE: {
+				FN_UBYTE slot = READ_BYTE();
+				/* Take the value on top of the stack and store it onto the slot
+				 * pointed to by the chosen upvalue. */
+				*frame->closure->upvalues[slot]->location = peek(slot);
+			} break;
+
 			case OP_GREATER:	BINARY_OP(BOOL_PACK, >);	break;
 			case OP_LESS:		BINARY_OP(BOOL_PACK, <);	break;
 
@@ -491,11 +573,59 @@ run()
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 
+			case OP_CLOSURE: {
+				/* Load the compiled function from the Constant pool. */
+				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());
+
+				/* Create a closure instance and push it onto the stack. */
+				ObjClosure* closure = newClosure(function);
+				push(OBJECT_PACK(closure));
+
+				/* Iterate over each upvalue the closure expects. */
+				for (FN_WORD i = 0; i < closure->upvalueCount; ++i) {
+					FN_UBYTE isLocal = READ_BYTE();
+					FN_UBYTE index = READ_BYTE();
+
+					/* If the upvalue closes over a local variable in the enclosing
+					 * function. */
+					if (isLocal) {
+
+						/* The index is the pointer to the slot in the enclosing
+						 * function's stack window. That window begins at 'frame->slots',
+						 * which points to slot zero, thus we do the pointer arithmetic
+						 * to grab that local slot. */
+						closure->upvalues[i] = captureUpvalue(frame->slots + index);
+					} else {
+
+						/* Capture an upvalue from the surrounding (one hop over
+						 * enclosing one) function.
+						 * 
+						 * The current function is the one that surrounds the closure
+						 * have just been created. And this closure is stored in 
+						 * the function that is surrounding one, and its closure
+						 * is stored CallFrame at the top of the callstack.
+						 * So, to grab an upvalue from the enclosing function, we can
+						 * read it right from the 'frame' variable.
+						 * */
+						closure->upvalues[i] = frame->closure->upvalues[index];
+					}
+				}
+			} break;
+
+			case OP_CLOSE_UPVALUE:
+				closeUpvalues(vm->stackTop - 1);
+				pop();
+			break;
+
 			case OP_RETURN: {
 
 				/* We're about to discard the called function's entire stack window,
 				 * so we pop that return value off and hand on to it. */
 				Value result = pop();
+
+				/* Close any remaining open upvalues owned by the returning
+				 * function.. */
+				closeUpvalues(frame->slots);
 
 				/* discard the CallFrame for the returning function. Previously
 				 * it was incremented in call() function. */
@@ -533,11 +663,19 @@ interpret(const char* source)
 	if (NULL == function)
 		return IR_COMPILE_ERROR;
 
-	/* Store the function on the stack. */
+	/* Store the function on the stack. This is done to keep GC aware of
+	 * this heap-allocated function object. */
 	push(OBJECT_PACK(function));
+	ObjClosure* closure = newClosure(function);
+
+	/* Drop the function from the stack. GC can reclaim resources exposed to it. */
+	pop();
+
+	/* Push the top-level closure onto the stack. */
+	push(OBJECT_PACK(closure));
 
 	/* Set up the first frame for executing the top-level function. */
-	call(function, 0);
+	call(closure, 0);
 
 	return run();
 }

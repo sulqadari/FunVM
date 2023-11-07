@@ -4,11 +4,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "common.h"
 #include "value.h"
 #include "bytecode.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
+
+#define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
 
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
 
@@ -16,6 +19,7 @@
 /* Safety check macro. */
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
+#define CLOSURE_UNPACK(value)	((ObjClosure*)OBJECT_UNPACK(value))
 #define FUNCTION_UNPACK(value)	((ObjFunction*)OBJECT_UNPACK(value))
 
 #define NATIVE_UNPACK(value)	(((ObjNative*)OBJECT_UNPACK(value))->function)
@@ -29,7 +33,9 @@
 typedef enum {
 	OBJ_STRING,
 	OBJ_NATIVE,
-	OBJ_FUNCTION
+	OBJ_FUNCTION,
+	OBJ_CLOSURE,
+	OBJ_UPVALUE
 } ObjType;
 
 /**
@@ -61,6 +67,7 @@ struct Object {
 typedef struct {
 	Object		object;
 	FN_UBYTE	arity;		/* the number of params. */
+	FN_WORD		upvalueCount;
 	Bytecode	bytecode;	/* function's own bytecode. */
 	ObjString*	name;		/* Function's name. */
 } ObjFunction;
@@ -92,6 +99,48 @@ struct ObjString {
 	FN_UWORD hash;
 };
 
+/**
+ * Runtime representation for upvalues.
+ * Everytime a closed-over local variable is hoisted onto the heap,
+ * "Value* location" will store the reference to it as long as needed,
+ * even after the function the variable was declared in, has returned.
+ *
+ * The instance of this object is assigned to actual local variable,
+ * not a copy.
+ *
+ * Because multiple closures can close over the same variable,
+ * the instance of ObjUpvalue doesn't own the variable it references.
+ */
+typedef struct ObjUpvalue {
+	Object object;
+	Value* location;	/* Points to the closed-over variable. */
+	Value closed;
+	struct ObjUpvalue* next;	/* linked list of upvalues. */	
+} ObjUpvalue;
+
+/**
+ * Wraps the function but does not own it because there may be multiple
+ * closures that all reference the same function, and none of them claims
+ * any special privilege over it.
+ *
+ * There are two implementation strategies for local variables: those
+ * that aren't used in closures, are leaved as the are on the stack.
+ * When local is captured by a closure, it will be lifted onto the heap
+ * where it can live as long as needed.
+ *
+ * The runtime representation of the closure captures the local variable
+ * surrounding the function as they exist when the function declaration
+ * *is executed*, not just when it is compiled.
+ */
+typedef struct {
+	Object object;
+	ObjFunction* function;	/* pointer to the underlined function. */
+	ObjUpvalue** upvalues;
+	FN_WORD upvalueCount;
+} ObjClosure;
+
+ObjClosure* newClosure(ObjFunction* function);
+ObjUpvalue* newUpvalue(Value* slot);
 ObjFunction* newFunction(void);
 ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, FN_UWORD length);

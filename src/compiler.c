@@ -73,11 +73,22 @@ typedef struct {
  * 					initialized with the current value of
  * 					Compiler::scopeDepth every time 'addLocal()'
  * 					is called.
+ * bool isCaptured:	'true' if the local variable is captured by
+ *					 any later nested function declaration.
  */
 typedef struct {
 	Token name;
-	FN_WORD depth; 
+	FN_WORD depth;
+	bool isCaptured;
 } LocalVariable;
+
+/**
+ * The respresentation of Upvalue object used at compiler-level.
+ */
+typedef struct {
+	FN_UBYTE index;
+	bool isLocal;
+} Upvalue;
 
 /*
  * The distinction this enum provides is meaningful in two places:
@@ -104,6 +115,14 @@ typedef enum {
  * on which stack offset variable lives. These offsets
  * are used as operands for the bytecode instructions that read
  * and read store local variables.
+ * 
+ * Compiler need to know which locals are closed over. The Upvalue upvalues[]
+ * array is good for answering "Which variables does this closure use?", but
+ * it's poorly suited for answering, "Does any function capture this local
+ * variable?". In other word, the compiler maintains pointers from
+ * upvalues to the locals they capture, but not in the other direction.
+ * To fix that there is extra tracking inside the existing LocalVariable struct
+ * so that we can tell if a given local variable is captured by a closure.
  * 
  * NOTE: Since the instruction operand being used to encode
  * a local is a single byte, the current VM implementation has
@@ -136,6 +155,8 @@ typedef struct Compiler {
 	 * local variables or temporaries. */
 	LocalVariable locals[UINT8_COUNT];
 	FN_WORD localCount;
+
+	Upvalue upvalues[UINT8_COUNT];
 	FN_WORD scopeDepth;
 } Compiler;
 
@@ -365,14 +386,15 @@ initCompiler(Compiler* compiler, FunctionType type)
 											parser.previous.length);
 	}
 
-	/* At the Compiler::locals[0] the VM stores the function being called.
-	 * 
-	 * The entry at this slot will have no name, thus can't be referenced
-	 * from the user space. */
+	/* At runtime, the VM uses the first stack index to store the function
+	 * being called itself. The compiler must take this nuance into
+	 * account and make Compiler::locals[0] unreacheable, i.e. its depth is
+	 * zero and it has no name. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
-	local->depth = 0;
 	local->name.start = "";
 	local->name.length = 0;
+	local->depth = 0;
+	local->isCaptured = false;
 }
 
 static void
@@ -440,8 +462,17 @@ endScope(void)
 	while ((0 < currCplr->localCount) &&
 			(currCplr->locals[currCplr->localCount - 1].depth >
 			currCplr->scopeDepth)) {
+		
+		/* Hoist the local variable onto the heap if it's capured.
+		 * OP_CLOSE_UPVALUE requires no operand because the variable
+		 * always on top of the stack at the point that this instruction
+		 * executes. */
+		if (currCplr->locals[currCplr->localCount - 1].isCaptured) {
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			emitByte(OP_POP);
+		}
 
-		emitByte(OP_POP);
 		currCplr->localCount--;
 	}
 }
@@ -679,18 +710,14 @@ static FN_WORD
 resolveLocal(Compiler* compiler, Token* name)
 {
 	for (FN_WORD i = compiler->localCount - 1; i >= 0; --i) {
+
 		LocalVariable* local = &compiler->locals[i];
+
+		/* Return the index if names match. */
 		if (identifiersEqual(name, &local->name)) {
 
-			/* 
-			 * If we enter this if() branch, it means that we've found
-			 * a variable with the same name. Now consider, that a user
-			 * tries to do the following:
-			 * 
-			 * {
-			 *     var a = a;
-			 * }
-			 * 
+			/* Now consider that a user tries to do the following:
+			 * { var a = a; }
 			 * Thus, the (-1) is the sentinel which prevents a local variable
 			 * to be initialized with its own uninitialized state.
 	 		 */
@@ -700,6 +727,72 @@ resolveLocal(Compiler* compiler, Token* name)
 			return i;
 		}
 	}
+
+	return (-1);
+}
+
+/**
+ * @param Compiler* the compiler of the current function.
+ * @param FN_UBYTE	the index of upvalue in Upvalues array.
+ * @param bool		whether the closure captures a local variable or
+ * an upvalue from the surrounding function.
+*/
+static FN_WORD
+addUpvalue(Compiler* compiler, const FN_UBYTE index, const bool isLocal)
+{
+	FN_WORD upvalueCount = compiler->function->upvalueCount;
+
+	/* Reuse an upvalue if the function already has an upvalue that
+	 * closes over a variable under the given index. */
+	for (FN_WORD i = 0; i < upvalueCount; ++i) {
+		Upvalue* upvalue = &compiler->upvalues[i];
+		if (index == upvalue->index && isLocal == upvalue->isLocal) {
+			return i;
+		}
+	}
+
+	if (UINT8_COUNT == upvalueCount) {
+		error("Too many closure variables in function.");
+		return 0;
+	}
+
+	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	compiler->upvalues[upvalueCount].index = index;
+	return compiler->function->upvalueCount++;
+}
+
+/**
+ * Looks for a local variable declared in any of the surrounding functions.
+ * If it finds one, it returns an "upvalue index" for that variable.
+ * This function is called after failing to resolve a local variable in the
+ * current function's scope, so we know the variable isn't in the current
+ * compiler.
+ * @param Compiler*
+ * @param Token*
+*/
+static FN_WORD
+resolveUpvalue(Compiler* compiler, Token* name)
+{
+	/* If there is no eclosing function,
+	 * the variable is treated as global. */
+	if (NULL == compiler->enclosing)
+		return (-1);
+
+	/* Base case:
+	 * Find the matching variable in the enclosing function. */
+	FN_WORD local = resolveLocal(compiler->enclosing, name);
+	if ((-1) != local) {
+		/* Mark local variable as captured. */
+		compiler->enclosing->locals[local].isCaptured = true;
+		return addUpvalue(compiler, (FN_UBYTE)local, true);
+	}
+
+	/* Post-order traversal:
+	 * Recursively look up a local variable beyond the immediately
+	 * enclosing function. */
+	FN_WORD upvalue = resolveUpvalue(compiler->enclosing, name);
+	if ((-1) != upvalue)
+		return addUpvalue(compiler, (FN_UBYTE)local, false);
 
 	return (-1);
 }
@@ -722,6 +815,8 @@ identifierConstant(Token* name)
  * Implements an access either to local or global variable. Whichever
  * type of variable we are targeted at, this function handles both type
  * of operation - setting and getting a value.
+ *
+ * Also handles closures.
  */
 static void
 namedVariable(Token name, bool canAssign)
@@ -734,17 +829,23 @@ namedVariable(Token name, bool canAssign)
 	if ((-1) != offset) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
+	} else if ((offset = resolveUpvalue(currCplr, &name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
 	} else {
 		offset = identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
 	}
 
-	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
-		expression();						// ..evaluate the expression and..
-		emitBytes(setOp, (FN_UBYTE)offset);	// ..set the value.
-	} else {								// Otherwise
-		emitBytes(getOp, (FN_UBYTE)offset);	// get the variable's value.
+	/* if the equal sign is follows, then evaluate the expression 
+	 * and assign it to the variable. E.g. SET the value. */
+	if (canAssign && match(TOKEN_EQUAL)) {
+		expression();
+		emitBytes(setOp, (FN_UBYTE)offset);
+	/* Otherwise, get the variable's value. E.g. GET the value. */
+	} else {
+		emitBytes(getOp, (FN_UBYTE)offset);
 	}
 }
 
@@ -825,7 +926,7 @@ ParseRule rules[] = {
 	[TOKEN_GREATER_EQUAL]	= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS]			= {NULL,     binary,   PREC_COMPARISON},
 	[TOKEN_LESS_EQUAL]		= {NULL,     binary,   PREC_COMPARISON},
-	[TOKEN_IDENTIFIER]		= {variable,     NULL,   PREC_NONE},
+	[TOKEN_IDENTIFIER]		= {variable,	NULL,   PREC_NONE},
 	[TOKEN_STRING]			= {string,     NULL,   PREC_NONE},
 	[TOKEN_NUMBER]			= {number,   NULL,   PREC_NONE},
 	[TOKEN_AND]				= {NULL,     and_,   PREC_AND},
@@ -1151,7 +1252,10 @@ addLocal(Token name)
 	 * Later, once the variable's intializer has been compiled, this
 	 * sentinel will be discarded.
 	 */
-	local->depth = -1;
+	local->depth = (-1);
+
+	/* Initially, all locals are not capured. */
+	local->isCaptured = false;
 }
 
 /**
@@ -1295,7 +1399,18 @@ function(FunctionType type)
 	/* Store the function object being produced by the current Compiler
 	 * as a constant in the *surrounding* function's constant table. */
 	FN_UWORD offset = makeConstant(OBJECT_PACK(function));
-	emitBytes(OP_CONSTANT, (FN_UBYTE)offset);
+	emitBytes(OP_CLOSURE, (FN_UBYTE)offset);
+
+	/* OP_CLOSURE has the operands set of variable length.
+	 * For each upvalue the closure captures, there are two single-byte
+	 * operands. Each pair of operands has the following meaning:
+	 * first operand:	'1' for local variable. '0' - for one of the
+	 * 					function's upvalues.
+	 * second operand:	upvaue index. */
+	for (FN_WORD i = 0; i < function->upvalueCount; ++i) {
+		emitByte(compiler.upvalues->isLocal ? 1 : 0);
+		emitByte(compiler.upvalues[i].index);
+	}
 }
 
 /**

@@ -42,12 +42,24 @@ freeObject(Object* object)
 			FREE(ObjNative, object);
 		} break;
 
-		/* Note that function's name is an instance of ObjString
+		/* Cannot be deleted until all objects referencing it are gone.
+		 * 
+		 * Note that function's name is an instance of ObjString
 		 * which will be garbage collected once we delete the function. */
 		case OBJ_FUNCTION: {
 			ObjFunction* function = (ObjFunction*)object;
 			freeBytecode(&function->bytecode);
 			FREE(ObjFunction, object);
+		} break;
+
+		case OBJ_CLOSURE: {
+			ObjClosure* closure = (ObjClosure*)object;
+			FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);	
+			FREE(ObjClosure, object);
+		} break;
+		
+		case OBJ_UPVALUE: {
+			FREE(ObjUpvalue, object);
 		} break;
 	}
 }

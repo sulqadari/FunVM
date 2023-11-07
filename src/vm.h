@@ -32,8 +32,8 @@ typedef struct Table Table;
  * a single function.
  * Thus, 'return address' is the property of invocation and not the function itself.
  * 
- * ObjFunction* function:
- * 			A function being called.
+ * ObjClosure* closure:
+ * 			Contains a function being called.
  * 			Used to look up constants and for other things.
  * 
  * FN_UBYTE* ip;
@@ -46,7 +46,7 @@ typedef struct Table Table;
  * 			current function can use.
 */
 typedef struct {
-	ObjFunction* function;
+	ObjClosure* closure;
 	FN_UBYTE* ip;
 	Value* slots;
 } CallFrame;
@@ -90,6 +90,7 @@ typedef struct {
 	Value* stackTop;
 	Table* globals;
 	Table* interns;
+	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
 	Object* objects;
 } VM;
 

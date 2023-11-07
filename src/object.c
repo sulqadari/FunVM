@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -52,6 +53,40 @@ allocateObject(size_t size, ObjType type)
 }
 
 /**
+ * Creates closure.
+ * Takes a pointer to the ObjFunction it wraps and returns a pointer
+ * to closure just created.
+ */
+ObjClosure*
+newClosure(ObjFunction* function)
+{
+	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+	for (FN_WORD i = 0; i < function->upvalueCount; ++i)
+		upvalues[i] = NULL;
+
+	ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+	closure->function = function;
+
+	closure->upvalues = upvalues;
+	closure->upvalueCount = function->upvalueCount;
+	
+	return closure;
+}
+
+/**
+ * @param Value* an address of the slot where the closed-over variable lives.
+ */
+ObjUpvalue*
+newUpvalue(Value* slot)
+{
+	ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+	upvalue->closed = NIL_PACK();
+	upvalue->location = slot;
+	upvalue->next = NULL;
+	return upvalue;
+}
+
+/**
  * Creates an instance of ObjFunction.
  * The initial state is left blank which will be filled in later.
  */
@@ -60,6 +95,7 @@ newFunction(void)
 {
 	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
 	function->arity = 0;
+	function->upvalueCount = 0;
 	function->name = NULL;
 	initBytecode(&function->bytecode);
 	
@@ -185,6 +221,12 @@ printObject(Value value)
 		} break;
 		case OBJ_FUNCTION:
 			printFunction(FUNCTION_UNPACK(value));
+		break;
+		case OBJ_CLOSURE:
+			printFunction(CLOSURE_UNPACK(value)->function);
+		break;
+		case OBJ_UPVALUE:
+			printf("upvalue\n");
 		break;
 	}
 }
