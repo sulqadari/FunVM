@@ -74,7 +74,7 @@ typedef struct {
  * 					Compiler::scopeDepth every time 'addLocal()'
  * 					is called.
  * bool isCaptured:	'true' if the local variable is captured by
- *					 any later nested function diclaration.
+ *					 any later nested function declaration.
  */
 typedef struct {
 	Token name;
@@ -82,6 +82,9 @@ typedef struct {
 	bool isCaptured;
 } LocalVariable;
 
+/**
+ * The respresentation of Upvalue object used at compiler-level.
+ */
 typedef struct {
 	FN_UBYTE index;
 	bool isLocal;
@@ -383,18 +386,15 @@ initCompiler(Compiler* compiler, FunctionType type)
 											parser.previous.length);
 	}
 
-	/* At the Compiler::locals[0] the VM stores the function being called.
-	 * 
-	 * The entry at this slot will have no name, thus can't be referenced
-	 * from the user space. */
+	/* At runtime, the VM uses the first stack index to store the function
+	 * being called itself. The compiler must take this nuance into
+	 * account and make Compiler::locals[0] unreacheable, i.e. its depth is
+	 * zero and it has no name. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
-	local->depth = 0;
-	
-	/* The special "slot zero local" that the compiler implicitly
-	 * declares is not captured. */
-	local->isCaptured = false;
 	local->name.start = "";
 	local->name.length = 0;
+	local->depth = 0;
+	local->isCaptured = false;
 }
 
 static void
@@ -777,7 +777,7 @@ resolveUpvalue(Compiler* compiler, Token* name)
 	 * the variable is treated as global. */
 	if (NULL == compiler->enclosing)
 		return (-1);
-	
+
 	/* Base case:
 	 * Find the matching variable in the enclosing function. */
 	FN_WORD local = resolveLocal(compiler->enclosing, name);
@@ -786,6 +786,7 @@ resolveUpvalue(Compiler* compiler, Token* name)
 		compiler->enclosing->locals[local].isCaptured = true;
 		return addUpvalue(compiler, (FN_UBYTE)local, true);
 	}
+
 	/* Post-order traversal:
 	 * Recursively look up a local variable beyond the immediately
 	 * enclosing function. */
@@ -837,11 +838,14 @@ namedVariable(Token name, bool canAssign)
 		setOp = OP_SET_GLOBAL;
 	}
 
-	if (canAssign && match(TOKEN_EQUAL)) {	// If we find an equal sign, then..
-		expression();						// ..evaluate the expression and..
-		emitBytes(setOp, (FN_UBYTE)offset);	// ..set the value.
-	} else {								// Otherwise
-		emitBytes(getOp, (FN_UBYTE)offset);	// get the variable's value.
+	/* if the equal sign is follows, then evaluate the expression 
+	 * and assign it to the variable. E.g. SET the value. */
+	if (canAssign && match(TOKEN_EQUAL)) {
+		expression();
+		emitBytes(setOp, (FN_UBYTE)offset);
+	/* Otherwise, get the variable's value. E.g. GET the value. */
+	} else {
+		emitBytes(getOp, (FN_UBYTE)offset);
 	}
 }
 

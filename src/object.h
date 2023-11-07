@@ -101,14 +101,20 @@ struct ObjString {
 
 /**
  * Runtime representation for upvalues.
- * The instance of this object is assigned to actual variable,
+ * Everytime a closed-over local variable is hoisted onto the heap,
+ * "Value* location" will store the reference to it as long as needed,
+ * even after the function the variable was declared in, has returned.
+ *
+ * The instance of this object is assigned to actual local variable,
  * not a copy.
- * Because multiple closures can close over the same variable, the instance
- * of ObjUpvalue doesn't own the variable it references.
+ *
+ * Because multiple closures can close over the same variable,
+ * the instance of ObjUpvalue doesn't own the variable it references.
  */
 typedef struct ObjUpvalue {
 	Object object;
 	Value* location;	/* Points to the closed-over variable. */
+	Value closed;
 	struct ObjUpvalue* next;	/* linked list of upvalues. */	
 } ObjUpvalue;
 

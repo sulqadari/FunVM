@@ -247,6 +247,36 @@ captureUpvalue(Value* local)
 	return createdUpvalue;
 }
 
+/**
+ * Closes the upvalue and moves the local variable from
+ * the stack to hte heap.
+ * This function closes every open upvalue it can find that
+ * points to given slot index or any slot above it on the stack.
+ * @param Value* pointer to a stack slot.
+ */
+static void
+closeUpvalues(Value* last)
+{
+	/* Walk the VM's list of upvalues from top to bottom.
+	 * Close the upvalue is its location points into the range of
+	 * slots we're closing. */
+	while ((NULL != vm->openUpvalues) &&
+	(last <= vm->openUpvalues->location)) {
+
+		ObjUpvalue* upvalue = vm->openUpvalues;
+		
+		/* Copy the variable's value. */
+		upvalue->closed = *upvalue->location;
+
+		/* When the variable moves from the stack to 'closed' field,
+		 * we update 'location' to the address of the ObjUpvalue's own
+		 * closed field. This way, OP_GET_UPVALUE and OP_SET_UPVALUE
+		 * instructions */
+		upvalue->location = &upvalue->closed;
+		vm->openUpvalues = upvalue->next;
+	}
+}
+
 /** The 'falsiness' rule.
  * 'nil' and 'false' are falsey and any other value behaves like a true.
  */
@@ -571,9 +601,9 @@ run()
 						 * enclosing one) function.
 						 * 
 						 * The current function is the one that surrounds the closure
-						 * havve just been created. And this closure is stored in 
-						 * the function is the surrounding one, and its closure
-						 * is stored CallFrame at the top of the callstack (line 519).
+						 * have just been created. And this closure is stored in 
+						 * the function that is surrounding one, and its closure
+						 * is stored CallFrame at the top of the callstack.
 						 * So, to grab an upvalue from the enclosing function, we can
 						 * read it right from the 'frame' variable.
 						 * */
@@ -582,11 +612,20 @@ run()
 				}
 			} break;
 
+			case OP_CLOSE_UPVALUE:
+				closeUpvalues(vm->stackTop - 1);
+				pop();
+			break;
+
 			case OP_RETURN: {
 
 				/* We're about to discard the called function's entire stack window,
 				 * so we pop that return value off and hand on to it. */
 				Value result = pop();
+
+				/* Close any remaining open upvalues owned by the returning
+				 * function.. */
+				closeUpvalues(frame->slots);
 
 				/* discard the CallFrame for the returning function. Previously
 				 * it was incremented in call() function. */

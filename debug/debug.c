@@ -76,10 +76,12 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_FALSE", offset);
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
+
 		case OP_GET_LOCAL:
 			return byteInstruction("OP_GET_LOCAL", bytecode, offset);
 		case OP_SET_LOCAL:
 			return byteInstruction("OP_SET_LOCAL", bytecode, offset);
+
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", bytecode, offset);
 		case OP_SET_GLOBAL:
@@ -98,6 +100,7 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_GREATER", offset);
 		case OP_LESS:
 			return simpleInstruction("OP_LESS", offset);
+
 		case OP_ADD:
 			return simpleInstruction("OP_ADD", offset);
 		case OP_SUBTRACT:
@@ -106,20 +109,25 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_MULTIPLY", offset);
 		case OP_DIVIDE:
 			return simpleInstruction("OP_DIVIDE", offset);
+
 		case OP_NOT:
 			return simpleInstruction("OP_NOT", offset);
 		case OP_NEGATE:
 			return simpleInstruction("OP_NEGATE", offset);
+
 		case OP_PRINT:
 			return simpleInstruction("OP_PRINT", offset);
 		case OP_PRINTLN:
 			return simpleInstruction("OP_PRINTLN", offset);
+
 		case OP_JUMP:
 			return jumpInstruction("OP_JUMP", 1, bytecode, offset);
 		case OP_JUMP_IF_FALSE:
 			return jumpInstruction("OP_JUMP_IF_FALSE", 1, bytecode, offset);
+
 		case OP_LOOP:
 			return jumpInstruction("OP_LOOP", -1, bytecode, offset);
+
 		case OP_CALL:
 			return byteInstruction("OP_CALL", bytecode, offset);
 		case OP_CLOSURE: {
@@ -142,6 +150,7 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return offset;
 		} case OP_CLOSE_UPVALUE:
 			return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		default:
