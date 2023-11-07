@@ -17,7 +17,7 @@ static VM* vm;
  * issue between vm.h and object.h header files.
 */
 void
-objSetVM(VM* _vm)
+objectSetVM(VM* _vm)
 {
 	vm = _vm;
 }
@@ -46,9 +46,13 @@ allocateObject(size_t size, ObjType type)
 	
 	/* Initialize the base class */
 	object->type = type;
+	object->isMarked = false;
 	object->next = vm->objects;
 	vm->objects = object;
 
+#ifdef FUNVM_DEBUG_GC
+	printf("%p allocate %zu memory for type %d\n", (void*)object, size, type);
+#endif
 	return object;
 }
 

@@ -9,11 +9,12 @@
 #include "bytecode.h"
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "scanner.h"
 #include "object.h"
 #include "value.h"
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 #include "debug.h"
 #endif
 
@@ -417,7 +418,7 @@ endCompiler(void)
 	/* Grab the function created by the current compiler. */
 	ObjFunction* function = currCplr->function;
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 	if (!parser.hadError) {
 
 		/* Notice the check in here to see if the function's name is NULL?
@@ -426,7 +427,7 @@ endCompiler(void)
 		disassembleBytecode(currentContext(), (function->name != NULL) ?
 										function->name->chars : "<script>");
 	}
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 	/* When a Compiler finishes, it pops itself off the stack by
 	 * restoring previous compiler to be the new current one. */
@@ -1824,4 +1825,21 @@ compile(const char* source)
 	ObjFunction* mainFunction = endCompiler();
 
 	return ((parser.hadError) ? NULL : mainFunction);
+}
+
+/**
+ * The Compiler periodicaly grabs memory from the heap for
+ * literals and the constant table. If the GC is run while we're
+ * in the middle of compiling, then any values the compiler
+ * directly accesses need to be treated as roots too.
+ */
+void
+markCompilerRoots(void)
+{
+	Compiler* compiler = currCplr;
+
+	while (compiler != NULL) {
+		markObject((Object*)compiler->function);
+		compiler = compiler->enclosing;
+	}
 }

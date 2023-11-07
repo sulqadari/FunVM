@@ -14,7 +14,7 @@
 #include "object.h"
 #include "table.h"
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 #include "debug.h"
 #endif
 
@@ -119,11 +119,15 @@ initVM(VM* _vm)
 	vm = _vm;
 	vm->stackTop = NULL;
 	vm->objects = NULL;
+	vm->frameCount = 0;
+	vm->grayCapacity = 0;
+	vm->grayStack = NULL;
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 
 	resetStack();
-	objSetVM(vm);
+	objectSetVM(vm);
+	memorySetVM(vm);
 	defineNative("clock", clockNative);
 }
 
@@ -333,7 +337,7 @@ concatenate()
 	} while(false)
 
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 static void
 logRun(CallFrame* frame)
 {
@@ -347,7 +351,7 @@ logRun(CallFrame* frame)
 		printf(" ]\n");
 	}
 }
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 /**
  * Reads and executes a single bytecode instruction.
@@ -365,17 +369,17 @@ run()
 	 * access to the bytecode instruction set. */
 	register CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 	printf( "\n************************************\n"
 			"    Firing up Virtual Machine"
 			"\n************************************\n");
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 	for (;;) {
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 		logRun(frame);
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 		switch (ins = READ_BYTE()) {
 

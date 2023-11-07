@@ -1,6 +1,11 @@
 #ifndef FUNVM_CONFIG_H
 #define FUNVM_CONFIG_H
 
-#cmakedefine FUNVM_DEBUG
+#cmakedefine FUNVM_DEBUG_VM
+#cmakedefine FUNVM_DEBUG_GC
+
+/* Stress-test for the garbage collector. When defined,
+ * the GC runs as often as it possibly can. */
+#cmakedefine FUNVM_DEBUG_GC_STRESS
 
 #endif // ! FUNVM_CONFIG_H

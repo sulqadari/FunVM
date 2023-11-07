@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "common.h"
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -215,7 +216,7 @@ tableAddAll(Table* from, Table* to)
 
 ObjString*
 tableFindString(Table* table, const char* chars,
-							const FN_UWORD length, const FN_UWORD hash)
+				const FN_UWORD length, const FN_UWORD hash)
 {
 	if (0 == table->count)
 		return NULL;
@@ -237,5 +238,15 @@ tableFindString(Table* table, const char* chars,
 		}
 
 		index = (index + 1) % table->capacity;
+	}
+}
+
+void
+markTable(Table* table)
+{
+	for (FN_UWORD i = 0; i < table->capacity; ++i) {
+		Bucket* bucket = &table->buckets[i];
+		markObject((Object*)bucket->key);
+		markValue(bucket->value);
 	}
 }

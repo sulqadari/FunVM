@@ -9,7 +9,7 @@ add_library(FunVM_SRC STATIC
 	value.c
 	vm.c)
 
-if(FUNVM_DEBUG)
+if(FUNVM_DEBUG_VM)
 	target_link_libraries(FunVM_SRC FUNVM_DEBUGGING)
 endif()
 
