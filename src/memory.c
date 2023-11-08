@@ -100,6 +100,12 @@ markObject(Object* object)
 	if (NULL == object)
 		return;
 
+	/* Avoid cyclic graph traversing, i.e. ensure that GC doesn't
+	 * get suck in an infinite loop as it continually re-adds the
+	 * same series of objects to the gray stack. */
+	if (object->isMarked)
+		return;
+
 #ifdef FUNVM_DEBUG_GC
 	printf("%p mark ", (void*)object);
 	printValue(OBJECT_PACK(object));
@@ -132,6 +138,14 @@ markValue(Value value)
 }
 
 static void
+markArray(ConstantPool* constPool)
+{
+	for (FN_UWORD i = 0; i < constPool->count; ++i) {
+		markValue(constPool->pool[i]);
+	}
+}
+
+static void
 markRoots(void)
 {
 	/* First, traverse the local variables and temporaries on the VM's stack. */
@@ -160,14 +174,117 @@ markRoots(void)
 	markCompilerRoots();
 }
 
+static void
+blackenObject(Object* object)
+{
+#ifdef FUNVM_DEBUG_GC
+	printf("%p blacken ", (void*)object);
+	printValue(OBJECT_PACK(object))
+	printf("\n");
+#endif
+	switch (object->type) {
+		
+		case OBJ_CLOSURE: {
+
+			ObjClosure* closure = (ObjClosure*)object;
+
+			/* Trace the bare function wrapped by closure. */
+			markObject((Object*)closure->function);
+			/* Also do the same for the array of pointers to the upvalues. */
+			for (FN_UWORD i = 0; i < closure->upvalueCount; ++i) {
+				markObject((Object*)closure->upvalues[i]);
+			}
+		} break;
+
+		case OBJ_FUNCTION: {
+			ObjFunction* function = (ObjFunction*)object;
+			
+			/*Mark function's name. */
+			markObject((Object*)function->name);
+
+			/* Mark each reference in Constant pool. */
+			markArray(&function->bytecode.constPool);
+		} break;
+
+		/* When an upvalue is closed, it contains a reference to the
+		 * closed-over value. Since the value is no longer of the stack,
+		 * we need to make sure we trace the reference to it from the
+		 * upvalue. */
+		case OBJ_UPVALUE:
+			markValue(((ObjUpvalue*)object)->closed);
+		break;
+		
+		/* Both types contain no outgoing references, so there is
+		 * nothing to traverse. */
+		case OBJ_NATIVE:
+		case OBJ_STRING:
+		break;
+	}
+}
+
+/**
+ * Pulls objects until grayStack is empty and marks 
+ * gray objects with 'black color'.
+ */
+static void
+traceReferences(void)
+{
+	while (vm->grayCount > 0) {
+		Object* object = vm->grayStack[--vm->grayCount];
+		blackenObject(object);
+	}
+}
+
+static void
+sweep(void)
+{
+	Object* previous = NULL;
+	/* Get the pointer to the first element in objects array. */
+	Object* object = vm->objects;
+
+	while (NULL != object) {
+
+		if (object->isMarked) {
+			/* clear the mark sign in anticipation of the next run. */
+			object->isMarked = false;
+			previous = object;
+			object  = object->next;
+		} else {
+			/* store the reference to the object to be deleted. */
+			Object* unreached = object;
+			/* make the 'object' point to the next element in objects array. */
+			object = object->next;
+
+			/* common case: we're in the middle of list.
+			 * Make the previous object point to the one which
+			 * follows right after current object, which is about
+			 * to be deleted. */
+			if (NULL != previous)
+				previous->next = object;
+
+			/* Edge case: we are at the very beginning of the
+			 * list: make the list to start from the subsequent
+			 * object, which follows the current one (about to
+			 * be deleted). */
+			else
+				vm->objects = object;
+			
+			freeObject(unreached);
+		}
+	}
+}
 void
 collectGarbage(void)
 {
+	markRoots();
+	traceReferences();
+	tableRemoveWhite(vm->interns);
+	sweep();
+
 #ifdef FUNVM_DEBUG_GC
 	printf("-- gc begin.\n");
 #endif
 
-	markRoots();
 
 #ifdef FUNVM_DEBUG_GC
 	printf("-- gc end.\n");

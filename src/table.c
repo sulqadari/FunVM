@@ -242,6 +242,17 @@ tableFindString(Table* table, const char* chars,
 }
 
 void
+tableRemoveWhite(Table* table)
+{
+	for (FN_UWORD i = 0; i < table->capacity; ++i) {
+		
+		Bucket* bucket = &table->buckets[i];
+		if (NULL != bucket->key && !bucket->key->object.isMarked)
+			tableDelete(table,bucket->key);
+	}
+}
+
+void
 markTable(Table* table)
 {
 	for (FN_UWORD i = 0; i < table->capacity; ++i) {
