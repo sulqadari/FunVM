@@ -14,12 +14,11 @@
 #define TABLE_MAX_LOAD 0.75
 
 void
-initTable(Table** table)
+initTable(Table* table)
 {
-	*table = ALLOCATE(Table, 1);
-	(*table)->count = 0;
-	(*table)->capacity = 0;
-	(*table)->buckets = NULL;
+	table->count = 0;
+	table->capacity = 0;
+	table->buckets = NULL;
 }
 
 void

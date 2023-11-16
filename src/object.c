@@ -141,7 +141,7 @@ allocateString(char* chars, FN_UWORD length, FN_UWORD hash)
 	 * uses NIL for the values. 
 	 * Note: here we're using the table more like 'hash set',
 	 * rather than 'hash table'. */
-	tableSet(vm->interns, string, NIL_PACK());
+	tableSet(&vm->interns, string, NIL_PACK());
 	pop();
 
 	return string;
@@ -171,7 +171,7 @@ takeString(char* chars, FN_UWORD length)
 	FN_UWORD hash = hashString(chars, length);
 
 	/* Before taking the ownership over the string, look it up in the string set first. */
-	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned) {
 		FREE_ARRAY(char, chars, length + 1);	/* Free memory for the passed in string. */
 		return interned;						/* return interned string. */
@@ -192,12 +192,8 @@ copyString(const char* chars, FN_UWORD length)
 {
 	FN_UWORD hash = hashString(chars, length);
 
-	if (NULL == vm->interns) {
-		printf("vm->interns is NULL\n");
-		exit(1);
-	}
 	/* Before copying the string, look it up in the string set first. */
-	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
 

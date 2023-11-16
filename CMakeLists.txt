@@ -10,7 +10,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2				\
 
 option(FUNVM_DEBUG_VM "Debug mode and unit tests" OFF)
 option(FUNVM_DEBUG_GC "Garbage Collector's logger" ON)
-option(FUNVM_DEBUG_GC_STRESS "Run GC as often, as possible" ON)
+option(FUNVM_DEBUG_GC_STRESS "Run GC as often, as possible" OFF)
 
 configure_file(funvmConfig.h.in funvmConfig.h)
 
@@ -19,7 +19,7 @@ add_subdirectory(src)
 if(FUNVM_DEBUG_VM)
 	add_subdirectory(debug)
 	add_subdirectory(tests/native)
-	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
+	set(CMAKE_C_FLAGS_DEBUG "-g2 -DDEBUG")
 	list(APPEND DEBUG_STUFF debug tests ${CMAKE_PROJECT_NAME}_DEBUG)
 endif()
 

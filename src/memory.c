@@ -179,7 +179,7 @@ markRoots(void)
 	}
 
 	/* Then find roots among global variables and mark them too. */
-	markTable(vm->globals);
+	markTable(&vm->globals);
 	markCompilerRoots();
 }
 
@@ -295,7 +295,7 @@ collectGarbage(void)
 
 	markRoots();
 	traceReferences();
-	tableRemoveWhite(vm->interns);
+	tableRemoveWhite(&vm->interns);
 	sweep();
 
 	/* Adjust the threshold of the next GC based on

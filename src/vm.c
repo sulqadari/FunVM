@@ -106,7 +106,7 @@ defineNative(const char* name, NativeFn function)
 	push(OBJECT_PACK(newNative(function)));
 
 	/* Store in a global variable with the given name. */
-	tableSet(vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
+	tableSet(&vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
 	pop();
 	pop();
 }
@@ -125,24 +125,22 @@ initVM(VM* _vm)
 	vm->grayCount = 0;
 	vm->grayCapacity = 0;
 	vm->grayStack = NULL;
-	
+
+	resetStack();
 	objectSetVM(vm);
 	memorySetVM(vm);
 
-	initTable(&vm->globals);
 	initTable(&vm->interns);
+	initTable(&vm->globals);	// <-------- 1
 
-	resetStack();
-	// objectSetVM(vm);
-	// memorySetVM(vm);
 	defineNative("clock", clockNative);
 }
 
 void
 freeVM(VM* vm)
 {
-	freeTable(vm->globals);
-	freeTable(vm->interns);
+	freeTable(&vm->globals);
+	freeTable(&vm->interns);
 
 	/* Release heap. */
 	freeObjects(vm);
@@ -426,7 +424,7 @@ run()
 				/* Take the value from the top of the stack and
 				 * store it in a hash table with that name as the key.
 				 * Throw an exception if variable have alredy been declared. */
-				if (!tableSet(vm->globals, name, peek(0))) {
+				if (!tableSet(&vm->globals, name, peek(0))) {
 					runtimeError("Variable '%s' is already defined.",
 														name->chars);
 					return IR_RUNTIME_ERROR;
@@ -448,8 +446,8 @@ run()
 				 * an existing variable we have created a new one.
 				 * Thus, delete it and throw the runtime error, because current
 				 * implementation doesn't support implicit variable declarations. */
-				if (tableSet(vm->globals, name, peek(0))) {
-					tableDelete(vm->globals, name);
+				if (tableSet(&vm->globals, name, peek(0))) {
+					tableDelete(&vm->globals, name);
 					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
@@ -464,7 +462,7 @@ run()
 				Value value;
 
 				/* Report a error if tableGet() can't find the given entry. */
-				if (!tableGet(vm->globals, name, &value)) {
+				if (!tableGet(&vm->globals, name, &value)) {
 					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}

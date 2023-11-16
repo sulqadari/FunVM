@@ -89,8 +89,8 @@ typedef struct {
 	FN_UWORD frameCount;
 	Value stack[STACK_MAX];
 	Value* stackTop;
-	Table* globals;
-	Table* interns;
+	Table globals;
+	Table interns;
 	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
 
 	size_t bytesAllocated;		/* allocated memory. */
