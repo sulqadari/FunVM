@@ -191,7 +191,7 @@ blackenObject(Object* object)
 			/* Trace the bare function wrapped by closure. */
 			markObject((Object*)closure->function);
 			/* Also do the same for the array of pointers to the upvalues. */
-			for (FN_UWORD i = 0; i < closure->upvalueCount; ++i) {
+			for (FN_WORD i = 0; i < closure->upvalueCount; ++i) {
 				markObject((Object*)closure->upvalues[i]);
 			}
 		} break;
