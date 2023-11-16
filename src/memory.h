@@ -25,6 +25,9 @@
 	(((capacity) < 8) ? 8 : ((capacity) * 2))
 
 void* reallocate(void* array, size_t oldCap, size_t newCap);
+void markObject(Object* object);
+void markValue(Value value);
+void collectGarbage(void);
 void freeObjects(VM* vm);
 
 #endif // !FUNVM_MEMORY_H

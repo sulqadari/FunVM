@@ -1,6 +1,7 @@
 #ifndef FUNVM_VM_H
 #define FUNVM_VM_H
 
+#include "common.h"
 #include "value.h"
 #include "bytecode.h"
 #include "object.h"
@@ -91,7 +92,14 @@ typedef struct {
 	Table* globals;
 	Table* interns;
 	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
+
+	size_t bytesAllocated;		/* allocated memory. */
+	size_t nextGC;				/* GC triggering threshold. */
+
 	Object* objects;
+	FN_WORD grayCount;
+	FN_WORD grayCapacity;
+	Object** grayStack;
 } VM;
 
 typedef enum {
@@ -102,7 +110,9 @@ typedef enum {
 
 void initVM(VM* vm);
 void freeVM(VM* vm);
-void objSetVM(VM* vm);
+void objectSetVM(VM* vm);
+void memorySetVM(VM* _vm);
+void push(Value value);
 Value pop(void);
 InterpretResult interpret(const char* source);
 

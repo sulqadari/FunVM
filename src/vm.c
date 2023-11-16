@@ -1,5 +1,3 @@
-#include "funvmConfig.h"
-
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,7 +12,7 @@
 #include "object.h"
 #include "table.h"
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 #include "debug.h"
 #endif
 
@@ -69,7 +67,7 @@ runtimeError(const char* format, ...)
 	resetStack();
 }
 
-static void
+void
 push(Value value)
 {
 	*vm->stackTop = value;	/* push the value onto the stack. */
@@ -119,11 +117,24 @@ initVM(VM* _vm)
 	vm = _vm;
 	vm->stackTop = NULL;
 	vm->objects = NULL;
+
+	vm->bytesAllocated = 0;
+//	vm->nextGC = 1024 * 1024;
+	vm->nextGC = 256;
+
+	vm->grayCount = 0;
+	vm->grayCapacity = 0;
+	vm->grayStack = NULL;
+	
+	objectSetVM(vm);
+	memorySetVM(vm);
+
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 
 	resetStack();
-	objSetVM(vm);
+	// objectSetVM(vm);
+	// memorySetVM(vm);
 	defineNative("clock", clockNative);
 }
 
@@ -288,10 +299,10 @@ isFalsey(Value value)
 }
 
 static void
-concatenate()
+concatenate(void)
 {
-	ObjString* b = STRING_UNPACK(pop());
-	ObjString* a = STRING_UNPACK(pop());
+	ObjString* b = STRING_UNPACK(peek(0));
+	ObjString* a = STRING_UNPACK(peek(1));
 
 	FN_UWORD length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
@@ -301,6 +312,10 @@ concatenate()
 	chars[length] = '\0';
 
 	ObjString* result = takeString(chars, length);
+	
+	pop(); // pop the second operand;
+	pop(); // pop the first one
+
 	push(OBJECT_PACK(result));
 }
 
@@ -333,7 +348,7 @@ concatenate()
 	} while(false)
 
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 static void
 logRun(CallFrame* frame)
 {
@@ -347,7 +362,7 @@ logRun(CallFrame* frame)
 		printf(" ]\n");
 	}
 }
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 /**
  * Reads and executes a single bytecode instruction.
@@ -365,17 +380,17 @@ run()
 	 * access to the bytecode instruction set. */
 	register CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 	printf( "\n************************************\n"
 			"    Firing up Virtual Machine"
 			"\n************************************\n");
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 	for (;;) {
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 		logRun(frame);
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 		switch (ins = READ_BYTE()) {
 

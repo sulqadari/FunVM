@@ -56,6 +56,7 @@ typedef enum {
 */
 struct Object {
 	ObjType type;
+	bool isMarked;
 	struct Object* next;
 };
 

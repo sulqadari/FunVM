@@ -8,5 +8,6 @@
 #define MAX_ARITY 16
 
 ObjFunction* compile(const char* source);
+void markCompilerRoots();
 
 #endif // !FUNVM_COMPILER_H
