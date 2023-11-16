@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "funvmConfig.h"
+
 #define FN_UWORD	uint32_t
 #define FN_WORD		int32_t
 

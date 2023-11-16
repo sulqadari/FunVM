@@ -8,9 +8,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2				\
 	-Wformat -Wformat-security"
 )
 
-option(FUNVM_DEBUG_VM "Debug mode and unit tests" ON)
+option(FUNVM_DEBUG_VM "Debug mode and unit tests" OFF)
 option(FUNVM_DEBUG_GC "Garbage Collector's logger" ON)
-option(FUNVM_DEBUG_GC_STRESS "Run GC as often, as possible" OFF)
+option(FUNVM_DEBUG_GC_STRESS "Run GC as often, as possible" ON)
 
 configure_file(funvmConfig.h.in funvmConfig.h)
 

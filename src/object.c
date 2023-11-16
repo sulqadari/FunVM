@@ -132,11 +132,17 @@ allocateString(char* chars, FN_UWORD length, FN_UWORD hash)
 	string->chars = chars;
 	string->hash = hash;
 
+	/* a brand new string isn't reachable anywhere, and at the next
+	 * stage (calling tableSet()) the resizing the string pool can
+	 * trigger GC. */
+	push(OBJECT_PACK(string));
+
 	/* The keys are the strings we are care about, so just
 	 * uses NIL for the values. 
 	 * Note: here we're using the table more like 'hash set',
 	 * rather than 'hash table'. */
 	tableSet(vm->interns, string, NIL_PACK());
+	pop();
 
 	return string;
 }

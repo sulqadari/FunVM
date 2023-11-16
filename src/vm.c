@@ -1,5 +1,3 @@
-#include "funvmConfig.h"
-
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -69,7 +67,7 @@ runtimeError(const char* format, ...)
 	resetStack();
 }
 
-static void
+void
 push(Value value)
 {
 	*vm->stackTop = value;	/* push the value onto the stack. */
@@ -119,15 +117,24 @@ initVM(VM* _vm)
 	vm = _vm;
 	vm->stackTop = NULL;
 	vm->objects = NULL;
-	vm->frameCount = 0;
+
+	vm->bytesAllocated = 0;
+//	vm->nextGC = 1024 * 1024;
+	vm->nextGC = 256;
+
+	vm->grayCount = 0;
 	vm->grayCapacity = 0;
 	vm->grayStack = NULL;
+	
+	objectSetVM(vm);
+	memorySetVM(vm);
+
 	initTable(&vm->globals);
 	initTable(&vm->interns);
 
 	resetStack();
-	objectSetVM(vm);
-	memorySetVM(vm);
+	// objectSetVM(vm);
+	// memorySetVM(vm);
 	defineNative("clock", clockNative);
 }
 
@@ -292,10 +299,10 @@ isFalsey(Value value)
 }
 
 static void
-concatenate()
+concatenate(void)
 {
-	ObjString* b = STRING_UNPACK(pop());
-	ObjString* a = STRING_UNPACK(pop());
+	ObjString* b = STRING_UNPACK(peek(0));
+	ObjString* a = STRING_UNPACK(peek(1));
 
 	FN_UWORD length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
@@ -305,6 +312,10 @@ concatenate()
 	chars[length] = '\0';
 
 	ObjString* result = takeString(chars, length);
+	
+	pop(); // pop the second operand;
+	pop(); // pop the first one
+
 	push(OBJECT_PACK(result));
 }
 

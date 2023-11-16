@@ -12,6 +12,8 @@
 #include "debug.h"
 #endif
 
+#define GC_HEAP_GROW_FACTOR 2
+
 static VM* vm;
 
 /** 
@@ -34,12 +36,19 @@ memorySetVM(VM* _vm)
 void*
 reallocate(void* array, size_t oldCap, size_t newCap)
 {
+	/* Adjust the counter by delta between allocated and freed memory. */
+	vm->bytesAllocated += newCap - oldCap;
+
 	if (newCap > oldCap) {
 #ifdef FUNVM_DEBUG_GC_STRESS
 		collectGarbage();
 #endif
 	}
 
+	if (vm->bytesAllocated > vm->nextGC) {
+		collectGarbage();
+	}
+	
 	if (0 == newCap) {
 		free(array);
 		return NULL;
@@ -58,7 +67,7 @@ static void
 freeObject(Object* object)
 {
 #ifdef FUNVM_DEBUG_GC
-	printf("%p free memory for type %d\n", (void*)object, size, type);
+	printf("%p free type %d\n", (void*)object, object->type);
 #endif
 
 	switch (object->type) {
@@ -115,7 +124,7 @@ markObject(Object* object)
 
 	/* When an object is marked, add it to the worklist.
 	 * The memory for grayStack isn't managed by the GC. If we used
-	 * realloc() implementation, then GC would start a new GC recursevily. */
+	 * reallocate() implementation, then GC could start a new GC recursevily. */
 	if (vm->grayCapacity < vm->grayCount + 1) {
 		vm->grayCapacity = INCREASE_CAPACITY(vm->grayCapacity);
 		vm->grayStack = (Object**)realloc(vm->grayStack,
@@ -177,11 +186,13 @@ markRoots(void)
 static void
 blackenObject(Object* object)
 {
+
 #ifdef FUNVM_DEBUG_GC
 	printf("%p blacken ", (void*)object);
-	printValue(OBJECT_PACK(object))
+	printValue(OBJECT_PACK(object));
 	printf("\n");
 #endif
+
 	switch (object->type) {
 		
 		case OBJ_CLOSURE: {
@@ -276,18 +287,25 @@ sweep(void)
 void
 collectGarbage(void)
 {
+
+#ifdef FUNVM_DEBUG_GC
+	printf("-- gc begin.\n");
+	size_t before = vm->bytesAllocated;
+#endif
+
 	markRoots();
 	traceReferences();
 	tableRemoveWhite(vm->interns);
 	sweep();
 
-#ifdef FUNVM_DEBUG_GC
-	printf("-- gc begin.\n");
-#endif
-
+	/* Adjust the threshold of the next GC based on
+	 * number of allocated bytes.*/
+	vm->nextGC = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef FUNVM_DEBUG_GC
 	printf("-- gc end.\n");
+	printf("	collected %zu bytes (from %zu to %zu) next at %zu\n",
+			before - vm->bytesAllocated, before, vm->bytesAllocated, vm->nextGC);
 #endif
 }
 

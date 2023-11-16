@@ -92,6 +92,10 @@ typedef struct {
 	Table* globals;
 	Table* interns;
 	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
+
+	size_t bytesAllocated;		/* allocated memory. */
+	size_t nextGC;				/* GC triggering threshold. */
+
 	Object* objects;
 	FN_WORD grayCount;
 	FN_WORD grayCapacity;
@@ -108,6 +112,7 @@ void initVM(VM* vm);
 void freeVM(VM* vm);
 void objectSetVM(VM* vm);
 void memorySetVM(VM* _vm);
+void push(Value value);
 Value pop(void);
 InterpretResult interpret(const char* source);
 
