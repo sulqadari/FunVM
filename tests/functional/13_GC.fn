@@ -1,13 +1,4 @@
-
-var global = "initial";
-
-fun produceObjects()
-{
-	var local = "local and ";
-	global = local + "assigned";
-
-	for (var i = 0; i < 100000; i = i + 1)
-		local = local + global;
+var global = "glob";
+for (var i = 0; i < 100000; i = i + 1) {
+	global = "local";
 }
-	
-produceObjects();

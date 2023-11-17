@@ -119,7 +119,6 @@ initVM(VM* _vm)
 	vm->objects = NULL;
 
 	vm->bytesAllocated = 0;
-//	vm->nextGC = 1024 * 1024;
 	vm->nextGC = 256;
 
 	vm->grayCount = 0;
@@ -131,7 +130,7 @@ initVM(VM* _vm)
 	memorySetVM(vm);
 
 	initTable(&vm->interns);
-	initTable(&vm->globals);	// <-------- 1
+	initTable(&vm->globals);
 
 	defineNative("clock", clockNative);
 }

@@ -39,11 +39,11 @@ reallocate(void* array, size_t oldCap, size_t newCap)
 	/* Adjust the counter by delta between allocated and freed memory. */
 	vm->bytesAllocated += newCap - oldCap;
 
-	if (newCap > oldCap) {
 #ifdef FUNVM_DEBUG_GC_STRESS
+	if (newCap > oldCap) {
 		collectGarbage();
-#endif
 	}
+#endif
 
 	if (vm->bytesAllocated > vm->nextGC) {
 		collectGarbage();
@@ -67,7 +67,9 @@ static void
 freeObject(Object* object)
 {
 #ifdef FUNVM_DEBUG_GC
-	printf("%p free type %d\n", (void*)object, object->type);
+	printf("Deleting object.\n");
+	printf("address: %-16p\ntype %-16s\n",
+		(void*)object, stringifyObjType(object->type));
 #endif
 
 	switch (object->type) {
@@ -116,7 +118,7 @@ markObject(Object* object)
 		return;
 
 #ifdef FUNVM_DEBUG_GC
-	printf("%p mark ", (void*)object);
+	printf("mark %-20s", stringifyObjType(object->type));
 	printValue(OBJECT_PACK(object));
 	printf("\n");
 #endif
@@ -188,7 +190,7 @@ blackenObject(Object* object)
 {
 
 #ifdef FUNVM_DEBUG_GC
-	printf("%p blacken ", (void*)object);
+	printf("blacken %-16p ", stringifyObjType(object->type));
 	printValue(OBJECT_PACK(object));
 	printf("\n");
 #endif
@@ -289,8 +291,8 @@ collectGarbage(void)
 {
 
 #ifdef FUNVM_DEBUG_GC
-	printf("-- gc begin.\n");
-	size_t before = vm->bytesAllocated;
+	printf("----------------------------------------- GC begin.\n");
+	FN_WORD before = vm->bytesAllocated;
 #endif
 
 	markRoots();
@@ -300,15 +302,15 @@ collectGarbage(void)
 
 	/* Adjust the threshold of the next GC based on
 	 * number of allocated bytes.*/
-	vm->nextGC = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
+	//vm->nextGC = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef FUNVM_DEBUG_GC
-	printf("-- gc end.\n");
-	printf("	collected %zu bytes (from %zu to %zu) next at %zu\n",
+	printf("collected %d bytes (from %d to %d). next threshold at: %d\n",
 			before - vm->bytesAllocated, before, vm->bytesAllocated, vm->nextGC);
+	printf("----------------------------------------- GC end.\n");
 #endif
 }
-
+ 
 void
 freeObjects(VM* vm)
 {

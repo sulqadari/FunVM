@@ -11,6 +11,21 @@
 
 static VM* vm;
 
+#ifdef FUNVM_DEBUG_GC
+char*
+stringifyObjType(ObjType type)
+{
+	switch (type) {
+		case OBJ_STRING: return "String";
+		case OBJ_NATIVE: return "Native";
+		case OBJ_FUNCTION: return "Function";
+		case OBJ_CLOSURE: return "Closure";
+		case OBJ_UPVALUE: return "Upvalue";
+		default: return "Unknown";
+	}
+}
+#endif
+
 /** 
  * Note that the declaration of this function can be found in vm.h.
  * This weird decision is aimed to address the cross-dependency 
@@ -51,7 +66,9 @@ allocateObject(size_t size, ObjType type)
 	vm->objects = object;
 
 #ifdef FUNVM_DEBUG_GC
-	printf("%p allocate %zu memory for type %d\n", (void*)object, size, type);
+	printf("\nObject created\n");
+	printf("address: %p\nsize: %zu\ntype: %s\n\n",
+		(void*)object, size, stringifyObjType(type));
 #endif
 	return object;
 }

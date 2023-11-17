@@ -93,8 +93,8 @@ typedef struct {
 	Table interns;
 	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
 
-	size_t bytesAllocated;		/* allocated memory. */
-	size_t nextGC;				/* GC triggering threshold. */
+	FN_WORD bytesAllocated;		/* allocated memory. */
+	FN_WORD nextGC;				/* GC triggering threshold. */
 
 	Object* objects;
 	FN_WORD grayCount;
