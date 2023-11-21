@@ -473,6 +473,58 @@ run()
 				push(value);
 			} break;
 			
+			/* When the interpreter reaches this instruction, the expression 
+			 * to the left of the dot has already been executed, and the resulting
+			 * instance is on top of the stack. */
+			case OP_GET_PROPERTY: {
+
+				/* Throw runtime exception if the value on top of the stack
+				 * isn't an instance */
+				if (!IS_INSTANCE(peek(0))) {
+					runtimeError("Only instances have properties.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				ObjInstance* instance = INSTANCE_UNPACK(peek(0));
+				/* Read the field name from the constant pool */
+				ObjString* name = READ_STRING();
+
+				Value value;
+				/* If the hash table contains an entry with that name, 
+				* we pop the instance and push the entry's value as the result. */
+				if (tableGet(&instance->fields, name, &value)) {
+					pop();
+					push(value);
+					// quit.
+					break;
+				}
+				/* Otherwise - the field doesn't exist, throw runtime error. */
+				runtimeError("Undefined property '%s'.", name->chars);
+				return IR_RUNTIME_ERROR;
+			}
+
+			/* When this executes, the top of the stack has the isntance whose field
+			 * is being set and above that, the value to stored. */
+			case OP_SET_PROPERTY: {
+
+				if (!IS_INSTANCE(peek(1))) {
+					runtimeError("Only instances have fields.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				ObjInstance* instance = INSTANCE_UNPACK(peek(1));
+				ObjString* name = READ_STRING();
+
+				if (!tableSet(&instance->fields, name, peek(0))) {
+					runtimeError("Field '%s' is already defined.",
+														name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+				Value value = pop();	// pop the stored value off
+				pop();					// pop the instance
+				push(value);			// push the value back on the stack.
+			} break;
+
 			case OP_EQUAL: {
 				Value b = pop();
 				Value a = pop();

@@ -94,6 +94,11 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 		case OP_GET_UPVALUE:
 			return byteInstruction("OP_GET_UPVALUE", bytecode, offset);
 
+		case OP_SET_PROPERTY:
+			return constantInstruction("OP_SET_PROPERTY", bytecode, offset);
+		case OP_GET_PROPERTY:
+			return constantInstruction("OP_GET_PROPERTY", bytecode, offset);
+		
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:

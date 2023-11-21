@@ -483,7 +483,7 @@ static void expression(void);
  * will eventually be recursive. */
 static void statement(void);
 static void declaration(void);
-
+static FN_UWORD identifierConstant(Token* name);
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static void and_(bool canAssign);
@@ -580,6 +580,20 @@ call(bool canAssign)
 {
 	FN_UBYTE argCount = argumentList();
 	emitBytes(OP_CALL, argCount);
+}
+
+static void
+dot(bool canAssign)
+{
+	consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+	FN_BYTE name = identifierConstant(&parser.previous);
+
+	if (canAssign && match(TOKEN_EQUAL)) {
+		expression();
+		emitBytes(OP_SET_PROPERTY, name);
+	} else {
+		emitBytes(OP_GET_PROPERTY, name);
+	}
 }
 
 static void
@@ -911,7 +925,7 @@ ParseRule rules[] = {
 	[TOKEN_LEFT_BRACE]		= {NULL,     NULL,   PREC_NONE}, 
 	[TOKEN_RIGHT_BRACE]		= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_COMMA]			= {NULL,     NULL,   PREC_NONE},
-	[TOKEN_DOT]				= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_DOT]				= {NULL,     dot,   PREC_CALL},
 	[TOKEN_MINUS]			= {unary,    binary, PREC_TERM},
 	[TOKEN_PLUS]			= {NULL,     binary, PREC_TERM},
 	[TOKEN_SEMICOLON]		= {NULL,     NULL,   PREC_NONE},

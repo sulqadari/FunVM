@@ -12,7 +12,7 @@
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
-#define IS_INSTANCE(valie)		isObjType(value, OBJ_INSTANCE)
+#define IS_INSTANCE(value)		isObjType(value, OBJ_INSTANCE)
 #define IS_CLASS(value)			isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
