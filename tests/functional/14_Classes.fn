@@ -1,0 +1,6 @@
+class MainClass {
+
+}
+
+print("class: ");
+println(MainClass);

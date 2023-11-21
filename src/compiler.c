@@ -629,7 +629,7 @@ makeConstant(Value value)
 	 * comes into play, which spawns over four bytes:
 	 * [OP_CONSTANT_LONG, operand1, operand2, operand3] */
 	if (UINT8_MAX < offset) {
-		printf("offset = %d\n", offset);
+		printf("ERROR:\noffset = %d\n", offset);
 		printf("constant pool count: %d\n",
 				currCplr->function->bytecode.constPool.count);
 		printf("constant pool capacity: %d\n",
@@ -1412,6 +1412,31 @@ function(FunctionType type)
 	}
 }
 
+static void
+classDeclaration(void)
+{
+	consume(TOKEN_IDENTIFIER, "Expect class name.");
+
+	/* Store the name of class in surrounding function's constant table.
+	 * It will be used to print class's name at runtime. */
+	FN_UBYTE nameConstant = identifierConstant(&parser.previous);
+	
+	/* The class's name is also used to bind the class object to a variable
+	 * of the same name. Thus, declare that variable. */
+	declareVariable();
+
+	/* Emite appropriate instrucitons to actually create the class object
+	 * at runtime.  */
+	emitBytes(OP_CLASS, nameConstant);
+
+	/* Define variable for the class's name we have declared right before.
+	 * For classes we define the variable to provide the user with
+	 * capability to refer to the class right within its own methods. */
+	defineVariable(nameConstant);
+
+	consume(TOKEN_LEFT_BRACE, "Expect '{'  before class body.");
+	consume(TOKEN_RIGHT_BRACE, "Expect '}'  after class body.");
+}
 /**
  * Declares function.
  * 
@@ -1778,7 +1803,9 @@ statement(void)
 static void
 declaration(void)
 {
-	if (match(TOKEN_FUN)) {
+	if (match(TOKEN_CLASS)) {
+		classDeclaration();
+	} else if (match(TOKEN_FUN)) {
 		funDeclaration();
 	} else if (match(TOKEN_VAR)) {
 		varDeclaration();

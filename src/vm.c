@@ -629,6 +629,10 @@ run()
 				pop();
 			break;
 
+			case OP_CLASS: {
+				push(OBJECT_PACK(newClass(READ_STRING())));
+			} break;
+
 			case OP_RETURN: {
 
 				/* We're about to discard the called function's entire stack window,

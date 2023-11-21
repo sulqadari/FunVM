@@ -73,6 +73,9 @@ freeObject(Object* object)
 #endif
 
 	switch (object->type) {
+		case OBJ_CLASS: {
+			FREE(ObjClass, object);
+		} break;
 		case OBJ_STRING: {
 			ObjString* string = (ObjString*)object;
 			FREE_ARRAY(char, string->chars, string->length + 1);
@@ -197,8 +200,13 @@ blackenObject(Object* object)
 
 	switch (object->type) {
 		
+		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*)object;
+			
+			/* Mark class's name so that it will be kept alive. */
+			markObject((Object*)klass->name);
+		}break;
 		case OBJ_CLOSURE: {
-
 			ObjClosure* closure = (ObjClosure*)object;
 
 			/* Trace the bare function wrapped by closure. */
