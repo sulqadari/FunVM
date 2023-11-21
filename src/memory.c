@@ -68,7 +68,7 @@ freeObject(Object* object)
 {
 #ifdef FUNVM_DEBUG_GC
 	printf("Deleting object.\n");
-	printf("address: %-16p\ntype %-16s\n",
+	printf("address: %-16p type: %-16s\n",
 		(void*)object, stringifyObjType(object->type));
 #endif
 
@@ -281,11 +281,12 @@ sweep(void)
 			 * be deleted). */
 			else
 				vm->objects = object;
-			
+
 			freeObject(unreached);
 		}
 	}
 }
+
 void
 collectGarbage(void)
 {
@@ -302,7 +303,7 @@ collectGarbage(void)
 
 	/* Adjust the threshold of the next GC based on
 	 * number of allocated bytes.*/
-	//vm->nextGC = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
+	vm->nextGC = vm->bytesAllocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef FUNVM_DEBUG_GC
 	printf("collected %d bytes (from %d to %d). next threshold at: %d\n",

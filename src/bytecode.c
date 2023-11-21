@@ -50,5 +50,6 @@ addConstant(Bytecode* bytecode, Value constant)
 {
 	push(constant);
 	writeConstantPool(&bytecode->constPool, constant);
+	pop();
 	return (bytecode->constPool.count - 1);
 }
