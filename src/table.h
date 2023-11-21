@@ -20,7 +20,7 @@ typedef struct Table {
 	Bucket* buckets;
 } Table;
 
-void initTable(Table** table);
+void initTable(Table* table);
 void freeTable(Table* table);
 bool tableGet(Table* table, ObjString* key, Value* value);
 bool tableSet(Table* table, ObjString* key, Value value);
@@ -28,5 +28,6 @@ bool tableDelete(Table* table, ObjString* key);
 void tableAddAll(Table* from, Table* to);
 ObjString* tableFindString(Table* table, const char* chars,
 							const FN_UWORD length, const FN_UWORD hash);
-
+void tableRemoveWhite(Table* table);
+void markTable(Table* table);
 #endif // !FUNVM_TABLE_H

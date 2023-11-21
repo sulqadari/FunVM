@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "bytecode.h"
 #include "memory.h"
+#include "vm.h"
 
 void
 initBytecode(Bytecode* bytecode)
@@ -47,6 +48,8 @@ freeBytecode(Bytecode* bytecode)
 FN_UWORD
 addConstant(Bytecode* bytecode, Value constant)
 {
+	push(constant);
 	writeConstantPool(&bytecode->constPool, constant);
+	pop();
 	return (bytecode->constPool.count - 1);
 }

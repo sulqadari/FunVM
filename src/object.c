@@ -11,13 +11,28 @@
 
 static VM* vm;
 
+#ifdef FUNVM_DEBUG_GC
+char*
+stringifyObjType(ObjType type)
+{
+	switch (type) {
+		case OBJ_STRING: return "String";
+		case OBJ_NATIVE: return "Native";
+		case OBJ_FUNCTION: return "Function";
+		case OBJ_CLOSURE: return "Closure";
+		case OBJ_UPVALUE: return "Upvalue";
+		default: return "Unknown";
+	}
+}
+#endif
+
 /** 
  * Note that the declaration of this function can be found in vm.h.
  * This weird decision is aimed to address the cross-dependency 
  * issue between vm.h and object.h header files.
 */
 void
-objSetVM(VM* _vm)
+objectSetVM(VM* _vm)
 {
 	vm = _vm;
 }
@@ -46,9 +61,15 @@ allocateObject(size_t size, ObjType type)
 	
 	/* Initialize the base class */
 	object->type = type;
+	object->isMarked = false;
 	object->next = vm->objects;
 	vm->objects = object;
 
+#ifdef FUNVM_DEBUG_GC
+	printf("\nObject created\n");
+	printf("address: %p\nsize: %zu\ntype: %s\n\n",
+		(void*)object, size, stringifyObjType(type));
+#endif
 	return object;
 }
 
@@ -128,11 +149,17 @@ allocateString(char* chars, FN_UWORD length, FN_UWORD hash)
 	string->chars = chars;
 	string->hash = hash;
 
+	/* a brand new string isn't reachable anywhere, and at the next
+	 * stage (calling tableSet()) the resizing the string pool can
+	 * trigger GC. */
+	push(OBJECT_PACK(string));
+
 	/* The keys are the strings we are care about, so just
 	 * uses NIL for the values. 
 	 * Note: here we're using the table more like 'hash set',
 	 * rather than 'hash table'. */
-	tableSet(vm->interns, string, NIL_PACK());
+	tableSet(&vm->interns, string, NIL_PACK());
+	pop();
 
 	return string;
 }
@@ -161,7 +188,7 @@ takeString(char* chars, FN_UWORD length)
 	FN_UWORD hash = hashString(chars, length);
 
 	/* Before taking the ownership over the string, look it up in the string set first. */
-	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned) {
 		FREE_ARRAY(char, chars, length + 1);	/* Free memory for the passed in string. */
 		return interned;						/* return interned string. */
@@ -182,12 +209,8 @@ copyString(const char* chars, FN_UWORD length)
 {
 	FN_UWORD hash = hashString(chars, length);
 
-	if (NULL == vm->interns) {
-		printf("vm->interns is NULL\n");
-		exit(1);
-	}
 	/* Before copying the string, look it up in the string set first. */
-	ObjString* interned = tableFindString(vm->interns, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->interns, chars, length, hash);
 	if (NULL != interned)
 		return interned;
 

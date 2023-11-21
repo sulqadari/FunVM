@@ -1,6 +1,13 @@
 #ifndef FUNVM_CONFIG_H
 #define FUNVM_CONFIG_H
 
-#cmakedefine FUNVM_DEBUG
+/* VM's debugging logger. */
+#cmakedefine FUNVM_DEBUG_VM
+
+/* Garbage collector's logger. */
+#cmakedefine FUNVM_DEBUG_GC
+
+/* Run GC as often as possilble. */
+#cmakedefine FUNVM_DEBUG_GC_STRESS
 
 #endif // ! FUNVM_CONFIG_H

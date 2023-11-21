@@ -56,6 +56,7 @@ typedef enum {
 */
 struct Object {
 	ObjType type;
+	bool isMarked;
 	struct Object* next;
 };
 
@@ -146,6 +147,10 @@ ObjNative* newNative(NativeFn function);
 ObjString* takeString(char* chars, FN_UWORD length);
 ObjString* copyString(const char* chars, FN_UWORD length);
 void printObject(Value value);
+
+#ifdef FUNVM_DEBUG_GC
+char* stringifyObjType(ObjType type);
+#endif
 
 /**
  * Safety check before downcasting from 'Object*' to one of the child object type.

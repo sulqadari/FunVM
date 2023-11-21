@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "common.h"
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -13,12 +14,11 @@
 #define TABLE_MAX_LOAD 0.75
 
 void
-initTable(Table** table)
+initTable(Table* table)
 {
-	*table = ALLOCATE(Table, 1);
-	(*table)->count = 0;
-	(*table)->capacity = 0;
-	(*table)->buckets = NULL;
+	table->count = 0;
+	table->capacity = 0;
+	table->buckets = NULL;
 }
 
 void
@@ -215,7 +215,7 @@ tableAddAll(Table* from, Table* to)
 
 ObjString*
 tableFindString(Table* table, const char* chars,
-							const FN_UWORD length, const FN_UWORD hash)
+				const FN_UWORD length, const FN_UWORD hash)
 {
 	if (0 == table->count)
 		return NULL;
@@ -237,5 +237,26 @@ tableFindString(Table* table, const char* chars,
 		}
 
 		index = (index + 1) % table->capacity;
+	}
+}
+
+void
+tableRemoveWhite(Table* table)
+{
+	for (FN_UWORD i = 0; i < table->capacity; ++i) {
+		
+		Bucket* bucket = &table->buckets[i];
+		if (NULL != bucket->key && !bucket->key->object.isMarked)
+			tableDelete(table,bucket->key);
+	}
+}
+
+void
+markTable(Table* table)
+{
+	for (FN_UWORD i = 0; i < table->capacity; ++i) {
+		Bucket* bucket = &table->buckets[i];
+		markObject((Object*)bucket->key);
+		markValue(bucket->value);
 	}
 }

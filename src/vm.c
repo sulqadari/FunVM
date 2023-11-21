@@ -1,5 +1,3 @@
-#include "funvmConfig.h"
-
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,7 +12,7 @@
 #include "object.h"
 #include "table.h"
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 #include "debug.h"
 #endif
 
@@ -69,7 +67,7 @@ runtimeError(const char* format, ...)
 	resetStack();
 }
 
-static void
+void
 push(Value value)
 {
 	*vm->stackTop = value;	/* push the value onto the stack. */
@@ -108,7 +106,7 @@ defineNative(const char* name, NativeFn function)
 	push(OBJECT_PACK(newNative(function)));
 
 	/* Store in a global variable with the given name. */
-	tableSet(vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
+	tableSet(&vm->globals, STRING_UNPACK(vm->stack[0]), vm->stack[1]);
 	pop();
 	pop();
 }
@@ -119,19 +117,29 @@ initVM(VM* _vm)
 	vm = _vm;
 	vm->stackTop = NULL;
 	vm->objects = NULL;
-	initTable(&vm->globals);
-	initTable(&vm->interns);
+
+	vm->bytesAllocated = 0;
+	vm->nextGC = 256;
+
+	vm->grayCount = 0;
+	vm->grayCapacity = 0;
+	vm->grayStack = NULL;
 
 	resetStack();
-	objSetVM(vm);
+	objectSetVM(vm);
+	memorySetVM(vm);
+
+	initTable(&vm->interns);
+	initTable(&vm->globals);
+
 	defineNative("clock", clockNative);
 }
 
 void
 freeVM(VM* vm)
 {
-	freeTable(vm->globals);
-	freeTable(vm->interns);
+	freeTable(&vm->globals);
+	freeTable(&vm->interns);
 
 	/* Release heap. */
 	freeObjects(vm);
@@ -288,10 +296,10 @@ isFalsey(Value value)
 }
 
 static void
-concatenate()
+concatenate(void)
 {
-	ObjString* b = STRING_UNPACK(pop());
-	ObjString* a = STRING_UNPACK(pop());
+	ObjString* b = STRING_UNPACK(peek(0));
+	ObjString* a = STRING_UNPACK(peek(1));
 
 	FN_UWORD length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
@@ -301,6 +309,10 @@ concatenate()
 	chars[length] = '\0';
 
 	ObjString* result = takeString(chars, length);
+	
+	pop(); // pop the second operand;
+	pop(); // pop the first one
+
 	push(OBJECT_PACK(result));
 }
 
@@ -333,7 +345,7 @@ concatenate()
 	} while(false)
 
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 static void
 logRun(CallFrame* frame)
 {
@@ -347,7 +359,7 @@ logRun(CallFrame* frame)
 		printf(" ]\n");
 	}
 }
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 /**
  * Reads and executes a single bytecode instruction.
@@ -365,17 +377,17 @@ run()
 	 * access to the bytecode instruction set. */
 	register CallFrame* frame = &vm->frames[vm->frameCount - 1];
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 	printf( "\n************************************\n"
 			"    Firing up Virtual Machine"
 			"\n************************************\n");
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 	for (;;) {
 
-#ifdef FUNVM_DEBUG
+#ifdef FUNVM_DEBUG_VM
 		logRun(frame);
-#endif // !FUNVM_DEBUG
+#endif // !FUNVM_DEBUG_VM
 
 		switch (ins = READ_BYTE()) {
 
@@ -411,7 +423,7 @@ run()
 				/* Take the value from the top of the stack and
 				 * store it in a hash table with that name as the key.
 				 * Throw an exception if variable have alredy been declared. */
-				if (!tableSet(vm->globals, name, peek(0))) {
+				if (!tableSet(&vm->globals, name, peek(0))) {
 					runtimeError("Variable '%s' is already defined.",
 														name->chars);
 					return IR_RUNTIME_ERROR;
@@ -433,8 +445,8 @@ run()
 				 * an existing variable we have created a new one.
 				 * Thus, delete it and throw the runtime error, because current
 				 * implementation doesn't support implicit variable declarations. */
-				if (tableSet(vm->globals, name, peek(0))) {
-					tableDelete(vm->globals, name);
+				if (tableSet(&vm->globals, name, peek(0))) {
+					tableDelete(&vm->globals, name);
 					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
@@ -449,7 +461,7 @@ run()
 				Value value;
 
 				/* Report a error if tableGet() can't find the given entry. */
-				if (!tableGet(vm->globals, name, &value)) {
+				if (!tableGet(&vm->globals, name, &value)) {
 					runtimeError("Undefined variable '%s'.", name->chars);
 					return IR_RUNTIME_ERROR;
 				}
