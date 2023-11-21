@@ -16,6 +16,7 @@ char*
 stringifyObjType(ObjType type)
 {
 	switch (type) {
+		case OBJ_INSTANCE: return "Instance";
 		case OBJ_CLASS: return "Class";
 		case OBJ_STRING: return "String";
 		case OBJ_NATIVE: return "Native";
@@ -131,6 +132,15 @@ newFunction(void)
 	return function;
 }
 
+ObjInstance*
+newInstance(ObjClass* klass)
+{
+	ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+	instance->klass = klass;
+	initTable(&instance->fields);
+	return instance;
+}
+
 /**
  * Takes a C function pointer and wraps it in an ObjNative by setting up
  * ObjNative's header 'OBJ_NATIVE' identifier and storing pointer to the
@@ -244,6 +254,9 @@ void
 printObject(Value value)
 {
 	switch (OBJECT_TYPE(value)) {
+		case OBJ_INSTANCE:
+			printf("%s instance",INSTANCE_UNPACK(value)->klass->name->chars);
+		break;
 		case OBJ_CLASS:
 			printf("%s", CLASS_UNPACK(value)->name->chars);
 		break;

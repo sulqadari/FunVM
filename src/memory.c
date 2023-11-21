@@ -5,6 +5,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "value.h"
 #include "vm.h"
 
@@ -73,6 +74,11 @@ freeObject(Object* object)
 #endif
 
 	switch (object->type) {
+		case OBJ_INSTANCE: {
+			ObjInstance* instance = (ObjInstance*)object;
+			freeTable(&instance->fields);
+			FREE(ObjInstance, object);
+		} break;
 		case OBJ_CLASS: {
 			FREE(ObjClass, object);
 		} break;
@@ -200,6 +206,11 @@ blackenObject(Object* object)
 
 	switch (object->type) {
 		
+		case OBJ_INSTANCE: {
+			ObjInstance* instance = (ObjInstance*) object;
+			markObject((Object*)instance->klass);
+			markTable(&instance->fields);
+		} break;
 		case OBJ_CLASS: {
 			ObjClass* klass = (ObjClass*)object;
 			

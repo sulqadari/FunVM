@@ -6,6 +6,7 @@
 
 #include "bytecode.h"
 #include "common.h"
+#include "value.h"
 #include "vm.h"
 #include "memory.h"
 #include "compiler.h"
@@ -186,7 +187,7 @@ call(ObjClosure* closure, FN_WORD argCount)
 	 * compiler set aside for when we add methods. */
 	frame->slots = vm->stackTop - argCount - 1;
 
-	return true;
+	return (true);
 }
 
 static bool
@@ -207,12 +208,16 @@ callValue(Value callee, FN_BYTE argCount)
 			/* Discard */
 			vm->stackTop -= argCount + 1;
 			push(result);
-			return true;
+			return (true);
 		}
-		
-		case OBJ_CLOSURE:
+		case OBJ_CLASS: {
+			ObjClass* klass = CLASS_UNPACK(callee);
+			vm->stackTop[-argCount - 1] = OBJECT_PACK(newInstance(klass));
+			return (true);
+		}		
+		case OBJ_CLOSURE: {
 			return call(CLOSURE_UNPACK(callee), argCount);
-		
+		}
 		default:
 			/* Non-callabe object type. */
 		break;
@@ -220,7 +225,7 @@ callValue(Value callee, FN_BYTE argCount)
 
 _runtimeError:
 	runtimeError("Can only call functions and classes.");
-	return false;
+	return (false);
 }
 
 /**

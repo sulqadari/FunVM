@@ -4,3 +4,4 @@ class MainClass {
 
 print("class: ");
 println(MainClass);
+println( MainClass() );

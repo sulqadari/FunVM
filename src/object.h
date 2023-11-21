@@ -6,17 +6,20 @@
 
 #include "common.h"
 #include "value.h"
+#include "table.h"
 #include "bytecode.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
-#define IS_CLASS(value)			isObjType((value), OBJ_CLSAS)
+#define IS_INSTANCE(valie)		isObjType(value, OBJ_INSTANCE)
+#define IS_CLASS(value)			isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
 #define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
+#define INSTANCE_UNPACK(value)	((ObjInstance*)	OBJECT_UNPACK(value))
 #define CLASS_UNPACK(value)		((ObjClass*)	OBJECT_UNPACK(value))
 #define CLOSURE_UNPACK(value)	((ObjClosure*)	OBJECT_UNPACK(value))
 #define FUNCTION_UNPACK(value)	((ObjFunction*)	OBJECT_UNPACK(value))
@@ -25,6 +28,7 @@
 #define CSTRING_UNPACK(value)	(((ObjString*)	OBJECT_UNPACK(value))->chars)
 
 typedef enum {
+	OBJ_INSTANCE,
 	OBJ_CLASS,
 	OBJ_STRING,
 	OBJ_NATIVE,
@@ -140,6 +144,13 @@ typedef struct {
 	ObjString* name;
 } ObjClass;
 
+typedef struct {
+	Object object;
+	ObjClass* klass;
+	Table fields;
+} ObjInstance;
+
+ObjInstance* newInstance(ObjClass* klass);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);
 ObjUpvalue* newUpvalue(Value* slot);
