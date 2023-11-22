@@ -1,0 +1,23 @@
+class MainClass {
+
+}
+
+print("class: ");
+println(MainClass);
+
+// Fails with segmentation fault...
+// for (var i = 0; i < 100; i = i + 1) {
+// 	MainClass();
+// }
+
+println( MainClass() );
+
+class Pair {
+
+}
+
+var pair = Pair();
+pair.first = 1;
+pair.second = 2;
+
+println(pair.first + pair.second);

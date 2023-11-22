@@ -6,31 +6,30 @@
 
 #include "common.h"
 #include "value.h"
+#include "table.h"
 #include "bytecode.h"
 
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
+#define IS_INSTANCE(value)		isObjType(value, OBJ_INSTANCE)
+#define IS_CLASS(value)			isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
-
 #define IS_FUNCTION(value)		isObjType(value, OBJ_FUNCTION)
-
 #define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
-/* Safety check macro. */
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
-#define CLOSURE_UNPACK(value)	((ObjClosure*)OBJECT_UNPACK(value))
-#define FUNCTION_UNPACK(value)	((ObjFunction*)OBJECT_UNPACK(value))
-
-#define NATIVE_UNPACK(value)	(((ObjNative*)OBJECT_UNPACK(value))->function)
-
-/* Returns the (ObjString*) from the heap. */
-#define STRING_UNPACK(value)	((ObjString*)OBJECT_UNPACK(value))
-
-/* Returns the (ObjString*).chars field from the heap. */
-#define CSTRING_UNPACK(value)	(((ObjString*)OBJECT_UNPACK(value))->chars)
+#define INSTANCE_UNPACK(value)	((ObjInstance*)	OBJECT_UNPACK(value))
+#define CLASS_UNPACK(value)		((ObjClass*)	OBJECT_UNPACK(value))
+#define CLOSURE_UNPACK(value)	((ObjClosure*)	OBJECT_UNPACK(value))
+#define FUNCTION_UNPACK(value)	((ObjFunction*)	OBJECT_UNPACK(value))
+#define NATIVE_UNPACK(value)	(((ObjNative*)	OBJECT_UNPACK(value))->function)
+#define STRING_UNPACK(value)	((ObjString*)	OBJECT_UNPACK(value))
+#define CSTRING_UNPACK(value)	(((ObjString*)	OBJECT_UNPACK(value))->chars)
 
 typedef enum {
+	OBJ_INSTANCE,
+	OBJ_CLASS,
 	OBJ_STRING,
 	OBJ_NATIVE,
 	OBJ_FUNCTION,
@@ -140,6 +139,19 @@ typedef struct {
 	FN_WORD upvalueCount;
 } ObjClosure;
 
+typedef struct {
+	Object object;
+	ObjString* name;
+} ObjClass;
+
+typedef struct {
+	Object object;
+	ObjClass* klass;
+	Table fields;
+} ObjInstance;
+
+ObjInstance* newInstance(ObjClass* klass);
+ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);
 ObjUpvalue* newUpvalue(Value* slot);
 ObjFunction* newFunction(void);

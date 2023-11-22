@@ -6,6 +6,7 @@
 
 #include "bytecode.h"
 #include "common.h"
+#include "value.h"
 #include "vm.h"
 #include "memory.h"
 #include "compiler.h"
@@ -186,7 +187,7 @@ call(ObjClosure* closure, FN_WORD argCount)
 	 * compiler set aside for when we add methods. */
 	frame->slots = vm->stackTop - argCount - 1;
 
-	return true;
+	return (true);
 }
 
 static bool
@@ -207,12 +208,16 @@ callValue(Value callee, FN_BYTE argCount)
 			/* Discard */
 			vm->stackTop -= argCount + 1;
 			push(result);
-			return true;
+			return (true);
 		}
-		
-		case OBJ_CLOSURE:
+		case OBJ_CLASS: {
+			ObjClass* klass = CLASS_UNPACK(callee);
+			vm->stackTop[-argCount - 1] = OBJECT_PACK(newInstance(klass));
+			return (true);
+		}		
+		case OBJ_CLOSURE: {
 			return call(CLOSURE_UNPACK(callee), argCount);
-		
+		}
 		default:
 			/* Non-callabe object type. */
 		break;
@@ -220,7 +225,7 @@ callValue(Value callee, FN_BYTE argCount)
 
 _runtimeError:
 	runtimeError("Can only call functions and classes.");
-	return false;
+	return (false);
 }
 
 /**
@@ -468,6 +473,58 @@ run()
 				push(value);
 			} break;
 			
+			/* When the interpreter reaches this instruction, the expression 
+			 * to the left of the dot has already been executed, and the resulting
+			 * instance is on top of the stack. */
+			case OP_GET_PROPERTY: {
+
+				/* Throw runtime exception if the value on top of the stack
+				 * isn't an instance */
+				if (!IS_INSTANCE(peek(0))) {
+					runtimeError("Only instances have properties.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				ObjInstance* instance = INSTANCE_UNPACK(peek(0));
+				/* Read the field name from the constant pool */
+				ObjString* name = READ_STRING();
+
+				Value value;
+				/* If the hash table contains an entry with that name, 
+				* we pop the instance and push the entry's value as the result. */
+				if (tableGet(&instance->fields, name, &value)) {
+					pop();
+					push(value);
+					// quit.
+					break;
+				}
+				/* Otherwise - the field doesn't exist, throw runtime error. */
+				runtimeError("Undefined property '%s'.", name->chars);
+				return IR_RUNTIME_ERROR;
+			}
+
+			/* When this executes, the top of the stack has the isntance whose field
+			 * is being set and above that, the value to stored. */
+			case OP_SET_PROPERTY: {
+
+				if (!IS_INSTANCE(peek(1))) {
+					runtimeError("Only instances have fields.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				ObjInstance* instance = INSTANCE_UNPACK(peek(1));
+				ObjString* name = READ_STRING();
+
+				if (!tableSet(&instance->fields, name, peek(0))) {
+					runtimeError("Field '%s' is already defined.",
+														name->chars);
+					return IR_RUNTIME_ERROR;
+				}
+				Value value = pop();	// pop the stored value off
+				pop();					// pop the instance
+				push(value);			// push the value back on the stack.
+			} break;
+
 			case OP_EQUAL: {
 				Value b = pop();
 				Value a = pop();
@@ -628,6 +685,10 @@ run()
 				closeUpvalues(vm->stackTop - 1);
 				pop();
 			break;
+
+			case OP_CLASS: {
+				push(OBJECT_PACK(newClass(READ_STRING())));
+			} break;
 
 			case OP_RETURN: {
 

@@ -16,6 +16,8 @@ char*
 stringifyObjType(ObjType type)
 {
 	switch (type) {
+		case OBJ_INSTANCE: return "Instance";
+		case OBJ_CLASS: return "Class";
 		case OBJ_STRING: return "String";
 		case OBJ_NATIVE: return "Native";
 		case OBJ_FUNCTION: return "Function";
@@ -73,6 +75,13 @@ allocateObject(size_t size, ObjType type)
 	return object;
 }
 
+ObjClass* newClass(ObjString* name)
+{
+	ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+	klass->name = name;
+	return klass;
+}
+
 /**
  * Creates closure.
  * Takes a pointer to the ObjFunction it wraps and returns a pointer
@@ -121,6 +130,15 @@ newFunction(void)
 	initBytecode(&function->bytecode);
 	
 	return function;
+}
+
+ObjInstance*
+newInstance(ObjClass* klass)
+{
+	ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+	instance->klass = klass;
+	initTable(&instance->fields);
+	return instance;
 }
 
 /**
@@ -236,6 +254,12 @@ void
 printObject(Value value)
 {
 	switch (OBJECT_TYPE(value)) {
+		case OBJ_INSTANCE:
+			printf("%s instance",INSTANCE_UNPACK(value)->klass->name->chars);
+		break;
+		case OBJ_CLASS:
+			printf("%s", CLASS_UNPACK(value)->name->chars);
+		break;
 		case OBJ_STRING:
 			printf("%s", CSTRING_UNPACK(value));
 		break;
@@ -249,7 +273,7 @@ printObject(Value value)
 			printFunction(CLOSURE_UNPACK(value)->function);
 		break;
 		case OBJ_UPVALUE:
-			printf("upvalue\n");
+			printf("upvalue");
 		break;
 	}
 }
