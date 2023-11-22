@@ -197,6 +197,7 @@ markRoots(void)
 	/* Then find roots among global variables and mark them too. */
 	markTable(&vm->globals);
 	markCompilerRoots();
+	markObject((Object*)vm->initString);
 }
 
 static void

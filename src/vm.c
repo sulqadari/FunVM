@@ -131,6 +131,8 @@ initVM(VM* _vm)
 	memorySetVM(vm);
 
 	initTable(&vm->interns);
+	vm->initString = NULL;
+	vm->initString = copyString("init", 4);
 	initTable(&vm->globals);
 
 	defineNative("clock", clockNative);
@@ -141,7 +143,7 @@ freeVM(VM* vm)
 {
 	freeTable(&vm->globals);
 	freeTable(&vm->interns);
-
+	vm->initString = NULL;
 	/* Release heap. */
 	freeObjects(vm);
 }
@@ -218,6 +220,15 @@ callValue(Value callee, FN_BYTE argCount)
 		case OBJ_CLASS: {
 			ObjClass* klass = CLASS_UNPACK(callee);
 			vm->stackTop[-argCount - 1] = OBJECT_PACK(newInstance(klass));
+
+			Value initializer;
+			if (tableGet(&klass->methods, vm->initString, &initializer)) {
+				return call(CLOSURE_UNPACK(initializer), argCount);
+			} else if (0 != argCount) {
+				runtimeError("Expected 0 arguments but got %d", argCount);
+				return (false);
+			}
+
 			return (true);
 		}		
 		case OBJ_CLOSURE: {

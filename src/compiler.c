@@ -96,6 +96,7 @@ typedef struct {
  */
 typedef enum {
 	TYPE_FUNCTION,
+	TYPE_INITIALIZER,
 	TYPE_METHOD,
 	TYPE_SCRIPT
 } FunctionType;
@@ -411,8 +412,11 @@ initCompiler(Compiler* compiler, FunctionType type)
 static void
 emitReturn(void)
 {
-	/* The function implicitly returns NIL. */
-	emitByte(OP_NIL);
+	if (TYPE_INITIALIZER == currCplr->type)
+		emitBytes(OP_GET_LOCAL, 0);
+	else
+		emitByte(OP_NIL);
+	
 	emitByte(OP_RETURN);
 }
 
@@ -895,7 +899,7 @@ this_(bool canAssign)
 		error("Can't use 'this' outside of a class.");
 		return;
 	}
-	
+
 	variable(false);
 }
 
@@ -1462,6 +1466,12 @@ method(void)
 
 	/* Method's body */
 	FunctionType type = TYPE_METHOD;
+
+	if (parser.previous.length == 4 &&
+		memcmp(parser.previous.start, "init", 4) == 0) {
+		type = TYPE_INITIALIZER;
+	}
+
 	function(type);
 
 	emitBytes(OP_METHOD, constant);
@@ -1814,6 +1824,10 @@ returnStatement(void)
 	if (match(TOKEN_SEMICOLON)) {
 		emitReturn();
 	} else {
+
+		if (TYPE_INITIALIZER == currCplr->type)
+			error("Cant' return a value from an initializer.");
+		
 		expression();
 		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
 		emitByte(OP_RETURN);

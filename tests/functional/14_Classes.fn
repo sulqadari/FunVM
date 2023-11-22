@@ -1,9 +1,6 @@
-// uncomment it and the last line will fail
-// with segfault.
+class MainClass {
 
-// class MainClass {
-
-// }
+}
 
 // print("class: ");
 // println(MainClass);
@@ -13,6 +10,8 @@
 // 	MainClass();
 // }
 
+// uncomment it and the last line will fail
+// with segfault at line 25...
 // println( MainClass() );
 
 class Pair {
@@ -49,3 +48,20 @@ class Nested {
 }
 
 Nested().method();
+
+class CoffeeMaker {
+
+	init(coffee) {
+		this.coffee = coffee;
+	}
+
+	brew() {
+		println("Enjoy your cup of " + this.coffee);
+
+		// No reusing the grounds!
+//		this.coffee = nil;
+	}
+}
+
+var maker = CoffeeMaker("coffee and chicory");
+maker.brew();
