@@ -1427,14 +1427,30 @@ function(FunctionType type)
 }
 
 static void
+method(void)
+{
+	consume(TOKEN_IDENTIFIER, "Expect method name.");
+	FN_UBYTE constant = identifierConstant(&parser.previous);
+
+	/* Method's body */
+	FunctionType type = TYPE_FUNCTION;
+	function(type);
+
+	emitBytes(OP_METHOD, constant);
+}
+
+static void
 classDeclaration(void)
 {
 	consume(TOKEN_IDENTIFIER, "Expect class name.");
 
+	/* Capture the name of the class. */
+	Token className = parser.previous;
+
 	/* Store the name of class in surrounding function's constant table.
 	 * It will be used to print class's name at runtime. */
 	FN_UBYTE nameConstant = identifierConstant(&parser.previous);
-	
+
 	/* The class's name is also used to bind the class object to a variable
 	 * of the same name. Thus, declare that variable. */
 	declareVariable();
@@ -1448,9 +1464,24 @@ classDeclaration(void)
 	 * capability to refer to the class right within its own methods. */
 	defineVariable(nameConstant);
 
+	/* Load this class back top of the stack. This is needed to bind
+	 * method to class: everytime OP_METHOD executes the stack has
+	 * the method's closure on top with the class right under it. */
+	namedVariable(className, false);
+
 	consume(TOKEN_LEFT_BRACE, "Expect '{'  before class body.");
+
+	while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+		method();
+	}
+
 	consume(TOKEN_RIGHT_BRACE, "Expect '}'  after class body.");
+	
+	/* Once we've reached the end of the method, we no longer need the class,
+	 * thus the VM should pop it off the stack. */
+	emitByte(OP_POP);
 }
+
 /**
  * Declares function.
  * 

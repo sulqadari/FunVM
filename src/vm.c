@@ -290,6 +290,20 @@ closeUpvalues(Value* last)
 	}
 }
 
+static bool
+defineMethod(ObjString* name)
+{
+	Value method = peek(0);
+	ObjClass* klass = CLASS_UNPACK(peek(1));
+	if (!tableSet(&klass->methods, name, method)) {
+		runtimeError("Method '%s' is already defined.", name->chars);
+		return (false);
+	}
+
+	pop();
+	return (true);
+}
+
 /** The 'falsiness' rule.
  * 'nil' and 'false' are falsey and any other value behaves like a true.
  */
@@ -689,7 +703,11 @@ run()
 			case OP_CLASS: {
 				push(OBJECT_PACK(newClass(READ_STRING())));
 			} break;
-
+			
+			case OP_METHOD: {
+				if (!defineMethod(READ_STRING()))
+					return IR_RUNTIME_ERROR;
+			} break;
 			case OP_RETURN: {
 
 				/* We're about to discard the called function's entire stack window,

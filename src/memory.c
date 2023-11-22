@@ -80,6 +80,8 @@ freeObject(Object* object)
 			FREE(ObjInstance, object);
 		} break;
 		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*)object;
+			freeTable(&klass->methods);
 			FREE(ObjClass, object);
 		} break;
 		case OBJ_STRING: {
@@ -213,9 +215,9 @@ blackenObject(Object* object)
 		} break;
 		case OBJ_CLASS: {
 			ObjClass* klass = (ObjClass*)object;
-			
 			/* Mark class's name so that it will be kept alive. */
 			markObject((Object*)klass->name);
+			markTable(&klass->methods);
 		}break;
 		case OBJ_CLOSURE: {
 			ObjClosure* closure = (ObjClosure*)object;

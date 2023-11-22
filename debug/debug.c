@@ -160,6 +160,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_CLASS:
 			return constantInstruction("OP_CLASS", bytecode, offset);
+		case OP_METHOD:
+			return constantInstruction("OP_METHOD", bytecode, offset);
 		default:
 			printf("Unknown opcode %d\n", opcode);
 			return offset;

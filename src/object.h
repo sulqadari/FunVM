@@ -142,6 +142,7 @@ typedef struct {
 typedef struct {
 	Object object;
 	ObjString* name;
+	Table methods;
 } ObjClass;
 
 typedef struct {

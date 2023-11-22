@@ -40,6 +40,7 @@ typedef enum {
 	OP_CLOSURE,			/* take the function at the given Constant table's index. */
 	OP_CLOSE_UPVALUE,
 	OP_CLASS,
+	OP_METHOD,
 	OP_RETURN			/* Return from the current function. */
 } Opcode;
 
