@@ -197,7 +197,10 @@ callValue(Value callee, FN_BYTE argCount)
 		goto _runtimeError;
 		
 	switch (OBJECT_TYPE(callee)) {
-		
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* bound = BOUND_METHOD_UNPACK(callee);
+			return call(bound->method, argCount);
+		}
 		/* If the object being called is a native function, we invoke
 			* the C function right then and there. The value returned by
 			* this call is stored onto the stack. */
@@ -226,6 +229,21 @@ callValue(Value callee, FN_BYTE argCount)
 _runtimeError:
 	runtimeError("Can only call functions and classes.");
 	return (false);
+}
+
+static bool
+bindMethod(ObjClass* klass, ObjString* name)
+{
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) {
+		runtimeError("Undefined property '%s'.", name->chars);
+		return (false);
+	}
+
+	ObjBoundMethod* bound = newBoundMethod(peek(0), CLOSURE_UNPACK(method));
+	pop();	// pop the instance from top of the stack.
+	push(OBJECT_PACK(bound));	// push Bound Method.
+	return (true);
 }
 
 /**
@@ -504,18 +522,23 @@ run()
 				ObjString* name = READ_STRING();
 
 				Value value;
-				/* If the hash table contains an entry with that name, 
-				* we pop the instance and push the entry's value as the result. */
+
+				/* If the instance contains an entry with the given name
+				 * we pop the instance and push the entry's value as the result. */
 				if (tableGet(&instance->fields, name, &value)) {
 					pop();
 					push(value);
-					// quit.
 					break;
 				}
-				/* Otherwise - the field doesn't exist, throw runtime error. */
-				runtimeError("Undefined property '%s'.", name->chars);
-				return IR_RUNTIME_ERROR;
-			}
+
+				/* If the property is not a field, but a method, then
+				 * then try to find it, or throw runtime exception,
+				 * i.e. requested property is neither a field,
+				 * nor it's method.*/
+				if (!bindMethod(instance->klass, name))
+					return IR_RUNTIME_ERROR;
+
+			} break;
 
 			/* When this executes, the top of the stack has the isntance whose field
 			 * is being set and above that, the value to stored. */

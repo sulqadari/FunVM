@@ -1,16 +1,19 @@
-class MainClass {
+// uncomment it and the last line will fail
+// with segfault.
 
-}
+// class MainClass {
 
-print("class: ");
-println(MainClass);
+// }
+
+// print("class: ");
+// println(MainClass);
 
 // Fails with segmentation fault...
 // for (var i = 0; i < 100; i = i + 1) {
 // 	MainClass();
 // }
 
-println( MainClass() );
+// println( MainClass() );
 
 class Pair {
 
@@ -21,3 +24,16 @@ pair.first = 1;
 pair.second = 2;
 
 println(pair.first + pair.second);
+
+class Vehicle {
+
+	suspension(height, damping) {
+		println("height: " + height);
+		println("damping: " + damping);
+	}
+}
+
+var ferrari = Vehicle();
+ferrari.suspension("80", "x2.5");
+
+Vehicle().suspension("15", "x0.75");

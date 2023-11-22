@@ -12,6 +12,7 @@
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
+#define IS_BOUND_METHOD(value)	isObjType(value, OBJ_BOUND_METHOD)
 #define IS_INSTANCE(value)		isObjType(value, OBJ_INSTANCE)
 #define IS_CLASS(value)			isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
@@ -19,15 +20,17 @@
 #define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
-#define INSTANCE_UNPACK(value)	((ObjInstance*)	OBJECT_UNPACK(value))
-#define CLASS_UNPACK(value)		((ObjClass*)	OBJECT_UNPACK(value))
-#define CLOSURE_UNPACK(value)	((ObjClosure*)	OBJECT_UNPACK(value))
-#define FUNCTION_UNPACK(value)	((ObjFunction*)	OBJECT_UNPACK(value))
-#define NATIVE_UNPACK(value)	(((ObjNative*)	OBJECT_UNPACK(value))->function)
-#define STRING_UNPACK(value)	((ObjString*)	OBJECT_UNPACK(value))
-#define CSTRING_UNPACK(value)	(((ObjString*)	OBJECT_UNPACK(value))->chars)
+#define BOUND_METHOD_UNPACK(value) ((ObjBoundMethod*)OBJECT_UNPACK(value))
+#define INSTANCE_UNPACK(value)		((ObjInstance*)	OBJECT_UNPACK(value))
+#define CLASS_UNPACK(value)			((ObjClass*)	OBJECT_UNPACK(value))
+#define CLOSURE_UNPACK(value)		((ObjClosure*)	OBJECT_UNPACK(value))
+#define FUNCTION_UNPACK(value)		((ObjFunction*)	OBJECT_UNPACK(value))
+#define NATIVE_UNPACK(value)		(((ObjNative*)	OBJECT_UNPACK(value))->function)
+#define STRING_UNPACK(value)		((ObjString*)	OBJECT_UNPACK(value))
+#define CSTRING_UNPACK(value)		(((ObjString*)	OBJECT_UNPACK(value))->chars)
 
 typedef enum {
+	OBJ_BOUND_METHOD,
 	OBJ_INSTANCE,
 	OBJ_CLASS,
 	OBJ_STRING,
@@ -151,6 +154,16 @@ typedef struct {
 	Table fields;
 } ObjInstance;
 
+/* Wraps the receiver (aka this)
+ * and method closure together.
+ * The Bound Method doesn't own values it points to. */
+typedef struct {
+	Object object;
+	Value receiver;
+	ObjClosure* method;
+} ObjBoundMethod;
+
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 ObjInstance* newInstance(ObjClass* klass);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);

@@ -74,6 +74,9 @@ freeObject(Object* object)
 #endif
 
 	switch (object->type) {
+		case OBJ_BOUND_METHOD:
+			FREE(ObjBoundMethod, object);
+		break;
 		case OBJ_INSTANCE: {
 			ObjInstance* instance = (ObjInstance*)object;
 			freeTable(&instance->fields);
@@ -208,6 +211,11 @@ blackenObject(Object* object)
 
 	switch (object->type) {
 		
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* bound = (ObjBoundMethod*)object;
+			markValue(bound->receiver);
+			markObject((Object*)bound->method);
+		} break;
 		case OBJ_INSTANCE: {
 			ObjInstance* instance = (ObjInstance*) object;
 			markObject((Object*)instance->klass);
