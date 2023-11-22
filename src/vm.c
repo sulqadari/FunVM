@@ -199,6 +199,8 @@ callValue(Value callee, FN_BYTE argCount)
 	switch (OBJECT_TYPE(callee)) {
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod* bound = BOUND_METHOD_UNPACK(callee);
+			// store 'this' at index 0
+			vm->stackTop[-argCount - 1] = bound->receiver;
 			return call(bound->method, argCount);
 		}
 		/* If the object being called is a native function, we invoke

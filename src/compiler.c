@@ -96,6 +96,7 @@ typedef struct {
  */
 typedef enum {
 	TYPE_FUNCTION,
+	TYPE_METHOD,
 	TYPE_SCRIPT
 } FunctionType;
 
@@ -159,8 +160,13 @@ typedef struct Compiler {
 	FN_WORD scopeDepth;
 } Compiler;
 
+typedef struct ClassCompiler {
+	struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 static Parser parser;
 static Compiler* currCplr = NULL;
+static ClassCompiler* currClsCplr = NULL;
 
 /**
  * The current context is always the bytecode owned by the function
@@ -390,10 +396,16 @@ initCompiler(Compiler* compiler, FunctionType type)
 	 * account and make Compiler::locals[0] unreacheable, i.e. its depth is
 	 * zero and it has no name. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
-	local->name.start = "";
-	local->name.length = 0;
-	local->depth = 0;
 	local->isCaptured = false;
+	local->depth = 0;
+
+	if (TYPE_FUNCTION != type) {
+		local->name.start = "this";
+		local->name.length = 4;
+	} else {
+		local->name.start = "";
+		local->name.length = 0;
+	}
 }
 
 static void
@@ -872,6 +884,22 @@ variable(bool canAssign)
 }
 
 /**
+ * @brief 'this' is a lexically scoped local variable
+ * whose value gets initialized automagically.
+ * @param canAssign 
+ */
+static void
+this_(bool canAssign)
+{
+	if (NULL == currClsCplr) {
+		error("Can't use 'this' outside of a class.");
+		return;
+	}
+	
+	variable(false);
+}
+
+/**
  * Processes 'negation' and 'not' operations.
  * This function takes into account the expressions with the certain
  * precedence, so that, the '-a.b + c' expression will be parsed as follows:
@@ -955,7 +983,7 @@ ParseRule rules[] = {
 	[TOKEN_PRINTLN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
-	[TOKEN_THIS]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_THIS]			= {this_,     NULL,   PREC_NONE},
 	[TOKEN_TRUE]			= {literal,     NULL,   PREC_NONE},
 	[TOKEN_VAR]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_WHILE]			= {NULL,     NULL,   PREC_NONE},
@@ -1433,7 +1461,7 @@ method(void)
 	FN_UBYTE constant = identifierConstant(&parser.previous);
 
 	/* Method's body */
-	FunctionType type = TYPE_FUNCTION;
+	FunctionType type = TYPE_METHOD;
 	function(type);
 
 	emitBytes(OP_METHOD, constant);
@@ -1464,6 +1492,10 @@ classDeclaration(void)
 	 * capability to refer to the class right within its own methods. */
 	defineVariable(nameConstant);
 
+	ClassCompiler classCompiler;
+	classCompiler.enclosing = currClsCplr;
+	currClsCplr = &classCompiler;
+
 	/* Load this class back top of the stack. This is needed to bind
 	 * method to class: everytime OP_METHOD executes the stack has
 	 * the method's closure on top with the class right under it. */
@@ -1480,6 +1512,8 @@ classDeclaration(void)
 	/* Once we've reached the end of the method, we no longer need the class,
 	 * thus the VM should pop it off the stack. */
 	emitByte(OP_POP);
+
+	currClsCplr = currClsCplr->enclosing;
 }
 
 /**

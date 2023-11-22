@@ -37,3 +37,15 @@ var ferrari = Vehicle();
 ferrari.suspension("80", "x2.5");
 
 Vehicle().suspension("15", "x0.75");
+
+class Nested {
+
+	method() {
+		fun function() {
+			println(this);
+		}
+		function();
+	}
+}
+
+Nested().method();
