@@ -245,6 +245,38 @@ _runtimeError:
 }
 
 static bool
+invokeFromClass(ObjClass* klass, ObjString* name, FN_WORD argCount)
+{
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) {
+		runtimeError("Undefined property %s.", name->chars);
+		return (false);
+	}
+
+	return call(CLOSURE_UNPACK(method), argCount);
+}
+
+static bool
+invoke(ObjString* name, FN_WORD argCount)
+{
+	Value receiver = peek(argCount);
+
+	if (!IS_INSTANCE(receiver)) {
+		runtimeError("Only instances have methods.");
+		return false;
+	}
+
+	ObjInstance* instance = INSTANCE_UNPACK(receiver);
+
+	Value value;
+	if (tableGet(&instance->fields, name, &value)) {
+		vm->stackTop[-argCount - 1] = value;
+		return callValue(value, argCount);
+	}
+	return invokeFromClass(instance->klass, name, argCount);
+}
+
+static bool
 bindMethod(ObjClass* klass, ObjString* name)
 {
 	Value method;
@@ -563,13 +595,12 @@ run()
 				}
 
 				ObjInstance* instance = INSTANCE_UNPACK(peek(1));
-				ObjString* name = READ_STRING();
 
-				if (!tableSet(&instance->fields, name, peek(0))) {
-					runtimeError("Field '%s' is already defined.",
-														name->chars);
+				if (!tableSet(&instance->fields, READ_STRING(), peek(0))) {
+					runtimeError("Field already defined.");
 					return IR_RUNTIME_ERROR;
 				}
+
 				Value value = pop();	// pop the stored value off
 				pop();					// pop the instance
 				push(value);			// push the value back on the stack.
@@ -691,7 +722,16 @@ run()
 				 * from the newly called function's CallFrame and jump to its code. */
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
+			
+			case OP_INVOKE: {
+				ObjString* method = READ_STRING();
+				FN_WORD argCount = READ_BYTE();
 
+				if (!invoke(method, argCount))
+					return IR_RUNTIME_ERROR;
+				
+				frame = &vm->frames[vm->frameCount - 1];
+			} break;
 			case OP_CLOSURE: {
 				/* Load the compiled function from the Constant pool. */
 				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());

@@ -2,17 +2,17 @@ class MainClass {
 
 }
 
-// print("class: ");
-// println(MainClass);
+// BUG: this blob of code result in floating error of different types:
+// - segfault;
+// - emergency interruption with no further chance to run any script;
+// - floating error in different parts of this scripts
 
-// Fails with segmentation fault...
-// for (var i = 0; i < 100; i = i + 1) {
+// for (var i = 0; i < 30; i = i + 1) {
 // 	MainClass();
 // }
 
-// uncomment it and the last line will fail
-// with segfault at line 25...
-// println( MainClass() );
+println(MainClass);
+println(MainClass());
 
 class Pair {
 
@@ -22,6 +22,7 @@ var pair = Pair();
 pair.first = 1;
 pair.second = 2;
 
+print("pair.first + pair.second = ");
 println(pair.first + pair.second);
 
 class Vehicle {
@@ -29,12 +30,15 @@ class Vehicle {
 	suspension(height, damping) {
 		println("height: " + height);
 		println("damping: " + damping);
+		println("");
 	}
 }
 
 var ferrari = Vehicle();
+println("Ferrari: ");
 ferrari.suspension("80", "x2.5");
 
+println("Seat: ");
 Vehicle().suspension("15", "x0.75");
 
 class Nested {
@@ -59,7 +63,7 @@ class CoffeeMaker {
 		println("Enjoy your cup of " + this.coffee);
 
 		// No reusing the grounds!
-//		this.coffee = nil;
+		// this.coffee = nil;
 	}
 }
 

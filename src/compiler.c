@@ -602,11 +602,15 @@ static void
 dot(bool canAssign)
 {
 	consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-	FN_BYTE name = identifierConstant(&parser.previous);
+	FN_UBYTE name = identifierConstant(&parser.previous);
 
 	if (canAssign && match(TOKEN_EQUAL)) {
 		expression();
 		emitBytes(OP_SET_PROPERTY, name);
+	} else if (match(TOKEN_LEFT_PAREN)) {
+		FN_UBYTE argCount = argumentList();
+		emitBytes(OP_INVOKE, name);
+		emitByte(argCount);
 	} else {
 		emitBytes(OP_GET_PROPERTY, name);
 	}
@@ -1826,7 +1830,7 @@ returnStatement(void)
 	} else {
 
 		if (TYPE_INITIALIZER == currCplr->type)
-			error("Cant' return a value from an initializer.");
+			error("Can't return a value from an initializer.");
 		
 		expression();
 		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
