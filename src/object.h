@@ -154,11 +154,34 @@ typedef struct {
 	Table fields;
 } ObjInstance;
 
-/* Wraps the receiver (aka this)
- * and method closure together.
- * The Bound Method doesn't own values it points to. */
+/* Wraps the receiver and the method closure together.
+ * 
+ * Used to wrap up a closure (which in turn is the wraper for function).
+ * When the user executes a method access (e.g. objFoo.methBar)
+ * the method will be wrapped into this struct, which tracks the
+ * instance that the method was accessed from. For example:
+ * class Foo {
+ * 		bar() {
+ * 			// the 'name' field will be assigned dynamically
+ * 			println(this.name);
+ * 		}
+ * }
+ * 
+ * var jane = Foo();
+ * jane.name = "Jane"; // dynamic field definition;
+ * 
+ * var methodRef = jane.bar; // assign the ref to bar()
+ * methRef() // prints out "Jane"
+ * 
+ * This BoundMethod can be called later like a function. And at
+ * runtime the VM will proceed to wiring up 'this' to point to
+ * the receiver inside the method's body.
+ * */
 typedef struct {
 	Object object;
+
+	/* Note: even though methods can be called only on ObjInstance,
+	 * using 'Value' type reduces the number of casting operations. */
 	Value receiver;
 	ObjClosure* method;
 } ObjBoundMethod;
