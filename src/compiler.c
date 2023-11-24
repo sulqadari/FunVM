@@ -1471,13 +1471,20 @@ method(void)
 	/* Method's body */
 	FunctionType type = TYPE_METHOD;
 
-	if (parser.previous.length == 4 &&
-		memcmp(parser.previous.start, "init", 4) == 0) {
+	if ((parser.previous.length == 4) &&
+		(memcmp(parser.previous.start, "init", 4) == 0)) {
 		type = TYPE_INITIALIZER;
 	}
 
 	function(type);
 
+	/* When VM executes this instruction, the stack will contain
+	 * the method's closure on top of it with the class right under it.
+	 * Recall that in classDeclaration(), the call to namedVariable()
+	 * pushes class's identifier on the stack.
+	 * 
+	 * The class and the method both residing adjacent on top of the
+	 * stack are required to bind the latter to the former. */
 	emitBytes(OP_METHOD, constant);
 }
 
@@ -1510,9 +1517,7 @@ classDeclaration(void)
 	classCompiler.enclosing = currClsCplr;
 	currClsCplr = &classCompiler;
 
-	/* Load this class back top of the stack. This is needed to bind
-	 * method to class: everytime OP_METHOD executes the stack has
-	 * the method's closure on top with the class right under it. */
+	/* load a variable dedicated to this class onto the stack. */
 	namedVariable(className, false);
 
 	consume(TOKEN_LEFT_BRACE, "Expect '{'  before class body.");

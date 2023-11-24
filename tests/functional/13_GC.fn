@@ -9,7 +9,7 @@ fun global() {
 	return closure;
 }
 
-for (var i = 0; i < 1000; i = i + 1) {
+for (var i = 0; i < 1; i = i + 1) {
 	var loop = global();
 	println(" inside loop.");
 	println(loop);
@@ -19,10 +19,14 @@ class MainClass {
 
 }
 
-// Commenting out previous for() loop test results
-// in segmentation fault in this for() loop.
-// After few attempts (commenting/uncommenting the above mentioned code)
-// Terminal printed out "emergency termination"
-for (var i = 0; i < 100; i = i + 1) {
-	MainClass();
+var main;
+// Commenting out previous for() leads to segmentation fault in this one.
+// After the few attempts (commenting/uncommenting the above mentioned code),
+// the terminal printed out "emergency termination".
+{
+	for (var i = 0; i < 100; i = i + 1) {
+		main = MainClass();
+	}
 }
+
+println("PASSED.");

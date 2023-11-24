@@ -53,3 +53,18 @@ class CoffeeMaker {
 
 var maker = CoffeeMaker("coffee and chicory");
 maker.brew();
+
+// Must fail.
+// class WrongBehave {
+// 	method1(){
+// 		return 4;
+// 	}
+	
+// 	method1(){
+// 		return 2;
+// 	}
+
+// }
+
+// var shadowing = WrongBehave();
+// println(shadowing.method1());

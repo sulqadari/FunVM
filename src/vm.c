@@ -577,7 +577,7 @@ run()
 				}
 
 				/* If the property is not a field, but a method, then
-				 * then try to find it, or throw runtime exception,
+				 * try to find it, or throw runtime exception,
 				 * i.e. requested property is neither a field,
 				 * nor it's method.*/
 				if (!bindMethod(instance->klass, name))
