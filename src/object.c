@@ -102,6 +102,7 @@ ObjClosure*
 newClosure(ObjFunction* function)
 {
 	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+	
 	for (FN_WORD i = 0; i < function->upvalueCount; ++i)
 		upvalues[i] = NULL;
 

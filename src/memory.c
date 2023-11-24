@@ -40,15 +40,15 @@ reallocate(void* array, size_t oldCap, size_t newCap)
 	/* Adjust the counter by delta between allocated and freed memory. */
 	vm->bytesAllocated += newCap - oldCap;
 
-#ifdef FUNVM_DEBUG_GC_STRESS
 	if (newCap > oldCap) {
+#ifdef FUNVM_DEBUG_GC_STRESS
 		collectGarbage();
-	}
 #endif
-
-	if (vm->bytesAllocated > vm->nextGC) {
-		collectGarbage();
+		if (vm->bytesAllocated > vm->nextGC) {
+			collectGarbage();
+		}
 	}
+
 	
 	if (0 == newCap) {
 		free(array);
@@ -233,6 +233,7 @@ blackenObject(Object* object)
 
 			/* Trace the bare function wrapped by closure. */
 			markObject((Object*)closure->function);
+			
 			/* Also do the same for the array of pointers to the upvalues. */
 			for (FN_WORD i = 0; i < closure->upvalueCount; ++i) {
 				markObject((Object*)closure->upvalues[i]);

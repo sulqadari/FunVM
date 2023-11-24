@@ -1,29 +1,28 @@
-// fun global() {
-// 	var local = "string";
+fun global() {
+	var local = "string";
 	
-// 	fun closure() {
-// 		var internal = local + " become internal";
-// 		return internal;
-// 	}
+	fun closure() {
+		var internal = local + " become internal";
+		return internal;
+	}
 
-// 	return closure;
-// }
+	return closure;
+}
 
-// for (var i = 0; i < 100; i = i + 1) {
-// 	var loop = global();
-// 	println(" inside loop.");
-// 	println(loop);
-// }
+for (var i = 0; i < 1000; i = i + 1) {
+	var loop = global();
+	println(" inside loop.");
+	println(loop);
+}
 
 class MainClass {
 
 }
 
-// BUG: this blob of code result in floating error of different types:
-// - segfault;
-// - emergency interruption with no further chance to run any script;
-// - floating error in different parts of this scripts
-// NOTE: when debugging no error have been found. 
-for (var i = 0; i < 30; i = i + 1) {
+// Commenting out previous for() loop test results
+// in segmentation fault in this for() loop.
+// After few attempts (commenting/uncommenting the above mentioned code)
+// Terminal printed out "emergency termination"
+for (var i = 0; i < 100; i = i + 1) {
 	MainClass();
 }
