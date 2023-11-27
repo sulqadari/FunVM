@@ -46,7 +46,7 @@ class CoffeeMaker {
 	brew() {
 		println("Enjoy your cup of " + this.coffee);
 
-		// No reusing the grounds!
+		// assiging to 'this' is forbidden.
 		// this.coffee = nil;
 	}
 }
@@ -68,3 +68,16 @@ maker.brew();
 
 // var shadowing = WrongBehave();
 // println(shadowing.method1());
+
+class PerformanceTest {
+	returnString() {
+		return "test";
+	}
+}
+
+var performanceTest = PerformanceTest();
+var retString = performanceTest.returnString;
+
+for (var i = 0; i < 1000; i = i + 1) {
+	println(retString());
+}

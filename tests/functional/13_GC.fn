@@ -1,32 +1,16 @@
-// fun global() {
-// 	var local = "string";
+fun global() {
+	var local = "string";
 	
-// 	fun closure() {
-// 		var internal = local + " become internal";
-// 		return internal;
-// 	}
-
-// 	return closure;
-// }
-
-// for (var i = 0; i < 3; i = i + 1) {
-// 	var loop = global();
-// 	println(" inside loop.");
-// 	println(loop);
-// }
-
-class MainClass {
-
-}
-
-var main;
-// Commenting out previous for() leads to segmentation fault in this one.
-// After the few attempts (commenting/uncommenting the above mentioned code),
-// the terminal printed out "emergency termination".
-{
-	for (var i = 0; i < 100; i = i + 1) {
-		main = MainClass();
+	fun closure() {
+		var internal = local + " become internal";
+		return internal;
 	}
+
+	return closure;
 }
 
-println("PASSED.");
+for (var i = 0; i < 1000; i = i + 1) {
+	var loop = global();
+	println(" inside loop.");
+	println(loop);
+}

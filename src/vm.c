@@ -131,9 +131,9 @@ initVM(VM* _vm)
 	memorySetVM(vm);
 
 	initTable(&vm->interns);
+	initTable(&vm->globals);
 	vm->initString = NULL;
 	vm->initString = copyString("init", 4);
-	initTable(&vm->globals);
 
 	defineNative("clock", clockNative);
 }
@@ -732,6 +732,7 @@ run()
 				
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
+			
 			case OP_CLOSURE: {
 				/* Load the compiled function from the Constant pool. */
 				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());

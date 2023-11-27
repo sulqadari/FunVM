@@ -1,0 +1,38 @@
+class PerformanceTest {
+	returnString() {
+		return "test";
+	}
+}
+
+var start;
+var end;
+
+var performanceTest = PerformanceTest();
+var retString = performanceTest.returnString;
+
+start = clock();
+for (var i = 0; i < 1000; i = i + 1) {
+	PerformanceTest().returnString();
+}
+
+end = clock() - start;
+print("ellapsed time: ");
+println(end);
+
+// start = clock();
+// for (var i = 0; i < 1000000; i = i + 1) {
+// 	retString();
+// }
+
+// end = clock() - start;
+// print("ellapsed time: ");
+// println(end);
+
+// start = clock();
+// for (var i = 0; i < 1000000; i = i + 1) {
+// 	performanceTest.returnString();
+// }
+
+// end = clock() - start;
+// print("ellapsed time: ");
+// println(end);

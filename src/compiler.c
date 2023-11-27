@@ -167,6 +167,9 @@ typedef struct ClassCompiler {
 
 static Parser parser;
 static Compiler* currCplr = NULL;
+
+/* Points to a struct representing the current, innermost
+ * class being compiled. */
 static ClassCompiler* currClsCplr = NULL;
 
 /**
@@ -904,6 +907,7 @@ this_(bool canAssign)
 		return;
 	}
 
+	/* Assiging a value to 'this' is forbidden. */
 	variable(false);
 }
 

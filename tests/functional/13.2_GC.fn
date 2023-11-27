@@ -1,0 +1,13 @@
+class MainClass {
+
+}
+
+var main;
+
+// 101 - is the maximum number of available indexes
+// in the Constant Pool left unused for this unit-test.
+for (var i = 0; i < 101; i = i + 1) {
+	main = MainClass();
+}
+
+println("PASSED.");

@@ -19,7 +19,7 @@ add_subdirectory(src)
 if(FUNVM_DEBUG_VM)
 	add_subdirectory(debug)
 	add_subdirectory(tests/native)
-	set(CMAKE_C_FLAGS_DEBUG "-g2 -DDEBUG")
+	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 	list(APPEND DEBUG_STUFF debug tests ${CMAKE_PROJECT_NAME}_DEBUG)
 endif()
 
