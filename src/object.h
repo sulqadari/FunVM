@@ -12,6 +12,7 @@
 /* Helper macro to obtain Object's type. */
 #define OBJECT_TYPE(value)		(OBJECT_UNPACK(value)->type)
 
+#define IS_BOUND_METHOD(value)	isObjType(value, OBJ_BOUND_METHOD)
 #define IS_INSTANCE(value)		isObjType(value, OBJ_INSTANCE)
 #define IS_CLASS(value)			isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value)		isObjType(value, OBJ_CLOSURE)
@@ -19,15 +20,17 @@
 #define IS_NATIVE(value)		isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value)		isObjType(value, OBJ_STRING)
 
-#define INSTANCE_UNPACK(value)	((ObjInstance*)	OBJECT_UNPACK(value))
-#define CLASS_UNPACK(value)		((ObjClass*)	OBJECT_UNPACK(value))
-#define CLOSURE_UNPACK(value)	((ObjClosure*)	OBJECT_UNPACK(value))
-#define FUNCTION_UNPACK(value)	((ObjFunction*)	OBJECT_UNPACK(value))
-#define NATIVE_UNPACK(value)	(((ObjNative*)	OBJECT_UNPACK(value))->function)
-#define STRING_UNPACK(value)	((ObjString*)	OBJECT_UNPACK(value))
-#define CSTRING_UNPACK(value)	(((ObjString*)	OBJECT_UNPACK(value))->chars)
+#define BOUND_METHOD_UNPACK(value) ((ObjBoundMethod*)OBJECT_UNPACK(value))
+#define INSTANCE_UNPACK(value)		((ObjInstance*)	OBJECT_UNPACK(value))
+#define CLASS_UNPACK(value)			((ObjClass*)	OBJECT_UNPACK(value))
+#define CLOSURE_UNPACK(value)		((ObjClosure*)	OBJECT_UNPACK(value))
+#define FUNCTION_UNPACK(value)		((ObjFunction*)	OBJECT_UNPACK(value))
+#define NATIVE_UNPACK(value)		(((ObjNative*)	OBJECT_UNPACK(value))->function)
+#define STRING_UNPACK(value)		((ObjString*)	OBJECT_UNPACK(value))
+#define CSTRING_UNPACK(value)		(((ObjString*)	OBJECT_UNPACK(value))->chars)
 
 typedef enum {
+	OBJ_BOUND_METHOD,
 	OBJ_INSTANCE,
 	OBJ_CLASS,
 	OBJ_STRING,
@@ -142,6 +145,7 @@ typedef struct {
 typedef struct {
 	Object object;
 	ObjString* name;
+	Table methods;
 } ObjClass;
 
 typedef struct {
@@ -150,6 +154,39 @@ typedef struct {
 	Table fields;
 } ObjInstance;
 
+/* Wraps the receiver and the method closure together.
+ * 
+ * Used to wrap up a closure (which in turn is the wraper for function).
+ * When the user executes a method access (e.g. objFoo.methBar)
+ * the method will be wrapped into this struct, which tracks the
+ * instance that the method was accessed from. For example:
+ * class Foo {
+ * 		bar() {
+ * 			// the 'name' field will be assigned dynamically
+ * 			println(this.name);
+ * 		}
+ * }
+ * 
+ * var jane = Foo();
+ * jane.name = "Jane"; // dynamic field definition;
+ * 
+ * var methodRef = jane.bar; // assign the ref to bar()
+ * methRef() // prints out "Jane"
+ * 
+ * This BoundMethod can be called later like a function. And at
+ * runtime the VM will proceed to wiring up 'this' to point to
+ * the receiver inside the method's body.
+ * */
+typedef struct {
+	Object object;
+
+	/* Note: even though methods can be called only on ObjInstance,
+	 * using 'Value' type reduces the number of casting operations. */
+	Value receiver;
+	ObjClosure* method;
+} ObjBoundMethod;
+
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 ObjInstance* newInstance(ObjClass* klass);
 ObjClass* newClass(ObjString* name);
 ObjClosure* newClosure(ObjFunction* function);

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(FunVM VERSION 0.11)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g2				\
-	-Wall -Wextra -Wno-unused-parameter						\
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall			\
+	-Wextra -Wno-unused-parameter						\
 	-Wno-missing-field-initializers -Wmissing-declarations	\
 	-Wredundant-decls -Wcast-align							\
 	-Wformat -Wformat-security"
@@ -19,7 +19,7 @@ add_subdirectory(src)
 if(FUNVM_DEBUG_VM)
 	add_subdirectory(debug)
 	add_subdirectory(tests/native)
-	set(CMAKE_C_FLAGS_DEBUG "-g2 -DDEBUG")
+	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 	list(APPEND DEBUG_STUFF debug tests ${CMAKE_PROJECT_NAME}_DEBUG)
 endif()
 

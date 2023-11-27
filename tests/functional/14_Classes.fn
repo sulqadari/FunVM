@@ -1,17 +1,3 @@
-class MainClass {
-
-}
-
-print("class: ");
-println(MainClass);
-
-// Fails with segmentation fault...
-// for (var i = 0; i < 100; i = i + 1) {
-// 	MainClass();
-// }
-
-println( MainClass() );
-
 class Pair {
 
 }
@@ -20,4 +6,78 @@ var pair = Pair();
 pair.first = 1;
 pair.second = 2;
 
+print("pair.first + pair.second = ");
 println(pair.first + pair.second);
+
+class Vehicle {
+
+	suspension(height, damping) {
+		println("height: " + height);
+		println("damping: " + damping);
+		println("");
+	}
+}
+
+var ferrari = Vehicle();
+println("Ferrari: ");
+ferrari.suspension("80", "x2.5");
+
+println("Seat: ");
+Vehicle().suspension("15", "x0.75");
+
+class Nested {
+
+	method() {
+		fun function() {
+			println(this);
+		}
+		function();
+	}
+}
+
+Nested().method();
+
+class CoffeeMaker {
+
+	init(coffee) {
+		this.coffee = coffee;
+	}
+
+	brew() {
+		println("Enjoy your cup of " + this.coffee);
+
+		// assiging to 'this' is forbidden.
+		// this.coffee = nil;
+	}
+}
+
+var maker = CoffeeMaker("coffee and chicory");
+maker.brew();
+
+// Must fail.
+// class WrongBehave {
+// 	method1(){
+// 		return 4;
+// 	}
+	
+// 	method1(){
+// 		return 2;
+// 	}
+
+// }
+
+// var shadowing = WrongBehave();
+// println(shadowing.method1());
+
+class PerformanceTest {
+	returnString() {
+		return "test";
+	}
+}
+
+var performanceTest = PerformanceTest();
+var retString = performanceTest.returnString;
+
+for (var i = 0; i < 1000; i = i + 1) {
+	println(retString());
+}

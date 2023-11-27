@@ -91,6 +91,7 @@ typedef struct {
 	Value* stackTop;
 	Table globals;
 	Table interns;
+	ObjString* initString;
 	ObjUpvalue* openUpvalues;	/* Head of linked list of upvalues. */
 
 	FN_WORD bytesAllocated;		/* allocated memory. */

@@ -96,6 +96,8 @@ typedef struct {
  */
 typedef enum {
 	TYPE_FUNCTION,
+	TYPE_INITIALIZER,
+	TYPE_METHOD,
 	TYPE_SCRIPT
 } FunctionType;
 
@@ -159,8 +161,16 @@ typedef struct Compiler {
 	FN_WORD scopeDepth;
 } Compiler;
 
+typedef struct ClassCompiler {
+	struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 static Parser parser;
 static Compiler* currCplr = NULL;
+
+/* Points to a struct representing the current, innermost
+ * class being compiled. */
+static ClassCompiler* currClsCplr = NULL;
 
 /**
  * The current context is always the bytecode owned by the function
@@ -390,17 +400,26 @@ initCompiler(Compiler* compiler, FunctionType type)
 	 * account and make Compiler::locals[0] unreacheable, i.e. its depth is
 	 * zero and it has no name. */
 	LocalVariable* local = &currCplr->locals[currCplr->localCount++];
-	local->name.start = "";
-	local->name.length = 0;
-	local->depth = 0;
 	local->isCaptured = false;
+	local->depth = 0;
+
+	if (TYPE_FUNCTION != type) {
+		local->name.start = "this";
+		local->name.length = 4;
+	} else {
+		local->name.start = "";
+		local->name.length = 0;
+	}
 }
 
 static void
 emitReturn(void)
 {
-	/* The function implicitly returns NIL. */
-	emitByte(OP_NIL);
+	if (TYPE_INITIALIZER == currCplr->type)
+		emitBytes(OP_GET_LOCAL, 0);
+	else
+		emitByte(OP_NIL);
+	
 	emitByte(OP_RETURN);
 }
 
@@ -586,11 +605,15 @@ static void
 dot(bool canAssign)
 {
 	consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-	FN_BYTE name = identifierConstant(&parser.previous);
+	FN_UBYTE name = identifierConstant(&parser.previous);
 
 	if (canAssign && match(TOKEN_EQUAL)) {
 		expression();
 		emitBytes(OP_SET_PROPERTY, name);
+	} else if (match(TOKEN_LEFT_PAREN)) {
+		FN_UBYTE argCount = argumentList();
+		emitBytes(OP_INVOKE, name);
+		emitByte(argCount);
 	} else {
 		emitBytes(OP_GET_PROPERTY, name);
 	}
@@ -872,6 +895,23 @@ variable(bool canAssign)
 }
 
 /**
+ * @brief 'this' is a lexically scoped local variable
+ * whose value gets initialized automagically.
+ * @param canAssign 
+ */
+static void
+this_(bool canAssign)
+{
+	if (NULL == currClsCplr) {
+		error("Can't use 'this' outside of a class.");
+		return;
+	}
+
+	/* Assiging a value to 'this' is forbidden. */
+	variable(false);
+}
+
+/**
  * Processes 'negation' and 'not' operations.
  * This function takes into account the expressions with the certain
  * precedence, so that, the '-a.b + c' expression will be parsed as follows:
@@ -955,7 +995,7 @@ ParseRule rules[] = {
 	[TOKEN_PRINTLN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
-	[TOKEN_THIS]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_THIS]			= {this_,     NULL,   PREC_NONE},
 	[TOKEN_TRUE]			= {literal,     NULL,   PREC_NONE},
 	[TOKEN_VAR]				= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_WHILE]			= {NULL,     NULL,   PREC_NONE},
@@ -1427,14 +1467,43 @@ function(FunctionType type)
 }
 
 static void
+method(void)
+{
+	consume(TOKEN_IDENTIFIER, "Expect method name.");
+	FN_UBYTE constant = identifierConstant(&parser.previous);
+
+	/* Method's body */
+	FunctionType type = TYPE_METHOD;
+
+	if ((parser.previous.length == 4) &&
+		(memcmp(parser.previous.start, "init", 4) == 0)) {
+		type = TYPE_INITIALIZER;
+	}
+
+	function(type);
+
+	/* When VM executes this instruction, the stack will contain
+	 * the method's closure on top of it with the class right under it.
+	 * Recall that in classDeclaration(), the call to namedVariable()
+	 * pushes class's identifier on the stack.
+	 * 
+	 * The class and the method both residing adjacent on top of the
+	 * stack are required to bind the latter to the former. */
+	emitBytes(OP_METHOD, constant);
+}
+
+static void
 classDeclaration(void)
 {
 	consume(TOKEN_IDENTIFIER, "Expect class name.");
 
+	/* Capture the name of the class. */
+	Token className = parser.previous;
+
 	/* Store the name of class in surrounding function's constant table.
 	 * It will be used to print class's name at runtime. */
 	FN_UBYTE nameConstant = identifierConstant(&parser.previous);
-	
+
 	/* The class's name is also used to bind the class object to a variable
 	 * of the same name. Thus, declare that variable. */
 	declareVariable();
@@ -1448,9 +1517,28 @@ classDeclaration(void)
 	 * capability to refer to the class right within its own methods. */
 	defineVariable(nameConstant);
 
+	ClassCompiler classCompiler;
+	classCompiler.enclosing = currClsCplr;
+	currClsCplr = &classCompiler;
+
+	/* load a variable dedicated to this class onto the stack. */
+	namedVariable(className, false);
+
 	consume(TOKEN_LEFT_BRACE, "Expect '{'  before class body.");
+
+	while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+		method();
+	}
+
 	consume(TOKEN_RIGHT_BRACE, "Expect '}'  after class body.");
+	
+	/* Once we've reached the end of the method, we no longer need the class,
+	 * thus the VM should pop it off the stack. */
+	emitByte(OP_POP);
+
+	currClsCplr = currClsCplr->enclosing;
 }
+
 /**
  * Declares function.
  * 
@@ -1749,6 +1837,10 @@ returnStatement(void)
 	if (match(TOKEN_SEMICOLON)) {
 		emitReturn();
 	} else {
+
+		if (TYPE_INITIALIZER == currCplr->type)
+			error("Can't return a value from an initializer.");
+		
 		expression();
 		consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
 		emitByte(OP_RETURN);

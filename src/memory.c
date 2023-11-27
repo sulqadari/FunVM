@@ -40,15 +40,15 @@ reallocate(void* array, size_t oldCap, size_t newCap)
 	/* Adjust the counter by delta between allocated and freed memory. */
 	vm->bytesAllocated += newCap - oldCap;
 
-#ifdef FUNVM_DEBUG_GC_STRESS
 	if (newCap > oldCap) {
+#ifdef FUNVM_DEBUG_GC_STRESS
 		collectGarbage();
-	}
 #endif
-
-	if (vm->bytesAllocated > vm->nextGC) {
-		collectGarbage();
+		if (vm->bytesAllocated > vm->nextGC) {
+			collectGarbage();
+		}
 	}
+
 	
 	if (0 == newCap) {
 		free(array);
@@ -74,12 +74,17 @@ freeObject(Object* object)
 #endif
 
 	switch (object->type) {
+		case OBJ_BOUND_METHOD:
+			FREE(ObjBoundMethod, object);
+		break;
 		case OBJ_INSTANCE: {
 			ObjInstance* instance = (ObjInstance*)object;
 			freeTable(&instance->fields);
 			FREE(ObjInstance, object);
 		} break;
 		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*)object;
+			freeTable(&klass->methods);
 			FREE(ObjClass, object);
 		} break;
 		case OBJ_STRING: {
@@ -192,6 +197,7 @@ markRoots(void)
 	/* Then find roots among global variables and mark them too. */
 	markTable(&vm->globals);
 	markCompilerRoots();
+	markObject((Object*)vm->initString);
 }
 
 static void
@@ -206,6 +212,11 @@ blackenObject(Object* object)
 
 	switch (object->type) {
 		
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* bound = (ObjBoundMethod*)object;
+			markValue(bound->receiver);
+			markObject((Object*)bound->method);
+		} break;
 		case OBJ_INSTANCE: {
 			ObjInstance* instance = (ObjInstance*) object;
 			markObject((Object*)instance->klass);
@@ -213,15 +224,16 @@ blackenObject(Object* object)
 		} break;
 		case OBJ_CLASS: {
 			ObjClass* klass = (ObjClass*)object;
-			
 			/* Mark class's name so that it will be kept alive. */
 			markObject((Object*)klass->name);
+			markTable(&klass->methods);
 		}break;
 		case OBJ_CLOSURE: {
 			ObjClosure* closure = (ObjClosure*)object;
 
 			/* Trace the bare function wrapped by closure. */
 			markObject((Object*)closure->function);
+			
 			/* Also do the same for the array of pointers to the upvalues. */
 			for (FN_WORD i = 0; i < closure->upvalueCount; ++i) {
 				markObject((Object*)closure->upvalues[i]);

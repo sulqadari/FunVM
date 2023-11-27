@@ -132,6 +132,8 @@ initVM(VM* _vm)
 
 	initTable(&vm->interns);
 	initTable(&vm->globals);
+	vm->initString = NULL;
+	vm->initString = copyString("init", 4);
 
 	defineNative("clock", clockNative);
 }
@@ -141,7 +143,7 @@ freeVM(VM* vm)
 {
 	freeTable(&vm->globals);
 	freeTable(&vm->interns);
-
+	vm->initString = NULL;
 	/* Release heap. */
 	freeObjects(vm);
 }
@@ -197,7 +199,12 @@ callValue(Value callee, FN_BYTE argCount)
 		goto _runtimeError;
 		
 	switch (OBJECT_TYPE(callee)) {
-		
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* bound = BOUND_METHOD_UNPACK(callee);
+			// store 'this' at index 0
+			vm->stackTop[-argCount - 1] = bound->receiver;
+			return call(bound->method, argCount);
+		}
 		/* If the object being called is a native function, we invoke
 			* the C function right then and there. The value returned by
 			* this call is stored onto the stack. */
@@ -213,6 +220,15 @@ callValue(Value callee, FN_BYTE argCount)
 		case OBJ_CLASS: {
 			ObjClass* klass = CLASS_UNPACK(callee);
 			vm->stackTop[-argCount - 1] = OBJECT_PACK(newInstance(klass));
+
+			Value initializer;
+			if (tableGet(&klass->methods, vm->initString, &initializer)) {
+				return call(CLOSURE_UNPACK(initializer), argCount);
+			} else if (0 != argCount) {
+				runtimeError("Expected 0 arguments but got %d", argCount);
+				return (false);
+			}
+
 			return (true);
 		}		
 		case OBJ_CLOSURE: {
@@ -226,6 +242,53 @@ callValue(Value callee, FN_BYTE argCount)
 _runtimeError:
 	runtimeError("Can only call functions and classes.");
 	return (false);
+}
+
+static bool
+invokeFromClass(ObjClass* klass, ObjString* name, FN_WORD argCount)
+{
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) {
+		runtimeError("Undefined property %s.", name->chars);
+		return (false);
+	}
+
+	return call(CLOSURE_UNPACK(method), argCount);
+}
+
+static bool
+invoke(ObjString* name, FN_WORD argCount)
+{
+	Value receiver = peek(argCount);
+
+	if (!IS_INSTANCE(receiver)) {
+		runtimeError("Only instances have methods.");
+		return false;
+	}
+
+	ObjInstance* instance = INSTANCE_UNPACK(receiver);
+
+	Value value;
+	if (tableGet(&instance->fields, name, &value)) {
+		vm->stackTop[-argCount - 1] = value;
+		return callValue(value, argCount);
+	}
+	return invokeFromClass(instance->klass, name, argCount);
+}
+
+static bool
+bindMethod(ObjClass* klass, ObjString* name)
+{
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) {
+		runtimeError("Undefined property '%s'.", name->chars);
+		return (false);
+	}
+
+	ObjBoundMethod* bound = newBoundMethod(peek(0), CLOSURE_UNPACK(method));
+	pop();	// pop the instance from top of the stack.
+	push(OBJECT_PACK(bound));	// push Bound Method.
+	return (true);
 }
 
 /**
@@ -288,6 +351,20 @@ closeUpvalues(Value* last)
 		upvalue->location = &upvalue->closed;
 		vm->openUpvalues = upvalue->next;
 	}
+}
+
+static bool
+defineMethod(ObjString* name)
+{
+	Value method = peek(0);
+	ObjClass* klass = CLASS_UNPACK(peek(1));
+	if (!tableSet(&klass->methods, name, method)) {
+		runtimeError("Method '%s' is already defined.", name->chars);
+		return (false);
+	}
+
+	pop();
+	return (true);
 }
 
 /** The 'falsiness' rule.
@@ -490,18 +567,23 @@ run()
 				ObjString* name = READ_STRING();
 
 				Value value;
-				/* If the hash table contains an entry with that name, 
-				* we pop the instance and push the entry's value as the result. */
+
+				/* If the instance contains an entry with the given name
+				 * we pop the instance and push the entry's value as the result. */
 				if (tableGet(&instance->fields, name, &value)) {
 					pop();
 					push(value);
-					// quit.
 					break;
 				}
-				/* Otherwise - the field doesn't exist, throw runtime error. */
-				runtimeError("Undefined property '%s'.", name->chars);
-				return IR_RUNTIME_ERROR;
-			}
+
+				/* If the property is not a field, but a method, then
+				 * try to find it, or throw runtime exception,
+				 * i.e. requested property is neither a field,
+				 * nor it's method.*/
+				if (!bindMethod(instance->klass, name))
+					return IR_RUNTIME_ERROR;
+
+			} break;
 
 			/* When this executes, the top of the stack has the isntance whose field
 			 * is being set and above that, the value to stored. */
@@ -513,13 +595,12 @@ run()
 				}
 
 				ObjInstance* instance = INSTANCE_UNPACK(peek(1));
-				ObjString* name = READ_STRING();
 
-				if (!tableSet(&instance->fields, name, peek(0))) {
-					runtimeError("Field '%s' is already defined.",
-														name->chars);
+				if (!tableSet(&instance->fields, READ_STRING(), peek(0))) {
+					runtimeError("Field already defined.");
 					return IR_RUNTIME_ERROR;
 				}
+
 				Value value = pop();	// pop the stored value off
 				pop();					// pop the instance
 				push(value);			// push the value back on the stack.
@@ -641,7 +722,17 @@ run()
 				 * from the newly called function's CallFrame and jump to its code. */
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
+			
+			case OP_INVOKE: {
+				ObjString* method = READ_STRING();
+				FN_WORD argCount = READ_BYTE();
 
+				if (!invoke(method, argCount))
+					return IR_RUNTIME_ERROR;
+				
+				frame = &vm->frames[vm->frameCount - 1];
+			} break;
+			
 			case OP_CLOSURE: {
 				/* Load the compiled function from the Constant pool. */
 				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());
@@ -689,7 +780,11 @@ run()
 			case OP_CLASS: {
 				push(OBJECT_PACK(newClass(READ_STRING())));
 			} break;
-
+			
+			case OP_METHOD: {
+				if (!defineMethod(READ_STRING()))
+					return IR_RUNTIME_ERROR;
+			} break;
 			case OP_RETURN: {
 
 				/* We're about to discard the called function's entire stack window,

@@ -103,3 +103,21 @@ fun main3()
 main3();
 loopOne();
 loopTwo();
+
+fun returnNew() {
+
+	var i = "upper";
+	fun closure() {
+		var j = i + " inner";
+		return j;
+	}
+
+	return closure;
+}
+
+for (var i = 0; i < 1000; i = i + 1) {
+	var k = returnNew();
+	println(k());
+}
+
+println("PASSED");

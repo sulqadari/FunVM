@@ -75,10 +75,21 @@ allocateObject(size_t size, ObjType type)
 	return object;
 }
 
-ObjClass* newClass(ObjString* name)
+ObjBoundMethod*
+newBoundMethod(Value receiver, ObjClosure* method)
+{
+	ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+	bound->receiver = receiver;
+	bound->method = method;
+	return bound;
+}
+
+ObjClass*
+newClass(ObjString* name)
 {
 	ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
 	klass->name = name;
+	initTable(&klass->methods);
 	return klass;
 }
 
@@ -91,6 +102,7 @@ ObjClosure*
 newClosure(ObjFunction* function)
 {
 	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+	
 	for (FN_WORD i = 0; i < function->upvalueCount; ++i)
 		upvalues[i] = NULL;
 
@@ -254,6 +266,9 @@ void
 printObject(Value value)
 {
 	switch (OBJECT_TYPE(value)) {
+		case OBJ_BOUND_METHOD:
+			printFunction(BOUND_METHOD_UNPACK(value)->method->function);
+		break;
 		case OBJ_INSTANCE:
 			printf("%s instance",INSTANCE_UNPACK(value)->klass->name->chars);
 		break;

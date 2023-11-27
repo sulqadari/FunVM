@@ -1,7 +1,7 @@
 #ifndef FUNVM_DEBUG_H
 #define FUNVM_DEBUG_H
 
-#include "bytecode.h"
+#include "../src/bytecode.h"
 
 void disassembleBytecode(Bytecode* bytecode, const char* name);
 FN_UWORD disassembleInstruction(Bytecode* bytecode, FN_WORD offset);

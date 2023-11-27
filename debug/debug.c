@@ -49,6 +49,17 @@ constantInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
 	return offset + 2;
 }
 
+static FN_WORD
+invokeInstruction(const char* name, Bytecode* bytecode, FN_WORD offset)
+{
+	FN_UBYTE constant = bytecode->code[offset + 1];
+	FN_UBYTE argCount = bytecode->code[offset + 2];
+	printf("%-16s (%d args) %4d '", name, argCount, constant);
+	printValue(bytecode->constPool.pool[constant]);
+	printf("'\n");
+	return offset + 3;
+}
+
 FN_UWORD
 disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 {
@@ -135,6 +146,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 
 		case OP_CALL:
 			return byteInstruction("OP_CALL", bytecode, offset);
+		case OP_INVOKE:
+			return invokeInstruction("OP_INVOKE", bytecode, offset);
 		case OP_CLOSURE: {
 			offset++;
 			FN_UBYTE constant = bytecode->code[offset++];
@@ -160,6 +173,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_CLASS:
 			return constantInstruction("OP_CLASS", bytecode, offset);
+		case OP_METHOD:
+			return constantInstruction("OP_METHOD", bytecode, offset);
 		default:
 			printf("Unknown opcode %d\n", opcode);
 			return offset;
