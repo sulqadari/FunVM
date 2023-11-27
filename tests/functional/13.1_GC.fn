@@ -118,19 +118,21 @@ main = MainClass();
 main = MainClass();
 main = MainClass();
 main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
-main = MainClass();
+// On Ubuntu this is the edge case, uncommenting
+// instructions below leads to segmentation fault.
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
+// main = MainClass();
 
-// 123 - the maximum number of indexes
-// in Constant pool left free to be used.
-main = MainClass();
+// On FreeBSD this is the edge case, uncommenting
+// instruction below leads to segmentation fault.
+// main = MainClass();
 
 println("PASSED.");

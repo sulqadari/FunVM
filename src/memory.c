@@ -8,7 +8,7 @@
 #include "table.h"
 #include "value.h"
 #include "vm.h"
-
+// +
 #ifdef FUNVM_DEBUG_GC
 #include "debug.h"
 #endif
@@ -35,7 +35,7 @@ memorySetVM(VM* _vm)
  * shrink capacity		- newCap < oldCap
  * increase capacity	- newCap > oldCap. */
 void*
-reallocate(void* array, size_t oldCap, size_t newCap)
+reallocate(void* pointer, size_t oldCap, size_t newCap)
 {
 	/* Adjust the counter by delta between allocated and freed memory. */
 	vm->bytesAllocated += newCap - oldCap;
@@ -51,11 +51,11 @@ reallocate(void* array, size_t oldCap, size_t newCap)
 
 	
 	if (0 == newCap) {
-		free(array);
+		free(pointer);
 		return NULL;
 	}
 
-	void* result = realloc(array, newCap);
+	void* result = realloc(pointer, newCap);
 	if (NULL == result) {
 		printf("in reallocate(): failed to allocate memory.\n");
 		exit(1);

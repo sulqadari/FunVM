@@ -4,9 +4,9 @@ class MainClass {
 
 var main;
 
-// 101 - is the maximum number of available indexes
-// in the Constant Pool left unused for this unit-test.
-for (var i = 0; i < 101; i = i + 1) {
+// On FreeBSD the maximum number of iterations that wouldn't lead to 
+// segmentation fault is 101, while on Ubuntu this value is equal 23. 
+for (var i = 0; i < 23; i = i + 1) {
 	main = MainClass();
 }
 

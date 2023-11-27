@@ -10,7 +10,7 @@
 #include "value.h"
 
 static VM* vm;
-
+// +
 #ifdef FUNVM_DEBUG_GC
 char*
 stringifyObjType(ObjType type)
