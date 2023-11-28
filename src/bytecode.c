@@ -3,7 +3,7 @@
 #include "bytecode.h"
 #include "memory.h"
 #include "vm.h"
-
+// +
 void
 initBytecode(Bytecode* bytecode)
 {

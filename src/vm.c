@@ -606,6 +606,15 @@ run()
 				push(value);			// push the value back on the stack.
 			} break;
 
+			case OP_GET_SUPER: {
+				ObjString* name = READ_STRING();
+				ObjClass* superClass = CLASS_UNPACK(pop());
+
+				if (!bindMethod(superClass, name))
+					return IR_RUNTIME_ERROR;
+				
+			} break;
+
 			case OP_EQUAL: {
 				Value b = pop();
 				Value a = pop();
@@ -733,6 +742,17 @@ run()
 				frame = &vm->frames[vm->frameCount - 1];
 			} break;
 			
+			case OP_SUPER_INVOKE: {
+				ObjString* method = READ_STRING();
+				FN_WORD argCount = READ_BYTE();
+				ObjClass* superClass = CLASS_UNPACK(pop());
+
+				if (!invokeFromClass(superClass, method, argCount))
+					return IR_RUNTIME_ERROR;
+
+				frame = &vm->frames[vm->frameCount - 1];
+			} break;
+
 			case OP_CLOSURE: {
 				/* Load the compiled function from the Constant pool. */
 				ObjFunction* function = FUNCTION_UNPACK(READ_CONSTANT());
@@ -781,6 +801,21 @@ run()
 				push(OBJECT_PACK(newClass(READ_STRING())));
 			} break;
 			
+			case OP_INHERIT: {
+				Value superClass = peek(1);
+				if (!IS_CLASS(superClass)) {
+					runtimeError("SuperClass must be a class.");
+					return IR_RUNTIME_ERROR;
+				}
+
+				ObjClass* subClass = CLASS_UNPACK(peek(0));
+				
+				/* Copy all of the inherited class's methods down into
+				 * the subclass's own method table. */
+				tableAddAll(&CLASS_UNPACK(superClass)->methods, &subClass->methods);
+				pop(); // subClass
+			} break;
+
 			case OP_METHOD: {
 				if (!defineMethod(READ_STRING()))
 					return IR_RUNTIME_ERROR;
