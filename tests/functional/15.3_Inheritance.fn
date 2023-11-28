@@ -1,0 +1,20 @@
+class Doughnut {
+	cook() {
+		println("Dunk in the fryer.");
+		this.finish("sprinkles");
+	}
+
+	finish(ingredient) {
+		println("Finish with " + ingredient);
+	}
+}
+
+class Cruller < Doughnut {
+	finishC() {
+		// No sprinkles, always icing.
+		super.finish("icing");
+	}
+}
+
+Cruller().cook();
+Cruller().finishC();

@@ -1,0 +1,19 @@
+class Doughnut {
+	cook() {
+		println("Dunk in the fryer.");
+	}
+}
+
+class Cruller < Doughnut {
+	finish() {
+		println("Glaze with icing.");
+	}
+}
+
+Cruller().cook();
+Cruller().finish();
+
+var cooking = Cruller();
+
+cooking.cook();
+cooking.finish();

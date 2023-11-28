@@ -163,6 +163,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
 	struct ClassCompiler* enclosing;
+	bool hasSuperClass;
 } ClassCompiler;
 
 static Parser parser;
@@ -894,6 +895,45 @@ variable(bool canAssign)
 	namedVariable(parser.previous, canAssign);
 }
 
+static Token
+syntheticToken(const char* text)
+{
+	Token token;
+	token.start = text;
+	token.length = (FN_WORD)strlen(text);
+	return token;
+}
+
+static void
+super_(bool canAssign)
+{
+	if (NULL == currClsCplr)
+		error("Can't use 'super' outside of a class.");
+	else if (!currClsCplr->hasSuperClass)
+		error("Can't use 'super' in a class with no superclass.");
+	
+	consume(TOKEN_DOT, "Expect '.' after 'super'.");
+	consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+	FN_UBYTE name = identifierConstant(&parser.previous);
+
+	/* Emit bytecode required for pushing both the receiver and 
+	 * the superclass of the surrounding method's class onto the stack.
+	 * This is required to access a superclass method on
+	 * the current instance. */
+	namedVariable(syntheticToken("this"), false);
+
+	if (match(TOKEN_LEFT_PAREN)) {
+		FN_UBYTE argCount = argumentList();
+		namedVariable(syntheticToken("super"), false);
+		emitBytes(OP_SUPER_INVOKE, name);
+		emitByte(argCount);
+	} else {
+		namedVariable(syntheticToken("super"), false);
+		emitBytes(OP_GET_SUPER, name);
+	}
+
+}
+
 /**
  * @brief 'this' is a lexically scoped local variable
  * whose value gets initialized automagically.
@@ -994,7 +1034,7 @@ ParseRule rules[] = {
 	[TOKEN_PRINT]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_PRINTLN]			= {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]			= {NULL,     NULL,   PREC_NONE},
-	[TOKEN_SUPER]			= {NULL,     NULL,   PREC_NONE},
+	[TOKEN_SUPER]			= {super_,     NULL,   PREC_NONE},
 	[TOKEN_THIS]			= {this_,     NULL,   PREC_NONE},
 	[TOKEN_TRUE]			= {literal,     NULL,   PREC_NONE},
 	[TOKEN_VAR]				= {NULL,     NULL,   PREC_NONE},
@@ -1518,9 +1558,35 @@ classDeclaration(void)
 	defineVariable(nameConstant);
 
 	ClassCompiler classCompiler;
+	classCompiler.hasSuperClass = false;
 	classCompiler.enclosing = currClsCplr;
 	currClsCplr = &classCompiler;
 
+	if (match(TOKEN_LESS)) {
+		consume(TOKEN_IDENTIFIER, "Expect supoerclass name.");
+
+		/* Proceed to look up for super class by name and push its
+		 * value onto the stack. */
+		variable(false);
+
+		if (identifiersEqual(&className, &parser.previous))
+			error("A class can't inherit from itself.");
+		
+		/* Create a new scope to avoid subclasses colliding, because
+		 * each of them names the reference variable to theirs superclass
+		 * as "super". */
+		beginScope();
+		addLocal(syntheticToken("super"));
+		defineVariable(0);
+
+		/* Load the subclass so that the inheriting if performed
+		 * onto the stack. */
+		namedVariable(className, false);
+
+		/* Wires up the super class to the new subclass. */
+		emitByte(OP_INHERIT);
+		classCompiler.hasSuperClass = true;
+	}
 	/* load a variable dedicated to this class onto the stack. */
 	namedVariable(className, false);
 
@@ -1536,6 +1602,9 @@ classDeclaration(void)
 	 * thus the VM should pop it off the stack. */
 	emitByte(OP_POP);
 
+	if (classCompiler.hasSuperClass)
+		endScope();
+	
 	currClsCplr = currClsCplr->enclosing;
 }
 

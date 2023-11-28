@@ -109,7 +109,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return constantInstruction("OP_SET_PROPERTY", bytecode, offset);
 		case OP_GET_PROPERTY:
 			return constantInstruction("OP_GET_PROPERTY", bytecode, offset);
-		
+		case OP_GET_SUPER:
+			return constantInstruction("OP_GET_SUPER", bytecode, offset);
 		case OP_EQUAL:
 			return simpleInstruction("OP_EQUAL", offset);
 		case OP_GREATER:
@@ -148,6 +149,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return byteInstruction("OP_CALL", bytecode, offset);
 		case OP_INVOKE:
 			return invokeInstruction("OP_INVOKE", bytecode, offset);
+		case OP_SUPER_INVOKE:
+			return invokeInstruction("OP_SUPER_INVOKE", bytecode, offset);
 		case OP_CLOSURE: {
 			offset++;
 			FN_UBYTE constant = bytecode->code[offset++];
@@ -173,6 +176,8 @@ disassembleInstruction(Bytecode* bytecode, FN_WORD offset)
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_CLASS:
 			return constantInstruction("OP_CLASS", bytecode, offset);
+		case OP_INHERIT:
+			return simpleInstruction("OP_INHERIT", offset);
 		case OP_METHOD:
 			return constantInstruction("OP_METHOD", bytecode, offset);
 		default:
