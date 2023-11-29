@@ -120,6 +120,7 @@ skipWhiteSpace(void)
 				scanner.line++;
 				advance();
 			break;
+
 			case '/':
 				if (peekNext() == '/') {
 
@@ -129,6 +130,34 @@ skipWhiteSpace(void)
 					 * character on the next turn of the outer loop. */
 					while ((peek() != '\n') && !isAtEnd())
 						advance();
+				
+				} else if (peekNext() == '*') {
+					
+					// consume '/'
+					advance();
+					
+					// Special case: '/*/', i.e. wrong syntax.
+					if (peekNext() == '/')
+						return;
+					
+					// consume '*'
+					advance();
+
+					while (!isAtEnd()) {
+
+						if ((peek() == '*') && (peekNext() == '/')) {
+							advance(); // consume '*'
+							advance(); // consume '/'
+							break;
+						}
+						
+						advance();
+					}
+
+					// Special case - two and more adjacent blocks of codes:
+					// /*first block*/ /*second block*/
+					continue;
+
 				} else {
 					return;
 				}

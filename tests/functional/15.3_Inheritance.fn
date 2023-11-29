@@ -10,11 +10,11 @@ class Doughnut {
 }
 
 class Cruller < Doughnut {
-	finishC() {
+	predefinedIngredient() {
 		// No sprinkles, always icing.
 		super.finish("icing");
 	}
 }
 
 Cruller().cook();
-Cruller().finishC();
+Cruller().predefinedIngredient();

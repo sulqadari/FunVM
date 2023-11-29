@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 project(FunVM VERSION 0.11)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall			\
-	-Wextra -Wno-unused-parameter						\
+	-Wextra -Wno-unused-parameter	-g					\
 	-Wno-missing-field-initializers -Wmissing-declarations	\
 	-Wredundant-decls -Wcast-align							\
 	-Wformat -Wformat-security"

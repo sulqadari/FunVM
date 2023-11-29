@@ -1,0 +1,25 @@
+/* The first comment */
+println("block 1");
+
+/* The second comment block followed by
+ adjacent one. */
+/* Here is the
+ * adjacent one. */
+println("block 2");
+
+/*
+  The block of comments
+  without asterisk padding on the left-hand side. 
+*/
+println("block 3");
+
+/* The block of comments
+ * padded with asterisk on the left-hand side
+ */
+println("block 4");
+
+/*********** A block of comments
+ * full of asterisks. ***********/
+println("block 5");
+
+/* error-prone comment /

@@ -6,7 +6,7 @@ var main;
 
 // On FreeBSD the maximum number of iterations that wouldn't lead to 
 // segmentation fault is 101, while on Ubuntu this value is equal 23. 
-for (var i = 0; i < 23; i = i + 1) {
+for (var i = 0; i < 102; i = i + 1) {
 	main = MainClass();
 }
 
