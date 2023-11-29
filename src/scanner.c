@@ -135,11 +135,6 @@ skipWhiteSpace(void)
 					
 					// consume '/'
 					advance();
-					
-					// Special case: '/*/', i.e. wrong syntax.
-					if (peekNext() == '/')
-						return;
-					
 					// consume '*'
 					advance();
 
@@ -292,8 +287,8 @@ scanToken(void)
 		case '+': return makeToken(TOKEN_PLUS);
 		case '/': return makeToken(TOKEN_SLASH);
 		case '*': return makeToken(TOKEN_STAR);
-		case '[': return makeToken(TOKEN_LEFT_SQUARE_BRACKET);
-		case ']': return makeToken(TOKEN_RIGHT_SQUARE_BRACKET);
+		case '[': return makeToken(TOKEN_LEFT_BRACKET);
+		case ']': return makeToken(TOKEN_RIGHT_BRACKET);
 		case '&': {
 			if (match('&'))
 				return makeToken(TOKEN_AND);
