@@ -105,7 +105,7 @@ errorToken(const char* message)
 	return token;
 }
 
-static void
+static TokenType
 skipWhiteSpace(void)
 {
 	for (;;) {
@@ -132,33 +132,33 @@ skipWhiteSpace(void)
 						advance();
 				
 				} else if (peekNext() == '*') {
+
+					advance();	// consume '/'
+					advance();	// consume '*'
 					
-					// consume '/'
-					advance();
-					// consume '*'
-					advance();
+					while (true) {
+						
+						if (isAtEnd())
+							return TOKEN_COMMENT_ERROR;
 
-					while (!isAtEnd()) {
+						if (peek() == '\n')
+							scanner.line++;
 
-						if ((peek() == '*') && (peekNext() == '/')) {
-							advance(); // consume '*'
-							advance(); // consume '/'
+						if ((peek() == '*') && (peekNext() == '/'))
 							break;
-						}
 						
 						advance();
 					}
-
-					// Special case - two and more adjacent blocks of codes:
-					// /*first block*/ /*second block*/
-					continue;
+					
+					advance(); // consume '*'
+					advance(); // consume '/'
 
 				} else {
-					return;
+					return TOKEN_OK;
 				}
 			break;
 			default:
-				return;
+				return TOKEN_OK;
 		}
 	}
 }
@@ -266,8 +266,9 @@ string(void)
 Token
 scanToken(void)
 {
-	skipWhiteSpace();
-
+	if (skipWhiteSpace() == TOKEN_COMMENT_ERROR)
+		return errorToken("Unterminated comment.");
+	
 	scanner.start = scanner.current;
 	if (isAtEnd())
 		return makeToken(TOKEN_EOF);

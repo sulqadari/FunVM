@@ -18,8 +18,12 @@ println("block 3");
  */
 println("block 4");
 
-/*********** A block of comments
- * full of asterisks. ***********/
+/* ********** A block of comments
+ * /* full of asterisks. ***********/
 println("block 5");
 
-/* error-prone comment /
+/* 
+ * Error:
+
+								
+   Unterminated comment line.

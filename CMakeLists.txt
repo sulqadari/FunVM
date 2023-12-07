@@ -13,6 +13,7 @@ option(FUNVM_DEBUG_GC "Garbage Collector's logger" OFF)
 option(FUNVM_DEBUG_GC_STRESS "Run GC as often, as possible" OFF)
 
 configure_file(funvmConfig.h.in funvmConfig.h)
+configure_file(funvmConfig.h.in ${PROJECT_SOURCE_DIR}/src/funvmConfig.h)
 
 add_subdirectory(src)
 
