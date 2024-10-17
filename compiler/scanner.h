@@ -1,8 +1,7 @@
 #ifndef FUNVM_SCANNER_H
 #define FUNVM_SCANNER_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "common.h"
 
 typedef enum {
 	// Single-character tokens.
