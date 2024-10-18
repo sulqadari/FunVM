@@ -42,11 +42,11 @@ void
 saveBytecodeFile(const char* path, Bytecode* bCode)
 {
 	FILE* file;
-	char file[256];
-	sprintf(file, "%sbin", path);
-	file = fopen(path, "wb");
+	char name[256];
+	sprintf(name, "%sbin", path);
+	file = fopen(name, "wb");
 	if (NULL == file) {
-		fprintf(stderr, "Couldn't create binary file '%s'.\n", file);
+		fprintf(stderr, "Couldn't create binary file '%s'.\n", name);
 		exit(74);
 	}
 

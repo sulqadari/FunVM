@@ -22,7 +22,7 @@ typedef enum {
 	prec_primary,
 } Precedence;
 
-typedef void (*ParseFn)(bool);
+typedef void (*ParseFn)(bool canAssign);
 
 typedef struct {
 	ParseFn prefix;
@@ -65,6 +65,12 @@ errorAt(Token* token, const char* message)
 }
 
 static void
+error(const char* message)
+{
+	errorAt(&parser.previous, message);
+}
+
+static void
 errorAtCurrent(const char* message)
 {
 	errorAt(&parser.current, message);
@@ -94,6 +100,22 @@ consume(TokenType type, const char* message)
 	}
 
 	errorAtCurrent(message);
+}
+
+static bool
+check(const TokenType type)
+{
+	return type == parser.current.type;
+}
+
+static bool
+match(TokenType type)
+{
+	if (!check(type))
+		return false;
+
+	advance();
+	return true;
 }
 
 static void
@@ -185,7 +207,7 @@ unary(bool canAssign)
 	}
 }
 
-ParseFn rules[] = {
+ParseRule rules[] = {
 	[tkn_lparen]   = {grouping, NULL, prec_none},
 	[tkn_rparen]   = {NULL, NULL, prec_none},
 	[tkn_lbrace]   = {NULL, NULL, prec_none},

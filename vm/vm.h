@@ -21,7 +21,7 @@ typedef struct {
 	ValueArray constants;
 } Bytecode;
 
-uint32_t* lines;
+extern uint32_t* lines;
 
 void initBytecode(Bytecode* bCode);
 void freeBytecode(Bytecode* bCode);
