@@ -1,5 +1,5 @@
 #include "common.h"
-#include "vm.h"
+#include "bytecode.h"
 
 char*
 readSourceFile(const char* path)
@@ -39,7 +39,7 @@ readSourceFile(const char* path)
 }
 
 void
-saveBytecodeFile(const char* path, Bytecode* bCode)
+saveByteCodeFile(const char* path, ByteCode* bCode)
 {
 	FILE* file;
 	char name[256];
@@ -50,9 +50,9 @@ saveBytecodeFile(const char* path, Bytecode* bCode)
 		exit(74);
 	}
 
-	fwrite(bCode, 1, sizeof(Bytecode), file);
+	fwrite(bCode, 1, sizeof(ByteCode), file);
 	fwrite(bCode->code, 1, bCode->count, file);
-	fwrite(&bCode->constants, 1, sizeof(ValueArray), file);
+	fwrite(&bCode->constants, 1, sizeof(ConstPool), file);
 	fwrite(bCode->constants.values, 4, bCode->constants.count, file);
 	fclose(file);
 }

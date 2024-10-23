@@ -1,9 +1,9 @@
 #ifndef FUNVM_SOURCE_HANDLER_H
 #define FUNVM_SOURCE_HANDLER_H
 
-#include "vm.h"
+#include "bytecode.h"
 
 char* readSourceFile(const char* path);
-void saveBytecodeFile(const char* path, Bytecode* bCode);
+void saveByteCodeFile(const char* path, ByteCode* bCode);
 
 #endif /* FUNVM_SOURCE_HANDLER_H */

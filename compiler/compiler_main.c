@@ -1,6 +1,5 @@
 #include "common.h"
 #include "compiler.h"
-#include "vm.h"
 #include "source_handler.h"
 
 static void
@@ -17,9 +16,9 @@ main(int argc, char* argv[])
 		usage();
 	
 	const char* source;
-	Bytecode bCode;
+	ByteCode bCode;
 	
 	source = readSourceFile(argv[1]);
 	compile(source, &bCode);
-	saveBytecodeFile(argv[1], &bCode);
+	saveByteCodeFile(argv[1], &bCode);
 }

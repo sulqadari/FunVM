@@ -12,6 +12,10 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit
 # Compile the 32-bit version
 set(CMAKE_C_FLASG "${CMAKE_C_FLAGS} -m32")
 
-add_subdirectory(vm)
+add_compile_definitions(
+	FUNVM_ARCH_x64
+)
+
+# add_subdirectory(vm)
 add_subdirectory(compiler)
 add_subdirectory(common)

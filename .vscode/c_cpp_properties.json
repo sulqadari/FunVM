@@ -7,7 +7,9 @@
 				"${workspaceFolder}/compiler",
 				"${workspaceFolder}/vm"
             ],
-            "defines": [],
+            "defines": [
+				"FUNVM_ARCH_x64"
+			],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "gnu++17",

@@ -1,9 +1,13 @@
 {
 	"files.associations": {
+		"*.jcsh": "shellscript",
 		"*.fn": "java",
 		"00_Preface": "markdown",
 		"*.tivm": "javascript",
 		"*.txt": "cmake",
-		"vm.h": "c"
+		"vm.h": "c",
+		"memory.h": "c",
+		"system_error": "c",
+		"vector": "c"
 	}
 }

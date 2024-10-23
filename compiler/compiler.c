@@ -1,5 +1,6 @@
 #include "compiler.h"
 #include "scanner.h"
+#include "bytecode.h"
 
 typedef struct {
 	Token current;
@@ -31,9 +32,9 @@ typedef struct {
 } ParseRule;
 
 static Parser parser;
-static Bytecode* currCtx;
+static ByteCode* currCtx;
 
-static Bytecode*
+static ByteCode*
 getCurrentCtx(void)
 {
 	return currCtx;
@@ -121,7 +122,7 @@ match(TokenType type)
 static void
 emitByte(uint8_t byte)
 {
-	writeBytecode(getCurrentCtx(), byte, parser.previous.line);
+	writeByteCode(getCurrentCtx(), byte, parser.previous.line);
 }
 
 static void
@@ -295,7 +296,7 @@ expression(void)
 }
 
 bool
-compile(const char* source, Bytecode* bCode)
+compile(const char* source, ByteCode* bCode)
 {
 	initScanner(source);
 	currCtx = bCode;
