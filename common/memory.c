@@ -6,11 +6,11 @@ reallocate(void* ptr, size_t oldSize, size_t newSize)
 	void* result = NULL;
 	do {
 		if (newSize == 0) {
-			heapFree(ptr);
+			fvm_free(ptr);
 			break;
 		}
 
-		result = heapRealloc(ptr, newSize);
+		result = fvm_realloc(ptr, newSize);
 	} while(0);
 
 	return result;

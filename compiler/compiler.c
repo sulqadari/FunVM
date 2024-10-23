@@ -138,22 +138,28 @@ emitReturn(void)
 	emitByte(op_ret);
 }
 
-static uint8_t
-makeConstant(int32_t value)
+static uint16_t
+makeConstant(i32 value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
-	if (idx > UINT8_MAX) {
-		error("Too many constants in one chunk");
-		return 0;
+	if (idx > UINT16_MAX) {
+		error("Too many constants in one chunk.");
+		exit(1);
 	}
 
-	return (uint8_t)idx;
+	return (uint16_t)idx;
 }
 
 static void
-emitConstant(int32_t value)
+emitConstant(i32 value)
 {
-	emitBytes(op_iconst, makeConstant(value));
+	uint16_t idx = makeConstant(value);
+	if (idx > UINT8_MAX) {
+		emitBytes(op_iconst_long, ((idx >> 8) & 0x00FF));
+		emitByte(idx & 0x00FF);
+	} else {
+		emitBytes(op_iconst, idx);
+	}
 }
 
 static void
@@ -192,7 +198,7 @@ grouping(bool canAssign)
 static void
 number(bool canAssign)
 {
-	int32_t value = strtol(parser.previous.start, NULL, 10);
+	i32 value = strtol(parser.previous.start, NULL, 10);
 	emitConstant(value);
 }
 

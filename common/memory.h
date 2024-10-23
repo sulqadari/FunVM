@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include "common.h"
 
-#if defined(FUNVM_ARCH_x64)
-#	define heapRealloc realloc
-#	define heapFree free
+#if defined(FUNVM_MEM_MANAGER)
+#	define fvm_realloc _realloc
+#	define fvm_free _free
 #else
-#	define heapRealloc fvm_realloc
-#	define heapFree fvm_free
-#endif /* FUNVM_ARCH_x64 */
+#	define fvm_realloc realloc
+#	define fvm_free free
+#endif /* FUNVM_MEM_MANAGER */
 
 #define GROW_CAPACITY(cap)		\
 	((cap) < 8 ? 8 : (cap) * 1.5)

@@ -6,6 +6,7 @@
 
 typedef enum {
 	op_iconst,
+	op_iconst_long,
 	op_add,
 	op_sub,
 	op_mul,
