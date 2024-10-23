@@ -6,7 +6,7 @@
 
 typedef struct {
 	ByteCode* bCode;
-	uint8_t* ip;		/* <! Instruction pointer. */
+	uint8_t*  ip;	/* <! Instruction pointer. Points to the next bytecode to be used. */
 } VM;
 
 typedef enum {
