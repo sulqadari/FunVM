@@ -33,7 +33,7 @@ isDigit(char c)
 static bool
 isAtEnd(void)
 {
-	return scanner.current == '\0';
+	return *scanner.current == '\0';
 }
 
 /** Consumes the current character and returns it. */
@@ -129,7 +129,7 @@ skipWhiteSpace(void)
 						if (peek() == '\n')
 							scanner.line++;
 
-						if (peek() == '*' && pekkNext() == '/')
+						if (peek() == '*' && peekNext() == '/')
 							break;
 						
 						advance();
@@ -170,7 +170,6 @@ identifierType(void)
 					case 'o': return checkKeyword(2, 6, "ntinue", tkn_continue);
 				}
 			}
-		break;
 		case 's':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -178,7 +177,6 @@ identifierType(void)
 					case 'u': return checkKeyword(2, 3, "per", tkn_super);
 				}
 			}
-		break;
 		case 'f':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -187,7 +185,6 @@ identifierType(void)
 					case 'u': return checkKeyword(2, 1, "n", tkn_fun);
 				}
 			}
-		break;
 		case 't':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -195,7 +192,6 @@ identifierType(void)
 					case 'r': return checkKeyword(2, 2, "ue", tkn_true);
 				}
 			}
-		break;
 		case 'i':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -203,8 +199,8 @@ identifierType(void)
 					case '3': return checkKeyword(0, 3, "i32", tkn_i32);
 				}
 			}
-		break;
 	}
+	return tkn_id;
 }
 
 static Token
