@@ -20,5 +20,5 @@ main(int argc, char* argv[])
 	
 	source = readSourceFile(argv[1]);
 	compile(source, &bCode);
-	saveByteCodeFile(argv[1], &bCode);
+	serializeByteCode(argv[1], &bCode);
 }

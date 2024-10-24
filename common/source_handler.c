@@ -39,7 +39,7 @@ readSourceFile(const char* path)
 }
 
 void
-saveByteCodeFile(const char* path, ByteCode* bCode)
+serializeByteCode(const char* path, ByteCode* bCode)
 {
 	FILE* file;
 	char name[256];
@@ -50,9 +50,54 @@ saveByteCodeFile(const char* path, ByteCode* bCode)
 		exit(74);
 	}
 
-	fwrite(bCode, 1, sizeof(ByteCode), file);
-	fwrite(bCode->code, 1, bCode->count, file);
-	fwrite(&bCode->constants, 1, sizeof(ConstPool), file);
-	fwrite(bCode->constants.values, 4, bCode->constants.count, file);
+	fwrite(&bCode->count, sizeof(uint32_t), 1, file);
+	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
+	fwrite(bCode->code, sizeof(uint8_t), bCode->count, file);
+
+	fwrite(&bCode->constants.count, sizeof(uint32_t), 1, file);
+	fwrite(&bCode->constants.capacity, sizeof(uint32_t), 1, file);
+	fwrite(bCode->constants.values, sizeof(int32_t), bCode->constants.count, file);
+	fclose(file);
+}
+
+void
+deserializeByteCode(const char* path, ByteCode* bCode)
+{
+	size_t fileSize;
+	FILE* file;
+
+	char* buffer;
+	size_t bytesRead;
+
+	file = fopen(path, "rb");
+	if (NULL == file) {
+		fprintf(stderr, "Couldn't open source file '%s'.\n", path);
+		exit(74);
+	}
+
+	fseek(file, 0L, SEEK_END);	/* Move file prt to EOF. */
+	fileSize = ftell(file);		/* How far we are from start of the file? */
+	rewind(file);				/* Rewind file ptr back to the beginning. */
+
+	buffer = malloc(fileSize + 1);
+	if (NULL == buffer) {
+		fprintf(stderr, "Failed to allocate memory for buffer "
+		"for source file '%s'.\n", path);
+		exit(74);
+	}
+
+	bytesRead = fread(buffer, sizeof(char), fileSize, file);
+	if (bytesRead < fileSize) {
+		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
+		exit(74);
+	}
+
+	memcpy(&bCode->count, buffer, 4);
+	bCode->capacity = bCode->count;
+	memcpy(bCode->code, buffer + 8, bCode->count);
+
+	memcpy(&bCode->constants.count, buffer + 12, 4);
+	bCode->constants.capacity = bCode->constants.count;
+	memcpy(bCode->constants.values, buffer+ 20, bCode->constants.count);
 	fclose(file);
 }

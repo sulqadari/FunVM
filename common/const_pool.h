@@ -5,8 +5,8 @@
 #include "values.h"
 
 typedef struct {
-	uint32_t capacity;
 	uint32_t count;
+	uint32_t capacity;
 	i32* values;
 } ConstPool;
 
