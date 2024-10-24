@@ -1,10 +1,11 @@
 #include "common.h"
 #include "vm.h"
+#include "source_handler.h"
 
 static void
 usage(void)
 {
-	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb");
+	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
 	exit(1);
 }
 

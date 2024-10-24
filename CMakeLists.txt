@@ -16,6 +16,6 @@ add_compile_definitions(
 	FUNVM_ARCH_x64
 )
 
-# add_subdirectory(vm)
+add_subdirectory(vm)
 add_subdirectory(compiler)
 add_subdirectory(common)

@@ -5,13 +5,13 @@
 #define READ_BYTE()				\
 	(*vm.ip++)
 
-#define READ_SHORT()			\
-	(((*vm.ip++) << 8) | (*vm.ip++))
+// #define READ_SHORT()			\
+	((*vm.ip++ << 8) | (*vm.ip++))
 
 #define READ_CONSTANT()			\
 	(vm.bCode->constants.values[READ_BYTE()])
 
-#define READ_CONSTANT_LONG()	\
+// #define READ_CONSTANT_LONG()	\
 	(vm.bCode->constants.values[READ_SHORT()])
 
 #define BINARY_OP(op)			\
@@ -24,7 +24,7 @@
 VM vm;
 
 static void
-reserStack(void)
+resetStack(void)
 {
 	vm.stackTop = vm.stack;
 }
@@ -65,8 +65,8 @@ run(void)
 				push(constant);
 			} break;
 			case op_iconst_long: {
-				i32 constant = READ_CONSTANT_LONG();
-				push(constant);
+				// i32 constant = READ_CONSTANT_LONG();
+				// push(constant);
 			} break;
 			case op_add: {
 				BINARY_OP(+); 

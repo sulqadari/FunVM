@@ -6,5 +6,6 @@
 
 char* readSourceFile(const char* path);
 void serializeByteCode(const char* path, ByteCode* bCode);
+void deserializeByteCode(const char* path, ByteCode* bCode);
 
 #endif /* FUNVM_SOURCE_HANDLER_H */

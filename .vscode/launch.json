@@ -1,0 +1,30 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "FunVM Compiler",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/compiler/funvmc",
+			"args": [
+				"${workspaceFolder}/tests/empty_source_test.fn"
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
+		},
+		{
+			"name": "FunVM Virtual machine",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/vm/funvm",
+			"args": [
+				"${workspaceFolder}/tests/empty_source_test.fnbin"
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
+		}
+	]
+}

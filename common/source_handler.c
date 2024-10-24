@@ -43,7 +43,7 @@ serializeByteCode(const char* path, ByteCode* bCode)
 {
 	FILE* file;
 	char name[256];
-	sprintf(name, "%sbin", path);
+	sprintf(name, "%sb", path);
 	file = fopen(name, "wb");
 	if (NULL == file) {
 		fprintf(stderr, "Couldn't create binary file '%s'.\n", name);
@@ -94,10 +94,24 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 
 	memcpy(&bCode->count, buffer, 4);
 	bCode->capacity = bCode->count;
-	memcpy(bCode->code, buffer + 8, bCode->count);
+	bCode->code = malloc(bCode->count);
+	if (NULL == bCode->code) {
+		fprintf(stderr, "Failed to allocate memory for bCode->code"
+		"source: %s at: %d\n", __FILE__, __LINE__);
+		exit(75);
+	}
+
+	memcpy(bCode->code, &buffer[8], bCode->count);
 
 	memcpy(&bCode->constants.count, buffer + 12, 4);
 	bCode->constants.capacity = bCode->constants.count;
+	bCode->constants.values = malloc(bCode->constants.count);
+	if (NULL == bCode->code) {
+		fprintf(stderr, "Failed to allocate memory for bCode->constants.values"
+		"source: %s at: %d\n", __FILE__, __LINE__);
+		exit(75);
+	}
 	memcpy(bCode->constants.values, buffer+ 20, bCode->constants.count);
+	free(buffer);
 	fclose(file);
 }
