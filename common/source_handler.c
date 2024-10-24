@@ -1,12 +1,22 @@
 #include "common.h"
 #include "bytecode.h"
 
-char*
+static void
+allocateBuffer(uint8_t** buffer, uint32_t size, char* msg)
+{
+	*buffer = malloc(size + 1);
+	if (NULL == buffer) {
+		fprintf(stderr, "%s\n", msg);
+		exit(74);
+	}
+}
+
+uint8_t*
 readSourceFile(const char* path)
 {
 	size_t fileSize;
 	FILE* file;
-	char* buffer;
+	uint8_t* buffer;
 	size_t bytesRead;
 
 	file = fopen(path, "rb");
@@ -19,12 +29,7 @@ readSourceFile(const char* path)
 	fileSize = ftell(file);		/* How far we are from start of the file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	buffer = malloc(fileSize + 1);
-	if (NULL == buffer) {
-		fprintf(stderr, "Failed to allocate memory for buffer "
-		"for source file '%s'.\n", path);
-		exit(74);
-	}
+	allocateBuffer(&buffer, fileSize + 1, "Failed to allocate memory for source file");
 
 	bytesRead = fread(buffer, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
@@ -52,11 +57,12 @@ serializeByteCode(const char* path, ByteCode* bCode)
 
 	fwrite(&bCode->count, sizeof(uint32_t), 1, file);
 	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
-	fwrite(bCode->code, sizeof(uint8_t), bCode->count, file);
 
 	fwrite(&bCode->constants.count, sizeof(uint32_t), 1, file);
 	fwrite(&bCode->constants.capacity, sizeof(uint32_t), 1, file);
-	fwrite(bCode->constants.values, sizeof(int32_t), bCode->constants.count, file);
+
+	fwrite(bCode->code, sizeof(uint8_t), bCode->capacity, file);
+	fwrite(bCode->constants.values, sizeof(int32_t), bCode->constants.capacity, file);
 	fclose(file);
 }
 
@@ -66,7 +72,8 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	size_t fileSize;
 	FILE* file;
 
-	char* buffer;
+	uint8_t* bufferPtr;
+	uint8_t* buffer;
 	size_t bytesRead;
 
 	file = fopen(path, "rb");
@@ -79,39 +86,28 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	fileSize = ftell(file);		/* How far we are from start of the file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	buffer = malloc(fileSize + 1);
-	if (NULL == buffer) {
-		fprintf(stderr, "Failed to allocate memory for buffer "
-		"for source file '%s'.\n", path);
-		exit(74);
-	}
+	allocateBuffer(&buffer, fileSize, "Failed to allocate memory for serialized data");
+	
+	bufferPtr = buffer;
 
-	bytesRead = fread(buffer, sizeof(char), fileSize, file);
+	bytesRead = fread(bufferPtr, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
 		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
-		exit(74);
+		exit(76);
 	}
 
-	memcpy(&bCode->count, buffer, 4);
-	bCode->capacity = bCode->count;
-	bCode->code = malloc(bCode->count);
-	if (NULL == bCode->code) {
-		fprintf(stderr, "Failed to allocate memory for bCode->code"
-		"source: %s at: %d\n", __FILE__, __LINE__);
-		exit(75);
-	}
+	memcpy(&bCode->count, bufferPtr, 4);
+	memcpy(&bCode->capacity, bufferPtr += 4, 4);
 
-	memcpy(bCode->code, &buffer[8], bCode->count);
+	memcpy(&bCode->constants.count, bufferPtr += 4, 4);
+	memcpy(&bCode->constants.capacity, bufferPtr += 4, 4);
 
-	memcpy(&bCode->constants.count, buffer + 12, 4);
-	bCode->constants.capacity = bCode->constants.count;
-	bCode->constants.values = malloc(bCode->constants.count);
-	if (NULL == bCode->code) {
-		fprintf(stderr, "Failed to allocate memory for bCode->constants.values"
-		"source: %s at: %d\n", __FILE__, __LINE__);
-		exit(75);
-	}
-	memcpy(bCode->constants.values, buffer+ 20, bCode->constants.count);
+	allocateBuffer(&bCode->code, bCode->capacity, "Failed to allocate memory for bCode->code");
+	memcpy(bCode->code, bufferPtr += 4, bCode->capacity);
+
+	allocateBuffer((uint8_t**)&bCode->constants.values, bCode->constants.capacity * sizeof(int32_t), "bCode->constants.values");
+	memcpy(bCode->constants.values, bufferPtr += bCode->capacity, bCode->constants.capacity);
+
 	free(buffer);
 	fclose(file);
 }

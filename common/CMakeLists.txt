@@ -3,6 +3,7 @@ add_library(${FUNVM_COMMON}
 	const_pool.c
 	memory.c
 	source_handler.c
+	debug.c
 )
 
 target_include_directories(${FUNVM_COMMON}

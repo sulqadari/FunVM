@@ -8,7 +8,7 @@ set(FUNVM_INTERPRETER "funvm")
 # All warnings and highest level of debugging output
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O0 -g3")
 # Sanitizer
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
 # Compile the 32-bit version
 set(CMAKE_C_FLASG "${CMAKE_C_FLAGS} -m32")
 

@@ -5,14 +5,14 @@
 #define READ_BYTE()				\
 	(*vm.ip++)
 
-// #define READ_SHORT()			\
-	((*vm.ip++ << 8) | (*vm.ip++))
+// #define READ_SHORT()			
+	// ((*vm.ip++ << 8) | (*vm.ip++))
 
 #define READ_CONSTANT()			\
 	(vm.bCode->constants.values[READ_BYTE()])
 
-// #define READ_CONSTANT_LONG()	\
-	(vm.bCode->constants.values[READ_SHORT()])
+// #define READ_CONSTANT_LONG()	
+	// (vm.bCode->constants.values[READ_SHORT()])
 
 #define BINARY_OP(op)			\
 	do {						\
@@ -97,5 +97,6 @@ interpret(ByteCode* bCode)
 {
 	vm.bCode = bCode;
 	vm.ip = vm.bCode->code;
-	return run();
+	InterpretResult result = run();
+	return result;
 }

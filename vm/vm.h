@@ -6,7 +6,7 @@
 #include "memory.h"
 #include "values.h"
 
-#define STACK_SIZE (256)
+#define STACK_SIZE (8)
 
 typedef struct {
 	ByteCode* bCode;

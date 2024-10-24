@@ -16,10 +16,14 @@ main(int argc, char* argv[])
 		usage();
 	
 	ByteCode bCode;
-	
+
+	initByteCode(&bCode);
 	deserializeByteCode(argv[1], &bCode);
+
 	initVM();
 	interpret(&bCode);
+	
+	freeByteCode(&bCode);
 	freeVM();
 	return (0);
 }
