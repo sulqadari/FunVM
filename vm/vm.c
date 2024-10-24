@@ -14,18 +14,43 @@
 #define READ_CONSTANT_LONG()	\
 	(vm.bCode->constants.values[READ_SHORT()])
 
+#define BINARY_OP(op)			\
+	do {						\
+		i32 b = pop();			\
+		i32 a = pop();			\
+		push(a op b);			\
+	} while(false)
+
 VM vm;
+
+static void
+reserStack(void)
+{
+	vm.stackTop = vm.stack;
+}
 
 void
 initVM(void)
 {
-
+	resetStack();
 }
 
 void
 freeVM(void)
 {
 
+}
+
+void push(Value value)
+{
+	*vm.stackTop = value;
+	vm.stackTop++;
+}
+
+Value pop(void)
+{
+	vm.stackTop--;
+	return *vm.stackTop;
 }
 
 static InterpretResult
@@ -37,20 +62,30 @@ run(void)
 		switch (ins) {
 			case op_iconst: {
 				i32 constant = READ_CONSTANT();
-				printConstValue(constant);
-				printf("\n");
+				push(constant);
 			} break;
 			case op_iconst_long: {
 				i32 constant = READ_CONSTANT_LONG();
-				printConstValue(constant);
-				printf("\n");
+				push(constant);
 			} break;
-			case op_add:
-			case op_sub:
-			case op_mul:
-			case op_div:
-			case op_negate:
+			case op_add: {
+				BINARY_OP(+); 
+			} break;
+			case op_sub: {
+				BINARY_OP(-); 
+			} break;
+			case op_mul: {
+				BINARY_OP(*); 
+			} break;
+			case op_div: {
+				BINARY_OP(/); 
+			} break;
+			case op_negate: {
+				push(-pop());
+			} break;
 			case op_ret: {
+				printConstValue(pop());
+				printf("\n");
 				return INTERPRET_OK;
 			}
 		}

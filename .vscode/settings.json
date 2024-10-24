@@ -1,14 +1,15 @@
 {
 	"files.associations": {
+		"*.jcsh": "shellscript",
 		"*.fn": "java",
 		"00_Preface": "markdown",
 		"*.tivm": "javascript",
 		"*.txt": "cmake",
-		"*.jcsh": "shellscript",
 		"vm.h": "c",
 		"memory.h": "c",
 		"system_error": "c",
 		"vector": "c",
-		"bytecode.h": "c"
+		"bytecode.h": "c",
+		"const_pool.h": "c"
 	}
 }

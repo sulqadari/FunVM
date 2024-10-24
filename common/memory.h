@@ -1,7 +1,6 @@
 #ifndef FUNVM_MEMORY_H
 #define FUNVM_MEMORY_H
 
-#include <stdlib.h>
 #include "common.h"
 
 #if defined(FUNVM_MEM_MANAGER)

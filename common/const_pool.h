@@ -2,8 +2,7 @@
 #define FUNVM_CONST_POOL_H
 
 #include "common.h"
-
-typedef int32_t i32;
+#include "values.h"
 
 typedef struct {
 	uint32_t capacity;
