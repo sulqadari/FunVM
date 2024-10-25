@@ -10,6 +10,13 @@
 		"vector": "c",
 		"bytecode.h": "c",
 		"const_pool.h": "c",
-		"common.h": "c"
+		"common.h": "c",
+		"random": "c",
+		"array": "c",
+		"compare": "c",
+		"functional": "c",
+		"tuple": "c",
+		"type_traits": "c",
+		"utility": "c"
 	}
 }

@@ -13,7 +13,7 @@ initScanner(const char* source)
 {
 	scanner.start = source;
 	scanner.current = source;
-	scanner.line = 0;
+	scanner.line = 1;
 }
 
 static bool
@@ -110,8 +110,8 @@ skipWhiteSpace(void)
 				advance();
 			break;
 			case '\n':
-			scanner.line++;
-			advance();
+				scanner.line++;
+				advance();
 			break;
 			case '/':
 				if (peekNext() == '/') {
@@ -129,14 +129,17 @@ skipWhiteSpace(void)
 						if (peek() == '\n')
 							scanner.line++;
 
-						if (peek() == '*' && peekNext() == '/')
+						if (peek() == '*' && peekNext() == '/') {
+							advance();	// consume '*'
+							advance(); // consume '/'
 							break;
-						
+						}
 						advance();
 					}
 				} else {
 					return;
 				}
+			break;
 			default: return;
 		}
 	}

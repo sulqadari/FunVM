@@ -106,7 +106,7 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	memcpy(bCode->code, bufferPtr += 4, bCode->capacity);
 
 	allocateBuffer((uint8_t**)&bCode->constants.values, bCode->constants.capacity * sizeof(int32_t), "bCode->constants.values");
-	memcpy(bCode->constants.values, bufferPtr += bCode->capacity, bCode->constants.capacity);
+	memcpy(bCode->constants.values, bufferPtr += bCode->capacity, bCode->constants.capacity * sizeof(int32_t));
 
 	free(buffer);
 	fclose(file);

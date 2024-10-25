@@ -5,12 +5,14 @@ set(FUNVM_COMMON "Common")
 set(FUNVM_COMPILER "funvmc")
 set(FUNVM_INTERPRETER "funvm")
 
+# 32-bit architecture
+set(CMAKE_C_FLAGS "-m32")
+
 # All warnings and highest level of debugging output
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O0 -g3")
 # Sanitizer
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
-# Compile the 32-bit version
-set(CMAKE_C_FLASG "${CMAKE_C_FLAGS} -m32")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
+
 
 add_compile_definitions(
 	FUNVM_ARCH_x64
