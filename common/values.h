@@ -3,8 +3,11 @@
 
 #include "common.h"
 
+typedef enum {
+	val_bool,
+	val_null,
+	val_i32,
+} ValueType;
+
 typedef int32_t i32;
-
-typedef int32_t Value;
-
 #endif /* FUNVM_VALUES_H */

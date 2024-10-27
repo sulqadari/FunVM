@@ -10,6 +10,10 @@ set(CMAKE_C_FLAGS "-m32")
 
 # All warnings and highest level of debugging output
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O0 -g3")
+
+# supressed warnings
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
+
 # Sanitizer
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
 

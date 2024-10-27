@@ -20,6 +20,7 @@ parseOpcodes(ByteCode* bCode)
 			case op_div: opStr = "div"; break;
 			case op_negate: opStr = "negate"; break;
 			case op_ret: opStr = "ret"; break;
+			default: return;
 		}
 
 		constVal = bCode->constants.values[bCode->code[i + 1]];

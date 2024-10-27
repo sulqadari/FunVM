@@ -40,4 +40,10 @@ printConstValue(i32 value)
 	printf("%d", value);
 }
 
+bool
+valuesEqual(i32 a, i32 b)
+{
+	return a == b;
+}
+
 #endif /* FUNVM_DEBUG */

@@ -144,7 +144,6 @@ makeConstant(i32 value)
 	int32_t idx = addConstant(getCurrentCtx(), value);
 	if (idx > UINT16_MAX) {
 		error("Too many constants in one chunk.");
-		exit(1);
 	}
 
 	return (uint16_t)idx;
@@ -180,6 +179,12 @@ binary(bool canAssign)
 	parsePrecedence((Precedence)(rule->prec + 1));
 
 	switch (opType) {
+		case tkn_neq:   emitBytes(op_eq, op_not); break;
+		case tkn_2eq:   emitByte(op_eq); break;
+		case tkn_gt:    emitByte(op_gt); break;
+		case tkn_gteq:  emitBytes(op_lt, op_not); break;
+		case tkn_lt:    emitByte(op_lt); break;
+		case tkn_lteq:  emitBytes(op_gt, op_not); break;
 		case tkn_plus:  emitByte(op_add); break;
 		case tkn_minus: emitByte(op_sub); break;
 		case tkn_star:  emitByte(op_mul); break;
@@ -196,20 +201,33 @@ grouping(bool canAssign)
 }
 
 static void
-number(bool canAssign)
+signedInt(bool canAssign)
 {
 	i32 value = strtol(parser.previous.start, NULL, 10);
 	emitConstant(value);
 }
 
 static void
+literal(bool canAssign)
+{
+	switch (parser.previous.type) {
+		case tkn_false: emitByte(op_false); break;
+		case tkn_true:  emitByte(op_true); break;
+		case tkn_null:  emitByte(op_null); break;
+		default: return;
+	}
+}
+
+static void
 unary(bool canAssign)
 {
 	TokenType opType = parser.previous.type;
+	
 	parsePrecedence(prec_unary);
 
 	switch (opType) {
-		case tkn_minus: emitByte(op_negate);
+		case tkn_not:   emitByte(op_not); break;
+		case tkn_minus: emitByte(op_negate); break;
 		default: return;
 	}
 }
@@ -229,21 +247,21 @@ ParseRule rules[] = {
 	[tkn_slash]    = {NULL, binary, prec_factor},
 	[tkn_star]     = {NULL, binary, prec_factor},
 	
-	[tkn_not]      = {NULL, NULL, prec_none},
-	[tkn_neq]      = {NULL, NULL, prec_none},
+	[tkn_not]      = {unary, NULL, prec_none},
+	[tkn_neq]      = {NULL, binary, prec_equality},
 	[tkn_eq]       = {NULL, NULL, prec_none},
-	[tkn_2eq]      = {NULL, NULL, prec_none},
-	[tkn_gt]       = {NULL, NULL, prec_none},
-	[tkn_gteq]     = {NULL, NULL, prec_none},
-	[tkn_lt]       = {NULL, NULL, prec_none},
-	[tkn_lteq]     = {NULL, NULL, prec_none},
+	[tkn_2eq]      = {NULL, binary, prec_equality},
+	[tkn_gt]       = {NULL, binary, prec_comparison},
+	[tkn_gteq]     = {NULL, binary, prec_comparison},
+	[tkn_lt]       = {NULL, binary, prec_comparison},
+	[tkn_lteq]     = {NULL, binary, prec_comparison},
 	[tkn_and]      = {NULL, NULL, prec_none},
 	[tkn_or]       = {NULL, NULL, prec_none},
 	
 	[tkn_id]       = {NULL, NULL, prec_none},
 	[tkn_str]      = {NULL, NULL, prec_none},
 
-	[tkn_i32]      = {number, NULL, prec_none},
+	[tkn_i32]      = {signedInt, NULL, prec_none},
 	[tkn_if]       = {NULL, NULL, prec_none},
 	[tkn_else]     = {NULL, NULL, prec_none},
 	[tkn_switch]   = {NULL, NULL, prec_none},
@@ -255,10 +273,10 @@ ParseRule rules[] = {
 	[tkn_super]    = {NULL, NULL, prec_none},
 	[tkn_this]     = {NULL, NULL, prec_none},
 	[tkn_fun]      = {NULL, NULL, prec_none},
-	[tkn_null]     = {NULL, NULL, prec_none},
+	[tkn_null]     = {literal, NULL, prec_none},
 	[tkn_ret]      = {NULL, NULL, prec_none},
-	[tkn_false]    = {NULL, NULL, prec_none},
-	[tkn_true]     = {NULL, NULL, prec_none},
+	[tkn_false]    = {literal, NULL, prec_none},
+	[tkn_true]     = {literal, NULL, prec_none},
 	[tkn_err]      = {NULL, NULL, prec_none},
 	[tkn_eof]      = {NULL, NULL, prec_none},
 };
@@ -272,7 +290,6 @@ parsePrecedence(Precedence prec)
 
 	if (prefixRule == NULL) {
 		error("expect expression.");
-		return;
 	}
 
 	bool canAssign = (prec <= prec_assignment);
