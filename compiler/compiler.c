@@ -34,10 +34,18 @@ typedef struct {
 static Parser parser;
 static ByteCode* currCtx;
 
+
 static ByteCode*
 getCurrentCtx(void)
 {
 	return currCtx;
+}
+
+static OpCode
+getPreviousOpCode(void)
+{
+	uint32_t idx = getCurrentCtx()->count;
+	return getCurrentCtx()->code[idx - 1];
 }
 
 static void
@@ -224,10 +232,16 @@ unary(bool canAssign)
 	TokenType opType = parser.previous.type;
 	
 	parsePrecedence(prec_unary);
+	OpCode operand = getPreviousOpCode();
 
 	switch (opType) {
 		case tkn_not:   emitByte(op_not); break;
-		case tkn_minus: emitByte(op_negate); break;
+		case tkn_minus: {
+			if ((operand != op_iconst) && (operand != op_iconst_long)) {
+				error("Negation is only applicable to integers.");
+			}
+			emitByte(op_negate);
+		} break;
 		default: return;
 	}
 }
