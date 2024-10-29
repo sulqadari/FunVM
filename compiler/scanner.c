@@ -199,6 +199,8 @@ identifierType(void)
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
 					case 'f': return checkKeyword(0, 2, "if", tkn_if);
+					case '8': return checkKeyword(0, 2, "i8", tkn_i8);
+					case '1': return checkKeyword(0, 3, "i16", tkn_i16);
 					case '3': return checkKeyword(0, 3, "i32", tkn_i32);
 				}
 			}

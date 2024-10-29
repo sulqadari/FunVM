@@ -21,7 +21,7 @@ typedef enum {
 	tkn_id,
 	tkn_str,
 	// Keywords.
-	tkn_i32,
+	tkn_i32,    tkn_i16, tkn_i8,
 	tkn_if,     tkn_else, 
 	tkn_switch, tkn_break,
 	tkn_while,  tkn_for, tkn_continue, 

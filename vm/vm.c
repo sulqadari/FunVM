@@ -1,4 +1,5 @@
 #include "vm.h"
+#include "values.h"
 #include <stdarg.h>
 
 static VM vm;
@@ -106,22 +107,26 @@ run(void)
 	while (true) {
 		ins = readByteCode();
 		switch (ins) {
-			case op_iconst: {
+			case op_iconst:
+			case op_sconst:
+			case op_bconst: {
 				i32 constant = readConst();
 				push(constant);
 			} break;
-			case op_iconst_long: {
+			case op_iconst_long:
+			case op_sconst_long:
+			case op_bconst_long: {
 				i32 constant = readConstLong();
 				push(constant);
 			} break;
 			case op_null:  {
-				push(0);
+				push(null);
 			} break;
 			case op_true:  {
-				push(true);
+				push(True);
 			} break;
 			case op_false: {
-				push(false);
+				push(False);
 			} break;
 			case op_eq: {
 				i32 b = pop();

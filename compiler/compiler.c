@@ -216,6 +216,20 @@ signedInt(bool canAssign)
 }
 
 static void
+signedShort(bool canAssign)
+{
+	i16 value = strtol(parser.previous.start, NULL, 10);
+	emitConstant((i32)value);
+}
+
+static void
+signedByte(bool canAssign)
+{
+	i8 value = strtol(parser.previous.start, NULL, 10);
+	emitConstant((i32)value);
+}
+
+static void
 literal(bool canAssign)
 {
 	switch (parser.previous.type) {
@@ -237,7 +251,7 @@ unary(bool canAssign)
 	switch (opType) {
 		case tkn_not:   emitByte(op_not); break;
 		case tkn_minus: {
-			if ((operand != op_iconst) && (operand != op_iconst_long)) {
+			if (operand == op_true || operand == op_false || operand == op_null) {
 				error("Negation is only applicable to integers.");
 			}
 			emitByte(op_negate);
@@ -276,6 +290,8 @@ ParseRule rules[] = {
 	[tkn_str]      = {NULL, NULL, prec_none},
 
 	[tkn_i32]      = {signedInt, NULL, prec_none},
+	[tkn_i16]      = {signedShort, NULL, prec_none},
+	[tkn_i8]      = {signedByte, NULL, prec_none},
 	[tkn_if]       = {NULL, NULL, prec_none},
 	[tkn_else]     = {NULL, NULL, prec_none},
 	[tkn_switch]   = {NULL, NULL, prec_none},
@@ -304,6 +320,7 @@ parsePrecedence(Precedence prec)
 
 	if (prefixRule == NULL) {
 		error("expect expression.");
+		exit(1);
 	}
 
 	bool canAssign = (prec <= prec_assignment);

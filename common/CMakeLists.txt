@@ -4,6 +4,7 @@ add_library(${FUNVM_COMMON}
 	memory.c
 	source_handler.c
 	debug.c
+	values.c
 )
 
 target_include_directories(${FUNVM_COMMON}
