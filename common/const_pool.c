@@ -31,19 +31,3 @@ writeConstPool(ConstPool* cPool, i32 value)
 
 	cPool->values[cPool->count++] = value;
 }
-
-#if defined(FUNVM_ARCH_x64)
-
-void
-printConstValue(i32 value)
-{
-	printf("%d", value);
-}
-
-bool
-valuesEqual(i32 a, i32 b)
-{
-	return a == b;
-}
-
-#endif /* FUNVM_DEBUG */

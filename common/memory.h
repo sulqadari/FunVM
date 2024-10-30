@@ -11,6 +11,9 @@
 #	define fvm_free free
 #endif /* FUNVM_MEM_MANAGER */
 
+#define ALLOCATE(type, count)	\
+	(type*)reallocate(NULL, 0, sizeof(type) * (count))
+
 #define GROW_CAPACITY(cap)		\
 	((cap) < 8 ? 8 : (cap) * 1.5)
 

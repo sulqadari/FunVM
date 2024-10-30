@@ -1,6 +1,7 @@
 #include "compiler.h"
 #include "scanner.h"
 #include "bytecode.h"
+#include "object.h"
 
 typedef struct {
 	Token current;
@@ -230,6 +231,12 @@ signedByte(bool canAssign)
 }
 
 static void
+string(bool canAssign)
+{
+	emitConstant(42);
+}
+
+static void
 literal(bool canAssign)
 {
 	switch (parser.previous.type) {
@@ -287,7 +294,7 @@ ParseRule rules[] = {
 	[tkn_or]       = {NULL, NULL, prec_none},
 	
 	[tkn_id]       = {NULL, NULL, prec_none},
-	[tkn_str]      = {NULL, NULL, prec_none},
+	[tkn_str]      = {string, NULL, prec_none},
 
 	[tkn_i32]      = {signedInt, NULL, prec_none},
 	[tkn_i16]      = {signedShort, NULL, prec_none},

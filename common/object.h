@@ -18,8 +18,12 @@ struct ObjString {
   char* chars;
 };
 
-#define OBJ_TYPE(value)		(OBJ_UNPACK(value)->type)
-#define IS_STRING(value)	isObjType(value, obj_string)
+#define OBJ_TYPE(value)			(OBJ_UNPACK(value)->type)
+#define IS_STRING(value)		isObjType(value, obj_string)
+#define STRING_UNPACK(value)	((ObjString*)STRING_UNPACK(value))
+#define CSTRING_UNPACK(value)	((ObjString*)STRING_UNPACK(value)->chars)
+
+ObjString* copyString(const char* chars, uint32_t length);
 
 static inline bool
 isObjType(Value value, ObjType type)

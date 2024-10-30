@@ -158,7 +158,7 @@ run(void)
 				push(-pop());
 			} break;
 			case op_ret: {
-				printConstValue(pop());
+				printValue(pop());
 				printf("\n");
 				return INTERPRET_OK;
 			}

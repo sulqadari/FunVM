@@ -27,6 +27,12 @@ typedef struct {
 	} as;	
 } Value;
 
+bool valuesEqual(i32 a, i32 b);
+
+#if defined(FUNVM_ARCH_x64)
+void printValue(i32 value);
+#endif /* FUNVM_DEBUG */
+
 #define IS_OBJECT(value)	((value).type == val_obj)
 #define OBJ_UNPACK(value)	((value).as.obj)
 #define OBJ_PACK(value)		((Value){VAL_OBJ, {.obj = (Obj*)object}})
