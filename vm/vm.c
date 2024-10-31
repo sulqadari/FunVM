@@ -63,6 +63,8 @@ printOnReturn(OpCode previous)
 		case op_gteq:
 		case op_lt:
 		case op_lteq:        printValue(pop(), val_bool); break;
+		case op_obj_long:
+		case op_obj:         printValue(pop(), val_obj); break;
 		default:
 			runtimeError("unprintable opcode '%s'.", opToStr(previous));
 		return INTERPRET_RUNTIME_ERROR;
@@ -208,7 +210,7 @@ run(void)
 			case op_lteq: {
 				i32 b = pop();
 				i32 a = pop();
-				push(valuesEqual(a, b, ins));
+				push(valuesEquality(a, b, ins));
 			} break;
 			case op_add: {
 				binaryOp(op_add);
@@ -227,6 +229,14 @@ run(void)
 			} break;
 			case op_negate: {
 				push(-pop());
+			} break;
+			case op_obj: {
+				i32 constant = readConst();
+				push(constant);
+			} break;
+			case op_obj_long: {
+				i32 constant = readConstLong();
+				push(constant);
 			} break;
 			case op_ret: {
 				return printOnReturn(previous);

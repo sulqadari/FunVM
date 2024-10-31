@@ -23,13 +23,17 @@ struct ObjString {
 struct ObjArray {
   Object obj;
   uint32_t length;
-  void* array;
+  void* data;
 };
 
+#define OBJECT_TYPE(value)	(((Object*)value)->type)
 #define IS_OBJECT(value)	((value).type == obj_raw)
 #define IS_STRING(value)	((value).type == obj_string)
 #define IS_ARRAY(value)		((value).type == obj_array)
 
+#define CSTRING_UNPACK(value)	(((ObjString*)value)->chars)
+
 ObjString* copyString(const char* chars, uint32_t length);
+void printObject(u32 value);
 
 #endif /* FUNVM_OBJECT_H */

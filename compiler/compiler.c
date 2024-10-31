@@ -159,6 +159,18 @@ makeConstant(i32 value)
 }
 
 static void
+emitObject(i32 obj)
+{
+	uint16_t idx = makeConstant(obj);
+	if (idx > UINT8_MAX) {
+		emitBytes(op_obj_long, ((idx >> 8) & 0x00FF));
+		emitByte(idx & 0x00FF);
+	} else {
+		emitBytes(op_obj, idx);
+	}
+}
+
+static void
 emitConstant(i32 value)
 {
 	uint16_t idx = makeConstant(value);
@@ -233,7 +245,9 @@ signedByte(bool canAssign)
 static void
 string(bool canAssign)
 {
-	emitConstant(42);
+	//Trim the leading and trailing quotation marks.
+	ObjString* str = copyString(parser.previous.start + 1, parser.previous.length - 2);
+	emitObject((i32)str);
 }
 
 static void

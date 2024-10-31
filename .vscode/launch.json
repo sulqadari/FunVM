@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/compiler/funvmc",
 			"args": [
-				"${workspaceFolder}/tests/single_expression_test.fn"
+				"${workspaceFolder}/tests/string_test.fn"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -21,7 +21,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/vm/funvm",
 			"args": [
-				"${workspaceFolder}/tests/single_expression_test.fnb"
+				"${workspaceFolder}/tests/string_test.fnb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true

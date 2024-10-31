@@ -1,12 +1,13 @@
 #include "values.h"
 #include "bytecode.h"
+#include "object.h"
 
 const boolean True  = 0xa5a5a5a5;
 const boolean False = 0x5a5a5a5a;
 const Null* null = (void*)0;
 
 boolean
-valuesEqual(i32 a, i32 b, uint8_t operation)
+valuesEquality(i32 a, i32 b, uint8_t operation)
 {
 	switch (operation) {
 		case op_eq:   return a == b ? True : False;
@@ -34,6 +35,8 @@ printValue(i32 value, ValueType type)
 		case val_byte:
 			printf("%d", value);
 		break;
-		default: return;
+		case val_obj:
+			printObject((u32)value);
+		break;
 	}
 }

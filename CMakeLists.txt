@@ -15,7 +15,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O0 -g3")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
 
 # Sanitizer
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
 
 
 add_compile_definitions(

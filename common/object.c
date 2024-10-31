@@ -32,3 +32,16 @@ copyString(const char* chars, uint32_t length)
 	heapChars[length] = '\0';
 	return allocateString(heapChars, length);
 }
+
+void printObject(u32 value)
+{
+	switch (OBJECT_TYPE(value)) {
+		case obj_raw:
+		break;
+		case obj_string:
+			printf("%s", CSTRING_UNPACK(value));
+		break;
+		case obj_array:
+		break;
+	}
+}
