@@ -1,9 +1,10 @@
 {
 	"files.associations": {
-		"*.jcsh": "shellscript",
 		"*.fn": "javascript",
 		"00_Preface": "markdown",
+		"*.tivm": "javascript",
 		"*.txt": "cmake",
+		"*.jcsh": "shellscript",
 		"vm.h": "c",
 		"memory.h": "c",
 		"system_error": "c",
@@ -18,6 +19,11 @@
 		"tuple": "c",
 		"type_traits": "c",
 		"utility": "c",
-		"optional": "cpp"
+		"optional": "cpp",
+		"__functional_base": "c",
+		"__tuple": "c",
+		"algorithm": "c",
+		"limits": "c",
+		"memory": "c"
 	}
 }
