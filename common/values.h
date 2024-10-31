@@ -10,31 +10,22 @@ typedef int32_t boolean;
 typedef int32_t Null;
 typedef struct Object Object;
 typedef struct ObjString ObjString;
+typedef struct ObjArray ObjArray;
+
+typedef enum {
+	val_bool,
+	val_null,
+	val_int,
+	val_short,
+	val_byte,
+	val_obj,
+} ValueType;
 
 extern const boolean True;
 extern const boolean False;
-extern const Null null;
+extern const Null* null;
 
-typedef enum {
-	val_obj
-} ValueType;
-
-typedef struct {
-	ValueType type;
-	union 
-	{
-		Object* obj;
-	} as;	
-} Value;
-
-bool valuesEqual(i32 a, i32 b);
-
-#if defined(FUNVM_ARCH_x64)
-void printValue(i32 value);
-#endif /* FUNVM_DEBUG */
-
-#define IS_OBJECT(value)	((value).type == val_obj)
-#define OBJ_UNPACK(value)	((value).as.obj)
-#define OBJ_PACK(value)		((Value){VAL_OBJ, {.obj = (Obj*)object}})
+boolean valuesEqual(i32 a, i32 b, uint8_t operation);
+void printValue(i32 value, ValueType type);
 
 #endif /* FUNVM_VALUES_H */

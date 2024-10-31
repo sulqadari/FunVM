@@ -5,7 +5,9 @@
 #include "values.h"
 
 typedef enum {
-	obj_string
+	obj_raw,
+	obj_string,
+	obj_array
 } ObjType;
 
 struct Object {
@@ -18,17 +20,16 @@ struct ObjString {
   char* chars;
 };
 
-#define OBJ_TYPE(value)			(OBJ_UNPACK(value)->type)
-#define IS_STRING(value)		isObjType(value, obj_string)
-#define STRING_UNPACK(value)	((ObjString*)STRING_UNPACK(value))
-#define CSTRING_UNPACK(value)	((ObjString*)STRING_UNPACK(value)->chars)
+struct ObjArray {
+  Object obj;
+  uint32_t length;
+  void* array;
+};
+
+#define IS_OBJECT(value)	((value).type == obj_raw)
+#define IS_STRING(value)	((value).type == obj_string)
+#define IS_ARRAY(value)		((value).type == obj_array)
 
 ObjString* copyString(const char* chars, uint32_t length);
-
-static inline bool
-isObjType(Value value, ObjType type)
-{
-	return IS_OBJECT(value) && OBJ_UNPACK(value)->type == type;
-}
 
 #endif /* FUNVM_OBJECT_H */

@@ -4,6 +4,73 @@
 
 static VM vm;
 
+typedef struct {
+	OpCode code;
+	const char* str;
+} OpStr;
+
+OpStr opStrArray[] = {
+	{op_iconst, "op_iconst"},
+	{op_sconst, "op_sconst"},
+	{op_bconst, "op_bconst"},
+	{op_iconst_long, "op_iconst_long"},
+	{op_sconst_long, "op_sconst_long"},
+	{op_bconst_long, "op_bconst_long"},
+	{op_null, "op_null"},
+	{op_true, "op_true"},
+	{op_false, "op_false"},
+	{op_eq, "op_eq"},
+	{op_neq, "op_neq"},
+	{op_gt, "op_gt"},
+	{op_gteq, "op_gteq"},
+	{op_lt, "op_lt"},
+	{op_lteq, "op_lteq"},
+	{op_add, "op_add"},
+	{op_sub, "op_sub"},
+	{op_mul, "op_mul"},
+	{op_div, "op_div"},
+	{op_not, "op_not"},
+	{op_negate, "op_negate"},
+	{op_ret, "op_ret"},
+};
+
+static const char*
+opToStr(OpCode opcode)
+{
+	return opStrArray[opcode].str;
+}
+
+// forward declaration.
+static void runtimeError(const char* format, ...);
+
+static InterpretResult
+printOnReturn(OpCode previous)
+{
+	switch (previous) {
+		case op_iconst:
+		case op_sconst:
+		case op_bconst:
+		case op_iconst_long:
+		case op_sconst_long:
+		case op_bconst_long:
+		case op_negate:      printValue(pop(), val_int);  break;
+		case op_null:        printValue(pop(), val_null); break;
+		case op_true:
+		case op_false:
+		case op_eq:
+		case op_neq:
+		case op_gt:
+		case op_gteq:
+		case op_lt:
+		case op_lteq:        printValue(pop(), val_bool); break;
+		default:
+			runtimeError("unprintable opcode '%s'.", opToStr(previous));
+		return INTERPRET_RUNTIME_ERROR;
+	}
+	printf("\n");
+	return INTERPRET_OK;
+}
+
 /* Reads the byte currently pointed at by 'ip' and
  * then advances the instruction pointer. */
 static uint8_t
@@ -94,17 +161,22 @@ peek(uint32_t distance)
 	return vm.stackTop[-1 - distance];
 }
 
-static bool
+static boolean
 isFalsey(i32 value)
 {
-	return value == 0;
+	if (((uint32_t)null == value) || (False == value)) {
+		return True;
+	}
+	return False;
 }
 
 static InterpretResult
 run(void)
 {
-	uint8_t ins;
+	OpCode ins = 0;
+	OpCode previous = 0;
 	while (true) {
+		previous = ins;
 		ins = readByteCode();
 		switch (ins) {
 			case op_iconst:
@@ -120,7 +192,7 @@ run(void)
 				push(constant);
 			} break;
 			case op_null:  {
-				push(null);
+				push((uint32_t)null);
 			} break;
 			case op_true:  {
 				push(True);
@@ -128,16 +200,15 @@ run(void)
 			case op_false: {
 				push(False);
 			} break;
-			case op_eq: {
+			case op_eq:
+			case op_neq:
+			case op_gt:
+			case op_gteq:
+			case op_lt:
+			case op_lteq: {
 				i32 b = pop();
 				i32 a = pop();
-				push(valuesEqual(a, b));
-			} break;
-			case op_gt: {
-				binaryOp(op_gt);
-			} break;
-			case op_lt: {
-				binaryOp(op_lt);
+				push(valuesEqual(a, b, ins));
 			} break;
 			case op_add: {
 				binaryOp(op_add);
@@ -158,9 +229,7 @@ run(void)
 				push(-pop());
 			} break;
 			case op_ret: {
-				printValue(pop());
-				printf("\n");
-				return INTERPRET_OK;
+				return printOnReturn(previous);
 			}
 		}
 	}

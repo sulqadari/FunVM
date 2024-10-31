@@ -188,12 +188,12 @@ binary(bool canAssign)
 	parsePrecedence((Precedence)(rule->prec + 1));
 
 	switch (opType) {
-		case tkn_neq:   emitBytes(op_eq, op_not); break;
-		case tkn_2eq:   emitByte(op_eq); break;
-		case tkn_gt:    emitByte(op_gt); break;
-		case tkn_gteq:  emitBytes(op_lt, op_not); break;
-		case tkn_lt:    emitByte(op_lt); break;
-		case tkn_lteq:  emitBytes(op_gt, op_not); break;
+		case tkn_neq:   emitByte(op_neq);  break;
+		case tkn_2eq:   emitByte(op_eq);   break;
+		case tkn_gt:    emitByte(op_gt);   break;
+		case tkn_gteq:  emitByte(op_gteq); break;
+		case tkn_lt:    emitByte(op_lt);   break;
+		case tkn_lteq:  emitByte(op_lteq); break;
 		case tkn_plus:  emitByte(op_add); break;
 		case tkn_minus: emitByte(op_sub); break;
 		case tkn_star:  emitByte(op_mul); break;
@@ -253,12 +253,12 @@ unary(bool canAssign)
 	TokenType opType = parser.previous.type;
 	
 	parsePrecedence(prec_unary);
-	OpCode operand = getPreviousOpCode();
+	OpCode previousOp = getPreviousOpCode();
 
 	switch (opType) {
 		case tkn_not:   emitByte(op_not); break;
 		case tkn_minus: {
-			if (operand == op_true || operand == op_false || operand == op_null) {
+			if (previousOp == op_true || previousOp == op_false || previousOp == op_null) {
 				error("Negation is only applicable to integers.");
 			}
 			emitByte(op_negate);
