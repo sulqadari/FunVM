@@ -39,7 +39,7 @@ void printObject(u32 value)
 		case obj_raw:
 		break;
 		case obj_string:
-			printf("%s", CSTRING_UNPACK(value));
+			printf("%s", OBJECT_CSTRING(value));
 		break;
 		case obj_array:
 		break;

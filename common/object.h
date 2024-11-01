@@ -31,7 +31,8 @@ struct ObjArray {
 #define IS_STRING(value)	((value).type == obj_string)
 #define IS_ARRAY(value)		((value).type == obj_array)
 
-#define CSTRING_UNPACK(value)	(((ObjString*)value)->chars)
+#define OBJECT_STRING(value)	((ObjString*)value)
+#define OBJECT_CSTRING(value)	(((ObjString*)value)->chars)
 
 ObjString* copyString(const char* chars, uint32_t length);
 void printObject(u32 value);

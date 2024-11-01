@@ -148,26 +148,37 @@ emitReturn(void)
 }
 
 static uint16_t
-makeConstant(i32 value)
+makeObject(void* obj)
 {
-	int32_t idx = addConstant(getCurrentCtx(), value);
+	int32_t idx = addObject(getCurrentCtx(), obj);
 	if (idx > UINT16_MAX) {
-		error("Too many constants in one chunk.");
+		error("Too many constants in one objects pool.");
 	}
 
 	return (uint16_t)idx;
 }
 
 static void
-emitObject(i32 obj)
+emitObject(void* obj)
 {
-	uint16_t idx = makeConstant(obj);
+	uint16_t idx = makeObject(obj);
 	if (idx > UINT8_MAX) {
 		emitBytes(op_obj_long, ((idx >> 8) & 0x00FF));
 		emitByte(idx & 0x00FF);
 	} else {
 		emitBytes(op_obj, idx);
 	}
+}
+
+static uint16_t
+makeConstant(i32 value)
+{
+	int32_t idx = addConstant(getCurrentCtx(), value);
+	if (idx > UINT16_MAX) {
+		error("Too many constants in one constants pool.");
+	}
+
+	return (uint16_t)idx;
 }
 
 static void
@@ -247,7 +258,7 @@ string(bool canAssign)
 {
 	//Trim the leading and trailing quotation marks.
 	ObjString* str = copyString(parser.previous.start + 1, parser.previous.length - 2);
-	emitObject((i32)str);
+	emitObject((void*)str);
 }
 
 static void

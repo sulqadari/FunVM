@@ -5,7 +5,7 @@
 static void
 usage(void)
 {
-	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
+	printf("Usage:\n\tfunvm binary.fnb\n");
 	exit(1);
 }
 

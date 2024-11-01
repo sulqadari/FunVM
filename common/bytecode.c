@@ -1,5 +1,6 @@
 #include "bytecode.h"
 #include "memory.h"
+#include "object_pool.h"
 
 uint32_t* lines;
 
@@ -44,4 +45,11 @@ addConstant(ByteCode* bCode, i32 value)
 {
 	writeConstPool(&bCode->constants, value);
 	return bCode->constants.count - 1;
+}
+
+uint32_t
+addObject(ByteCode* bCode, void* obj)
+{
+	writeObjPool(&bCode->objects, obj);
+	return bCode->objects.offset;
 }
