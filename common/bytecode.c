@@ -50,6 +50,5 @@ addConstant(ByteCode* bCode, i32 value)
 uint32_t
 addObject(ByteCode* bCode, void* obj)
 {
-	writeObjPool(&bCode->objects, obj);
-	return bCode->objects.offset;
+	return writeObjPool(&bCode->objects, obj);
 }

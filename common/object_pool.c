@@ -5,7 +5,6 @@ void
 initObjPool(ObjPool* objPool)
 {
 	objPool->values = NULL;
-	objPool->offset = 0;
 	objPool->size = 0;
 }
 
@@ -16,20 +15,23 @@ freeObjPool(ObjPool* objPool)
 	initObjPool(objPool);
 }
 
-void
+int32_t
 writeObjPool(ObjPool* objPool, void* obj)
 {
 	ObjType type = OBJECT_TYPE(obj);
 
 	if (type == obj_string) {
 		
-		uint32_t oldSize = objPool->size;
-		uint32_t dataLength = OBJECT_STRING(obj)->length;
-		objPool->size += dataLength;
-		objPool->values = GROW_ARRAY(void, objPool->values, oldSize, objPool->size);
+		uint32_t offset = objPool->size;
+		objPool->size += sizeof(ObjString) + OBJECT_STRING(obj)->length;
 		
-		for (uint32_t i = oldSize + 1; i < oldSize + dataLength + 1; ++i) {
-			OBJPOOL_AS_STRING(objPool)[i] = OBJECT_CSTRING(obj)[i];
-		}
+		objPool->values = GROW_ARRAY(uint8_t, objPool->values, offset, objPool->size);
+		
+		memcpy(objPool->values, obj, sizeof(ObjString));
+		memcpy(objPool->values + sizeof(ObjString), OBJECT_CSTRING(obj), OBJECT_STRING(obj)->length);
+
+		return offset;
 	}
+
+	return -1;
 }

@@ -6,15 +6,14 @@
 #include "object.h"
 
 typedef struct {
-	uint32_t offset;
 	uint32_t size;
-	void* values;
+	uint8_t* values;
 } ObjPool;
 
 #define OBJPOOL_AS_STRING(pool)		((char*)objPool->values)
 
 void initObjPool(ObjPool* objPool);
 void freeObjPool(ObjPool* objPool);
-void writeObjPool(ObjPool* objPool, void* obj);
+int32_t writeObjPool(ObjPool* objPool, void* obj);
 
 #endif /* FUNVM_OBJECT_POOL_H */

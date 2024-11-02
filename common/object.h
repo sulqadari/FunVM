@@ -23,7 +23,6 @@ struct ObjString {
 struct ObjArray {
   Object obj;
   uint32_t length;
-  void* data;
 };
 
 #define OBJECT_TYPE(value)	(((Object*)value)->type)

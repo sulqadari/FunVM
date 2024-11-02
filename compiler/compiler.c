@@ -153,6 +153,8 @@ makeObject(void* obj)
 	int32_t idx = addObject(getCurrentCtx(), obj);
 	if (idx > UINT16_MAX) {
 		error("Too many constants in one objects pool.");
+	} else if (idx < 0) {
+		error("Unknown type of object.");
 	}
 
 	return (uint16_t)idx;
