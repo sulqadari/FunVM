@@ -9,9 +9,9 @@ typedef enum {
 	op_iconst,
 	op_sconst,
 	op_bconst,
-	op_iconst_long,
-	op_sconst_long,
-	op_bconst_long,
+	op_iconstw,
+	op_sconstw,
+	op_bconstw,
 	op_null,
 	op_true,
 	op_false,
@@ -27,8 +27,8 @@ typedef enum {
 	op_div,
 	op_not,
 	op_negate,
-	op_obj,
-	op_obj_long,
+	op_obj_str,
+	op_obj_strw,
 	op_ret,
 } OpCode;
 

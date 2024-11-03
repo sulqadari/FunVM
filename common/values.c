@@ -36,7 +36,7 @@ printValue(i32 value, ValueType type)
 			printf("%d", value);
 		break;
 		case val_obj:
-			printObject((u32)value);
+			printObject(value);
 		break;
 	}
 }

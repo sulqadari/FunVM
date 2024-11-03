@@ -13,9 +13,9 @@ OpStr opStrArray[] = {
 	{op_iconst, "op_iconst"},
 	{op_sconst, "op_sconst"},
 	{op_bconst, "op_bconst"},
-	{op_iconst_long, "op_iconst_long"},
-	{op_sconst_long, "op_sconst_long"},
-	{op_bconst_long, "op_bconst_long"},
+	{op_iconstw, "op_iconstw"},
+	{op_sconstw, "op_sconstw"},
+	{op_bconstw, "op_bconstw"},
 	{op_null, "op_null"},
 	{op_true, "op_true"},
 	{op_false, "op_false"},
@@ -50,9 +50,9 @@ printOnReturn(OpCode previous)
 		case op_iconst:
 		case op_sconst:
 		case op_bconst:
-		case op_iconst_long:
-		case op_sconst_long:
-		case op_bconst_long:
+		case op_iconstw:
+		case op_sconstw:
+		case op_bconstw:
 		case op_negate:      printValue(pop(), val_int);  break;
 		case op_null:        printValue(pop(), val_null); break;
 		case op_true:
@@ -63,8 +63,8 @@ printOnReturn(OpCode previous)
 		case op_gteq:
 		case op_lt:
 		case op_lteq:        printValue(pop(), val_bool); break;
-		case op_obj_long:
-		case op_obj:         printValue(pop(), val_obj); break;
+		case op_obj_strw:
+		case op_obj_str:         printValue(pop(), val_obj); break;
 		default:
 			runtimeError("unprintable opcode '%s'.", opToStr(previous));
 		return INTERPRET_RUNTIME_ERROR;
@@ -94,6 +94,15 @@ readConstLong(void)
 	uint16_t idx1 = readByteCode();
 	uint16_t idx2 = readByteCode();
 	return vm.bCode->constants.values[(idx1 << 8) | idx2];
+}
+
+static ObjString*
+readObjString(void)
+{
+	uint8_t idx = readByteCode();
+	ObjString* str = (ObjString*)&vm.bCode->objects.values[idx];
+	str->chars = (char*)&vm.bCode->objects.values[idx + sizeof(ObjString)];
+	return str;
 }
 
 static void
@@ -187,9 +196,9 @@ run(void)
 				i32 constant = readConst();
 				push(constant);
 			} break;
-			case op_iconst_long:
-			case op_sconst_long:
-			case op_bconst_long: {
+			case op_iconstw:
+			case op_sconstw:
+			case op_bconstw: {
 				i32 constant = readConstLong();
 				push(constant);
 			} break;
@@ -230,11 +239,11 @@ run(void)
 			case op_negate: {
 				push(-pop());
 			} break;
-			case op_obj: {
-				i32 constant = readConst();
-				push(constant);
+			case op_obj_str: {
+				ObjString* str = readObjString();
+				push((i32)str);
 			} break;
-			case op_obj_long: {
+			case op_obj_strw: {
 				i32 constant = readConstLong();
 				push(constant);
 			} break;

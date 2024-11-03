@@ -13,7 +13,7 @@ parseOpcodes(ByteCode* bCode)
 		
 		switch (opCode) {
 			case op_iconst: opStr = "iconst"; break;
-			case op_iconst_long: opStr = "iconst_long"; break;
+			case op_iconstw: opStr = "iconst_long"; break;
 			case op_add: opStr = "add"; break;
 			case op_sub: opStr = "sub"; break;
 			case op_mul: opStr = "mul"; break;
