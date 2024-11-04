@@ -81,6 +81,14 @@ readByteCode(void)
 	return *vm.ip++;
 }
 
+static uint16_t
+readShortCode(void)
+{
+	uint16_t idx1 = readByteCode();
+	uint16_t idx2 = readByteCode();
+	return ((idx1 << 8) | (idx2 & 0x00FF));
+}
+
 static int32_t
 readConst(void)
 {
@@ -89,17 +97,22 @@ readConst(void)
 }
 
 static int32_t
-readConstLong(void)
+readConstW(void)
 {
-	uint16_t idx1 = readByteCode();
-	uint16_t idx2 = readByteCode();
-	return vm.bCode->constants.values[(idx1 << 8) | idx2];
+	uint16_t idx = readShortCode();
+	return vm.bCode->constants.values[idx];
 }
 
 static ObjString*
-readObjString(void)
+readObjString(OpCode ins)
 {
-	uint8_t idx = readByteCode();
+	uint16_t idx;
+
+	if (ins == op_obj_str)
+		idx = readByteCode();
+	else
+		idx = readShortCode();
+
 	ObjString* str = (ObjString*)&vm.bCode->objects.values[idx];
 	str->chars = (char*)&vm.bCode->objects.values[idx + sizeof(ObjString)];
 	return str;
@@ -199,7 +212,7 @@ run(void)
 			case op_iconstw:
 			case op_sconstw:
 			case op_bconstw: {
-				i32 constant = readConstLong();
+				i32 constant = readConstW();
 				push(constant);
 			} break;
 			case op_null:  {
@@ -240,12 +253,12 @@ run(void)
 				push(-pop());
 			} break;
 			case op_obj_str: {
-				ObjString* str = readObjString();
+				ObjString* str = readObjString(op_obj_str);
 				push((i32)str);
 			} break;
 			case op_obj_strw: {
-				i32 constant = readConstLong();
-				push(constant);
+				ObjString* str = readObjString(op_obj_strw);
+				push((i32)str);
 			} break;
 			case op_ret: {
 				return printOnReturn(previous);
