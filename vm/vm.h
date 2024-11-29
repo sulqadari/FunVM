@@ -4,7 +4,7 @@
 #include "common.h"
 #include "bytecode.h"
 #include "memory.h"
-#include "values.h"
+#include "value.h"
 
 #define STACK_SIZE (8)
 

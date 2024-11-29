@@ -139,7 +139,7 @@ emitReturn(void)
 }
 
 static uint16_t
-makeConstant(i32 value)
+makeConstant(Value value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
 	if (idx > UINT16_MAX) {
@@ -151,7 +151,7 @@ makeConstant(i32 value)
 }
 
 static void
-emitConstant(i32 value)
+emitConstant(Value value)
 {
 	uint16_t idx = makeConstant(value);
 	if (idx > UINT8_MAX) {
@@ -199,7 +199,7 @@ static void
 number(bool canAssign)
 {
 	i32 value = strtol(parser.previous.start, NULL, 10);
-	emitConstant(value);
+	emitConstant(NUM_PACK(value));
 }
 
 static void

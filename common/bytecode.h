@@ -27,6 +27,6 @@ extern uint32_t* lines;
 void initByteCode(ByteCode* bCode);
 void freeByteCode(ByteCode* bCode);
 void writeByteCode(ByteCode* bCode, uint8_t byte, uint32_t line);
-uint32_t addConstant(ByteCode* bCode, i32 value);
+uint32_t addConstant(ByteCode* bCode, Value value);
 
 #endif /* FUNVM_BYTECODE_H */

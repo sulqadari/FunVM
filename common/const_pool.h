@@ -2,20 +2,18 @@
 #define FUNVM_CONST_POOL_H
 
 #include "common.h"
-#include "values.h"
+#include "value.h"
 
 typedef struct {
 	uint32_t count;
 	uint32_t capacity;
-	i32* values;
+	Value* values;
 } ConstPool;
 
 void initConstPool(ConstPool* cPool);
 void freeConstPool(ConstPool* cPool);
-void writeConstPool(ConstPool* cPool, i32 value);
+void writeConstPool(ConstPool* cPool, Value value);
 
-#if defined(FUNVM_ARCH_x64)
-void printConstValue(i32 value);
-#endif /* FUNVM_DEBUG */
+void printConstValue(Value value);
 
 #endif /* FUNVM_CONST_POOL_H */

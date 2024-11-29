@@ -1,22 +1,22 @@
 cmake_minimum_required(VERSION 3.25)
-project(FunVM VERSION 0.0.0)
+project(FunVM VERSION 0.1.1)
 
 set(FUNVM_COMMON "Common")
-set(FUNVM_COMPILER "funvmc")
-set(FUNVM_INTERPRETER "funvm")
+set(FUNVM_COMPILER "FVMCexe")
+set(FUNVM_INTERPRETER "FVMexe")
 
-# 32-bit architecture
-set(CMAKE_C_FLAGS "-m32")
+option(USE_DEBUGGER "Apply debugging flags" YES)
+option(USE_SANITIZER "Apply memory leak and boundary violation control" NO)
 
-# All warnings and highest level of debugging output
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O0 -g3")
-# Sanitizer
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
+if (USE_DEBUGGER)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wall -O0 -g3")
+else()
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wall -Ofast")
+endif()
 
-
-add_compile_definitions(
-	FUNVM_ARCH_x64
-)
+if (USE_SANITIZER)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
+endif()
 
 add_subdirectory(vm)
 add_subdirectory(compiler)

@@ -1,49 +1,23 @@
+#include <stdarg.h>
 #include "vm.h"
+#include "const_pool.h"
 
 static VM vm;
-
-/* Reads the byte currently pointed at by 'ip' and
- * then advances the instruction pointer. */
-static uint8_t
-readByteCode(void)
-{
-	return *vm.ip++;
-}
-
-static int32_t
-readConst(void)
-{
-	uint8_t idx = readByteCode();
-	return vm.bCode->constants.values[idx];
-}
-
-static int32_t
-readConstLong(void)
-{
-	uint16_t idx1 = readByteCode();
-	uint16_t idx2 = readByteCode();
-	return vm.bCode->constants.values[(idx1 << 8) | idx2];
-}
-
-static void
-binaryOp(OpCode opType)
-{
-	i32 b = pop();
-	i32 a = pop();
-
-	switch (opType) {
-		case op_add: push(a + b); break;
-		case op_sub: push(a - b); break;
-		case op_mul: push(a * b); break;
-		case op_div: push(a / b); break;
-		default: break; // unreachable
-	}
-}
 
 static void
 resetStack(void)
 {
 	vm.stackTop = vm.stack;
+}
+
+static void
+runtimeError(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
 }
 
 void
@@ -58,49 +32,106 @@ freeVM(void)
 
 }
 
-void push(Value value)
+void
+push(Value value)
 {
 	*vm.stackTop = value;
 	vm.stackTop++;
 }
 
-Value pop(void)
+Value
+pop(void)
 {
 	vm.stackTop--;
 	return *vm.stackTop;
 }
 
+static Value
+peek(int distance)
+{
+	return vm.stackTop[-1 - distance];
+}
+
+/* Reads the byte currently pointed at by 'ip' and
+ * then advances the instruction pointer. */
+static uint8_t
+readByteCode(void)
+{
+	return *vm.ip++;
+}
+
+static Value
+readConst(void)
+{
+	uint8_t idx = readByteCode();
+	return vm.bCode->constants.values[idx];
+}
+
+static Value
+readConstLong(void)
+{
+	uint16_t idx1 = readByteCode();
+	uint16_t idx2 = readByteCode();
+	return vm.bCode->constants.values[(idx1 << 8) | idx2];
+}
+
+static bool
+binaryOp(OpCode opType)
+{
+	if (!IS_NUM(peek(0)) || !IS_NUM(peek(1))) {
+		runtimeError("Operands must be numbers.");
+		return false;
+	}
+
+	i32 b = NUM_UNPACK(pop());
+	i32 a = NUM_UNPACK(pop());
+
+	switch (opType) {
+		case op_add: push(NUM_PACK(a + b)); break;
+		case op_sub: push(NUM_PACK(a - b)); break;
+		case op_mul: push(NUM_PACK(a * b)); break;
+		case op_div: push(NUM_PACK(a / b)); break;
+		default: break; // unreachable
+	}
+	return true;
+}
+
 static InterpretResult
 run(void)
 {
-	uint8_t ins;
+	OpCode ins;
 	while (true) {
 		ins = readByteCode();
 		switch (ins) {
-			case op_iconst: {
-				i32 constant = readConst();
+			case op_iconst:
+			{
+				Value constant = readConst();
 				push(constant);
 			} break;
-			case op_iconst_long: {
-				i32 constant = readConstLong();
+			case op_iconst_long:
+			{
+				Value constant = readConstLong();
 				push(constant);
 			} break;
-			case op_add: {
-				binaryOp(op_add);
+			case op_add:
+			case op_sub:
+			case op_mul:
+			case op_div:
+			{
+				if(!binaryOp(ins))
+					return INTERPRET_RUNTIME_ERROR;
 			} break;
-			case op_sub: {
-				binaryOp(op_sub);
+			case op_negate:
+			{
+				if (!IS_NUM(peek(0))) {
+					runtimeError("Operand must be a number.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				push(NUM_PACK(-NUM_UNPACK(pop())));
 			} break;
-			case op_mul: {
-				binaryOp(op_mul);
-			} break;
-			case op_div: {
-				binaryOp(op_div);
-			} break;
-			case op_negate: {
-				push(-pop());
-			} break;
-			case op_ret: {
+			case op_ret:
+			{
 				printConstValue(pop());
 				printf("\n");
 				return INTERPRET_OK;

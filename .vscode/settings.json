@@ -1,9 +1,11 @@
 {
 	"files.associations": {
-		"*.jcsh": "shellscript",
 		"*.fn": "javascript",
 		"00_Preface": "markdown",
+		"*.tivm": "javascript",
 		"*.txt": "cmake",
+		"*.fv": "javascript",
+		"*.jcsh": "shellscript",
 		"vm.h": "c",
 		"memory.h": "c",
 		"system_error": "c",
@@ -17,6 +19,24 @@
 		"functional": "c",
 		"tuple": "c",
 		"type_traits": "c",
-		"utility": "c"
+		"utility": "c",
+		"optional": "cpp",
+		"ratio": "cpp",
+		"variant": "cpp",
+		"charconv": "cpp",
+		"chrono": "cpp",
+		"format": "cpp",
+		"__bit_reference": "cpp",
+		"__functional_base": "cpp",
+		"__node_handle": "cpp",
+		"algorithm": "cpp",
+		"bitset": "cpp",
+		"deque": "cpp",
+		"__memory": "cpp",
+		"iterator": "cpp",
+		"limits": "cpp",
+		"locale": "cpp",
+		"memory": "cpp",
+		"stdarg.h": "c"
 	}
 }

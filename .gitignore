@@ -1,5 +1,5 @@
 build/
 *.core
 *.log
-*.fnb
+*.fvb
 notes/
