@@ -155,7 +155,7 @@ emitConstant(Value value)
 {
 	uint16_t idx = makeConstant(value);
 	if (idx > UINT8_MAX) {
-		emitBytes(op_iconst_long, ((idx >> 8) & 0x00FF));
+		emitBytes(op_iconstw, ((idx >> 8) & 0x00FF));
 		emitByte(idx & 0x00FF);
 	} else {
 		emitBytes(op_iconst, idx);
@@ -180,11 +180,29 @@ binary(bool canAssign)
 	parsePrecedence((Precedence)(rule->prec + 1));
 
 	switch (opType) {
+		case tkn_neq:  emitBytes(op_eq, op_not); break;
+		case tkn_2eq:  emitByte(op_eq);          break;
+		case tkn_gt:   emitByte(op_gt);          break;
+		case tkn_gteq: emitBytes(op_lt, op_not); break;
+		case tkn_lt:   emitByte(op_lt);          break;
+		case tkn_lteq: emitBytes(op_gt, op_not); break;
+
 		case tkn_plus:  emitByte(op_add); break;
 		case tkn_minus: emitByte(op_sub); break;
 		case tkn_star:  emitByte(op_mul); break;
 		case tkn_slash: emitByte(op_div); break;
 		default: return; // Unreachable
+	}
+}
+
+static void
+literal(bool canAssign)
+{
+	switch (parser.previous.type) {
+		case tkn_null:  emitByte(op_null);  break;
+		case tkn_false: emitByte(op_false); break;
+		case tkn_true:  emitByte(op_true);  break;
+		default: return; // UNreachable.
 	}
 }
 
@@ -209,36 +227,37 @@ unary(bool canAssign)
 	parsePrecedence(prec_unary);
 
 	switch (opType) {
-		case tkn_minus: emitByte(op_negate);
-		default: return;
+		case tkn_not:   emitByte(op_not);    break;
+		case tkn_minus: emitByte(op_negate); break;
+		default: return; // Unreachable
 	}
 }
 
 ParseRule rules[] = {
 	[tkn_lparen]   = {grouping, NULL, prec_none},
-	[tkn_rparen]   = {NULL, NULL, prec_none},
-	[tkn_lbrace]   = {NULL, NULL, prec_none},
-	[tkn_rbrace]   = {NULL, NULL, prec_none},
-	[tkn_lbracket] = {NULL, NULL, prec_none},
-	[tkn_rbracket] = {NULL, NULL, prec_none},
+	[tkn_rparen]   = {NULL,  NULL, prec_none},
+	[tkn_lbrace]   = {NULL,  NULL, prec_none},
+	[tkn_rbrace]   = {NULL,  NULL, prec_none},
+	[tkn_lbracket] = {NULL,  NULL, prec_none},
+	[tkn_rbracket] = {NULL,  NULL, prec_none},
 	[tkn_semicolon] = {NULL, NULL, prec_none},
-	[tkn_comma]    = {NULL, NULL, prec_none},
-	[tkn_dot]      = {NULL, NULL, prec_none},
+	[tkn_comma]    = {NULL,  NULL, prec_none},
+	[tkn_dot]      = {NULL,  NULL, prec_none},
 	[tkn_minus]    = {unary, binary, prec_term},
 	[tkn_plus]     = {NULL,  binary, prec_term},
-	[tkn_slash]    = {NULL, binary, prec_factor},
-	[tkn_star]     = {NULL, binary, prec_factor},
+	[tkn_slash]    = {NULL,  binary, prec_factor},
+	[tkn_star]     = {NULL,  binary, prec_factor},
 	
-	[tkn_not]      = {NULL, NULL, prec_none},
-	[tkn_neq]      = {NULL, NULL, prec_none},
-	[tkn_eq]       = {NULL, NULL, prec_none},
-	[tkn_2eq]      = {NULL, NULL, prec_none},
-	[tkn_gt]       = {NULL, NULL, prec_none},
-	[tkn_gteq]     = {NULL, NULL, prec_none},
-	[tkn_lt]       = {NULL, NULL, prec_none},
-	[tkn_lteq]     = {NULL, NULL, prec_none},
-	[tkn_and]      = {NULL, NULL, prec_none},
-	[tkn_or]       = {NULL, NULL, prec_none},
+	[tkn_not]      = {unary, NULL, prec_none},
+	[tkn_neq]      = {NULL,  binary, prec_equality},
+	[tkn_eq]       = {NULL,  NULL, prec_none},
+	[tkn_2eq]      = {NULL,  binary, prec_equality},
+	[tkn_gt]       = {NULL,  binary, prec_comparison},
+	[tkn_gteq]     = {NULL,  binary, prec_comparison},
+	[tkn_lt]       = {NULL,  binary, prec_comparison},
+	[tkn_lteq]     = {NULL,  binary, prec_comparison},
+	[tkn_and]      = {NULL,  NULL, prec_none},
+	[tkn_or]       = {NULL,  NULL, prec_none},
 	
 	[tkn_id]       = {NULL, NULL, prec_none},
 	[tkn_str]      = {NULL, NULL, prec_none},
@@ -255,10 +274,10 @@ ParseRule rules[] = {
 	[tkn_super]    = {NULL, NULL, prec_none},
 	[tkn_this]     = {NULL, NULL, prec_none},
 	[tkn_fun]      = {NULL, NULL, prec_none},
-	[tkn_null]     = {NULL, NULL, prec_none},
+	[tkn_null]     = {literal, NULL, prec_none},
 	[tkn_ret]      = {NULL, NULL, prec_none},
-	[tkn_false]    = {NULL, NULL, prec_none},
-	[tkn_true]     = {NULL, NULL, prec_none},
+	[tkn_false]    = {literal, NULL, prec_none},
+	[tkn_true]     = {literal, NULL, prec_none},
 	[tkn_err]      = {NULL, NULL, prec_none},
 	[tkn_eof]      = {NULL, NULL, prec_none},
 };

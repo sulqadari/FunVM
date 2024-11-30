@@ -35,5 +35,15 @@ writeConstPool(ConstPool* cPool, Value value)
 void
 printConstValue(Value value)
 {
-	printf("%d", NUM_UNPACK(value));
+	switch(value.type) {
+		case val_nil:
+			printf("null");
+		break;
+		case val_bool:
+			printf(BOOL_UNPACK(value) ? "true" : "false");
+		break;
+		case val_num:
+			printf("%d", NUM_UNPACK(value));
+		break;
+	}
 }

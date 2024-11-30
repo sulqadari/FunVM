@@ -6,11 +6,18 @@
 
 typedef enum {
 	op_iconst,
-	op_iconst_long,
+	op_iconstw,
+	op_null,
+	op_true,
+	op_false,
+	op_eq,
+	op_gt,
+	op_lt,
 	op_add,
 	op_sub,
 	op_mul,
 	op_div,
+	op_not,
 	op_negate,
 	op_ret,
 } OpCode;

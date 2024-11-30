@@ -32,5 +32,6 @@ typedef struct {
 #define IS_NULL(value) ((value).type == val_nil)
 #define IS_NUM(value) ((value).type == val_num)
 
+bool valuesEqual(Value a, Value b);
 
 #endif /* FUNVM_VALUES_H */

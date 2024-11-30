@@ -52,6 +52,12 @@ peek(int distance)
 	return vm.stackTop[-1 - distance];
 }
 
+static bool
+isFalsey(Value value)
+{
+	return IS_NULL(value) || (IS_BOOL(value) && !BOOL_UNPACK(value));
+}
+
 /* Reads the byte currently pointed at by 'ip' and
  * then advances the instruction pointer. */
 static uint8_t
@@ -87,11 +93,13 @@ binaryOp(OpCode opType)
 	i32 a = NUM_UNPACK(pop());
 
 	switch (opType) {
-		case op_add: push(NUM_PACK(a + b)); break;
-		case op_sub: push(NUM_PACK(a - b)); break;
-		case op_mul: push(NUM_PACK(a * b)); break;
-		case op_div: push(NUM_PACK(a / b)); break;
-		default: break; // unreachable
+		case op_add: push(NUM_PACK(a + b));  break;
+		case op_sub: push(NUM_PACK(a - b));  break;
+		case op_mul: push(NUM_PACK(a * b));  break;
+		case op_div: push(NUM_PACK(a / b));  break;
+		case op_gt:  push(BOOL_PACK(a > b)); break;
+		case op_lt:  push(BOOL_PACK(a < b)); break;
+		default: return false;
 	}
 	return true;
 }
@@ -108,11 +116,21 @@ run(void)
 				Value constant = readConst();
 				push(constant);
 			} break;
-			case op_iconst_long:
+			case op_iconstw:
 			{
 				Value constant = readConstLong();
 				push(constant);
 			} break;
+			case op_null:  push(NULL_PACK());      break;
+			case op_true:  push(BOOL_PACK(true));  break;
+			case op_false: push(BOOL_PACK(false)); break;
+			case op_eq: {
+				Value b = pop();
+				Value a = pop();
+				push(BOOL_PACK(valuesEqual(a, b)));
+			} break;
+			case op_gt:
+			case op_lt:
 			case op_add:
 			case op_sub:
 			case op_mul:
@@ -120,6 +138,9 @@ run(void)
 			{
 				if(!binaryOp(ins))
 					return INTERPRET_RUNTIME_ERROR;
+			} break;
+			case op_not: {
+				push(BOOL_PACK(isFalsey(pop())));
 			} break;
 			case op_negate:
 			{
