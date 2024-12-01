@@ -21,7 +21,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/vm/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/single_expression_test.fvb"
+				"${workspaceFolder}/tests/string_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true

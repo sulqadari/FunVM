@@ -1,6 +1,7 @@
 #include "compiler.h"
 #include "scanner.h"
 #include "bytecode.h"
+#include "object.h"
 
 typedef struct {
 	Token current;
@@ -139,6 +140,31 @@ emitReturn(void)
 }
 
 static uint16_t
+makeObject(void* obj)
+{
+	int32_t idx = addObject(getCurrentCtx(), obj);
+	if (idx > UINT16_MAX) {
+		error("Too many constants in one objects pool.");
+	} else if (idx < 0) {
+		error("Unknown type of object.");
+	}
+
+	return (uint16_t)idx;
+}
+
+static void
+emitObject(void* obj)
+{
+	uint16_t idx = makeObject(obj);
+	if (idx > UINT8_MAX) {
+		emitBytes(op_obj_strw, ((idx >> 8) & 0x00FF));
+		emitByte(idx & 0x00FF);
+	} else {
+		emitBytes(op_obj_str, idx);
+	}
+}
+
+static uint16_t
 makeConstant(Value value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
@@ -221,6 +247,16 @@ number(bool canAssign)
 }
 
 static void
+string(bool canAssign)
+{
+	/* Trim the leading and trailing quotation marks. */
+	ObjString* objString = copyString(parser.previous.start + 1, parser.previous.length - 2);
+	Value value = OBJ_PACK(objString);
+	emitObject((void*)str);
+	// emitConstant(value);
+}
+
+static void
 unary(bool canAssign)
 {
 	TokenType opType = parser.previous.type;
@@ -260,7 +296,7 @@ ParseRule rules[] = {
 	[tkn_or]       = {NULL,  NULL, prec_none},
 	
 	[tkn_id]       = {NULL, NULL, prec_none},
-	[tkn_str]      = {NULL, NULL, prec_none},
+	[tkn_str]      = {string, NULL, prec_none},
 
 	[tkn_i32]      = {number, NULL, prec_none},
 	[tkn_if]       = {NULL, NULL, prec_none},

@@ -45,3 +45,9 @@ addConstant(ByteCode* bCode, Value value)
 	writeConstPool(&bCode->constants, value);
 	return bCode->constants.count - 1;
 }
+
+uint32_t
+addObject(ByteCode* bCode, void* obj)
+{
+	return writeObjPool(&bCode->objects, obj);
+}

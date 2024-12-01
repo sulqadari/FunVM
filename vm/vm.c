@@ -1,6 +1,5 @@
 #include <stdarg.h>
 #include "vm.h"
-#include "const_pool.h"
 
 static VM vm;
 
@@ -153,7 +152,7 @@ run(void)
 			} break;
 			case op_ret:
 			{
-				printConstValue(pop());
+				printValue(pop());
 				printf("\n");
 				return INTERPRET_OK;
 			}

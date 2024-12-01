@@ -60,9 +60,12 @@ serializeByteCode(const char* path, ByteCode* bCode)
 
 	fwrite(&bCode->constants.count, sizeof(uint32_t), 1, file);
 	fwrite(&bCode->constants.capacity, sizeof(uint32_t), 1, file);
+	fwrite(&bCode->objects.size, sizeof(uint32_t), 1, file);
 
 	fwrite(bCode->code, sizeof(uint8_t), bCode->capacity, file);
 	fwrite(bCode->constants.values, sizeof(int64_t), bCode->constants.capacity, file);
+	fwrite(bCode->objects.values, sizeof(uint8_t), bCode->objects.size, file);
+	
 	fclose(file);
 }
 
@@ -101,12 +104,16 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 
 	memcpy(&bCode->constants.count,    bufferPtr += 4, 4);
 	memcpy(&bCode->constants.capacity, bufferPtr += 4, 4);
+	memcpy(&bCode->objects.size,       bufferPtr += 4, 4);
 
 	allocateBuffer(&bCode->code, bCode->capacity, "bCode->code");
 	memcpy(bCode->code, bufferPtr += 4, bCode->capacity);
 
 	allocateBuffer((uint8_t**)&bCode->constants.values, bCode->constants.capacity * sizeof(int64_t), "bCode->constants.values");
 	memcpy(bCode->constants.values, bufferPtr += bCode->capacity, bCode->constants.capacity * sizeof(int64_t));
+
+	allocateBuffer(&bCode->objects.values, bCode->objects.size, "bCode->objects.values");
+	memcpy(bCode->objects.values, bufferPtr += bCode->constants.capacity * sizeof(int32_t), bCode->objects.size);
 
 	free(buffer);
 	fclose(file);

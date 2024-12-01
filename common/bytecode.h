@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "const_pool.h"
+#include "object_pool.h"
 
 typedef enum {
 	op_iconst,
@@ -27,6 +28,7 @@ typedef struct {
 	uint32_t capacity;
 	uint8_t* code;
 	ConstPool constants;
+	ObjPool objects;
 } ByteCode;
 
 extern uint32_t* lines;

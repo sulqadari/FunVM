@@ -37,6 +37,19 @@
 		"limits": "cpp",
 		"locale": "cpp",
 		"memory": "cpp",
-		"stdarg.h": "c"
+		"stdarg.h": "c",
+		"value.h": "c",
+		"object.h": "c",
+		"string_view": "c",
+		"initializer_list": "c",
+		"span": "c",
+		"__hash_table": "c",
+		"__split_buffer": "c",
+		"__tree": "c",
+		"map": "c",
+		"queue": "c",
+		"set": "c",
+		"string": "c",
+		"unordered_map": "c"
 	}
 }

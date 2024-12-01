@@ -14,6 +14,4 @@ void initConstPool(ConstPool* cPool);
 void freeConstPool(ConstPool* cPool);
 void writeConstPool(ConstPool* cPool, Value value);
 
-void printConstValue(Value value);
-
 #endif /* FUNVM_CONST_POOL_H */
