@@ -8,9 +8,9 @@
 			"name": "FunVM Compiler",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/build/compiler/FVMCexe",
+			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
-				"${workspaceFolder}/tests/single_expression_test.fn"
+				"${workspaceFolder}/tests/string_test.fv"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -19,7 +19,7 @@
 			"name": "FunVM Virtual machine",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/build/vm/FVMexe",
+			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
 				"${workspaceFolder}/tests/string_test.fvb"
 			],

@@ -10,8 +10,8 @@ fi
 script_name=$1
 script_path=$(pwd)/tests/$script_name
 binary_path=$(pwd)/tests/$script_name"b"
-compiler_path=$(pwd)/build/compiler/FVMCexe
-vm_path=$(pwd)/build/vm/FVMexe
+bin_path=$(pwd)/build/bin/FVMCexe
+vm_path=$(pwd)/build/bin/FVMexe
 
 $compiler_path  $script_path
 $vm_path $binary_path

@@ -1,14 +1,16 @@
 #include "common.h"
 #include "bytecode.h"
 
-static void
-allocateBuffer(uint8_t** buffer, uint32_t size, char* msg)
+static void*
+bufAlloc(uint32_t size, char* msg)
 {
-	*buffer = malloc(size + 1);
+	void* buffer = malloc(size + 1);
 	if (NULL == buffer) {
 		fprintf(stderr, "Failed to allocate memory for %s\n", msg);
 		exit(74);
 	}
+
+	return buffer;
 }
 
 uint8_t*
@@ -29,7 +31,7 @@ readSourceFile(const char* path)
 	fileSize = ftell(file);		/* How far we are from start of the file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	allocateBuffer(&buffer, fileSize + 1, "source file");
+	buffer = bufAlloc(fileSize + 1, "source file");
 
 	bytesRead = fread(buffer, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
@@ -47,24 +49,27 @@ void
 serializeByteCode(const char* path, ByteCode* bCode)
 {
 	FILE* file;
-	char name[256];
-	sprintf(name, "%sb", path);
-	file = fopen(name, "wb");
+	ConstPool* cPool = &bCode->constants;
+	ObjPool* objPool = &bCode->objects;
+	char binFileName[256];
+
+	sprintf(binFileName, "%sb", path);
+	file = fopen(binFileName, "wb");
 	if (NULL == file) {
-		fprintf(stderr, "Couldn't create binary file '%s'.\n", name);
+		fprintf(stderr, "Couldn't create binary file '%s'.\n", binFileName);
 		exit(74);
 	}
 
 	fwrite(&bCode->count, sizeof(uint32_t), 1, file);
 	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
 
-	fwrite(&bCode->constants.count, sizeof(uint32_t), 1, file);
-	fwrite(&bCode->constants.capacity, sizeof(uint32_t), 1, file);
-	fwrite(&bCode->objects.size, sizeof(uint32_t), 1, file);
+	fwrite(&cPool->count, sizeof(uint32_t), 1, file);
+	fwrite(&cPool->capacity, sizeof(uint32_t), 1, file);
+	fwrite(&objPool->size, sizeof(uint32_t), 1, file);
 
 	fwrite(bCode->code, sizeof(uint8_t), bCode->capacity, file);
-	fwrite(bCode->constants.values, sizeof(int64_t), bCode->constants.capacity, file);
-	fwrite(bCode->objects.values, sizeof(uint8_t), bCode->objects.size, file);
+	fwrite(cPool->values, sizeof(int64_t), cPool->capacity, file);
+	fwrite(objPool->values, sizeof(uint8_t), objPool->size, file);
 	
 	fclose(file);
 }
@@ -75,9 +80,11 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	size_t fileSize;
 	FILE* file;
 
-	uint8_t* bufferPtr;
 	uint8_t* buffer;
+	uint8_t* pBuf; 
 	size_t bytesRead;
+	ConstPool* cPool = &bCode->constants;
+	ObjPool* objPool = &bCode->objects;
 
 	file = fopen(path, "rb");
 	if (NULL == file) {
@@ -89,31 +96,31 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	fileSize = ftell(file);		/* How far we are from the start of file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	allocateBuffer(&buffer, fileSize, "serialized data");
+	buffer = bufAlloc(fileSize, "serialized data");
 	
-	bufferPtr = buffer;
+	pBuf = buffer;
 
-	bytesRead = fread(bufferPtr, sizeof(char), fileSize, file);
+	bytesRead = fread(pBuf, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
 		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
 		exit(76);
 	}
 
-	memcpy(&bCode->count,    bufferPtr,      4);
-	memcpy(&bCode->capacity, bufferPtr += 4, 4);
+	memcpy(&bCode->count,    pBuf += 0, 4);
+	memcpy(&bCode->capacity, pBuf += 4, 4);
 
-	memcpy(&bCode->constants.count,    bufferPtr += 4, 4);
-	memcpy(&bCode->constants.capacity, bufferPtr += 4, 4);
-	memcpy(&bCode->objects.size,       bufferPtr += 4, 4);
+	memcpy(&cPool->count,    pBuf += 4, 4);
+	memcpy(&cPool->capacity, pBuf += 4, 4);
+	memcpy(&objPool->size,   pBuf += 4, 4);
 
-	allocateBuffer(&bCode->code, bCode->capacity, "bCode->code");
-	memcpy(bCode->code, bufferPtr += 4, bCode->capacity);
+	bCode->code = bufAlloc(bCode->capacity, "bCode->code");
+	memcpy(bCode->code, pBuf += 4, bCode->capacity);
 
-	allocateBuffer((uint8_t**)&bCode->constants.values, bCode->constants.capacity * sizeof(int64_t), "bCode->constants.values");
-	memcpy(bCode->constants.values, bufferPtr += bCode->capacity, bCode->constants.capacity * sizeof(int64_t));
+	cPool->values = bufAlloc(cPool->capacity * sizeof(int64_t), "cPool->values");
+	memcpy(cPool->values, pBuf += bCode->capacity, cPool->capacity * sizeof(int64_t));
 
-	allocateBuffer(&bCode->objects.values, bCode->objects.size, "bCode->objects.values");
-	memcpy(bCode->objects.values, bufferPtr += bCode->constants.capacity * sizeof(int32_t), bCode->objects.size);
+	objPool->values = bufAlloc(objPool->size, "objPool->values");
+	memcpy(objPool->values, (pBuf += (cPool->capacity * sizeof(int32_t))), objPool->size);
 
 	free(buffer);
 	fclose(file);

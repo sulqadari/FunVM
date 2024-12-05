@@ -50,6 +50,7 @@
 		"queue": "c",
 		"set": "c",
 		"string": "c",
-		"unordered_map": "c"
+		"unordered_map": "c",
+		"sstream": "c"
 	}
 }

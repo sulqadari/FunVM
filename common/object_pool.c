@@ -24,9 +24,10 @@ writeObjPool(ObjPool* objPool, void* obj)
 	if (type == obj_string) {
 		ObjString* str = (ObjString*)obj;
 		uint32_t offset = objPool->size;
+		uint32_t prevSize = objPool->size;
 
 		objPool->size += sizeof(ObjString) + str->len;
-		objPool->values = GROW_ARRAY(uint8_t, objPool->values, offset, objPool->size);
+		objPool->values = GROW_ARRAY(uint8_t, objPool->values, prevSize, objPool->size);
 		
 		memcpy(objPool->values, str, sizeof(ObjString));
 		memcpy(objPool->values + sizeof(ObjString), str->chars, str->len);

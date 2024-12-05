@@ -4,6 +4,7 @@ project(FunVM VERSION 0.1.2)
 set(FUNVM_COMMON "Common")
 set(FUNVM_COMPILER "FVMCexe")
 set(FUNVM_INTERPRETER "FVMexe")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) 
 
 option(USE_DEBUGGER "Apply debugging flags" YES)
 option(USE_SANITIZER "Apply memory leak and boundary violation control" NO)

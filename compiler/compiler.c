@@ -251,8 +251,8 @@ string(bool canAssign)
 {
 	/* Trim the leading and trailing quotation marks. */
 	ObjString* objString = copyString(parser.previous.start + 1, parser.previous.length - 2);
-	Value value = OBJ_PACK(objString);
-	emitObject((void*)str);
+	// Value value = OBJ_PACK(objString);
+	emitObject((void*)objString);
 	// emitConstant(value);
 }
 

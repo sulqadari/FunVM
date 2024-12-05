@@ -8,6 +8,8 @@
 typedef enum {
 	op_iconst,
 	op_iconstw,
+	op_obj_str,
+	op_obj_strw,
 	op_null,
 	op_true,
 	op_false,
@@ -37,5 +39,6 @@ void initByteCode(ByteCode* bCode);
 void freeByteCode(ByteCode* bCode);
 void writeByteCode(ByteCode* bCode, uint8_t byte, uint32_t line);
 uint32_t addConstant(ByteCode* bCode, Value value);
+uint32_t addObject(ByteCode* bCode, void* obj);
 
 #endif /* FUNVM_BYTECODE_H */
