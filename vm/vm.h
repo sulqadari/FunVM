@@ -5,6 +5,7 @@
 #include "bytecode.h"
 #include "memory.h"
 #include "value.h"
+#include "hash_table.h"
 
 #define STACK_SIZE (8)
 
@@ -13,10 +14,9 @@ typedef struct {
 	uint8_t*  ip;	       /* <! Instruction pointer. Points to the next bytecode to be used. */
 	Value     stack[STACK_SIZE];
 	Value*    stackTop;    /* <! Points to the element just past the last item on the stack. */
+	Table     strings;
 	Obj*      objects;
 } VM;
-
-extern VM vm;
 
 typedef enum {
   INTERPRET_OK,

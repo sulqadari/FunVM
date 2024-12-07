@@ -21,6 +21,7 @@ struct Obj {
 struct ObjString {
 	Obj         obj;
 	uint32_t    len;
+	uint32_t    hash;
 	const char* chars;
 };
 

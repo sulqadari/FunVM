@@ -1,7 +1,6 @@
 #include "memory.h"
 #include "object.h"
-#include "vm.h"
-
+#include "globals.h"
 void*
 reallocate(void* ptr, size_t oldSize, size_t newSize)
 {

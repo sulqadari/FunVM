@@ -1,9 +1,7 @@
 #include <stdarg.h>
 #include "vm.h"
 #include "object.h"
-// #include "memory.h"
-
-// VM vm;
+#include "globals.h"
 
 static void
 resetStack(void)
@@ -26,11 +24,13 @@ initVM(void)
 {
 	resetStack();
 	vm.objects = NULL;
+	initTable(&vm.strings);
 }
 
 void
 freeVM(void)
 {
+	freeTable(&vm.strings);
 	freeObjects();
 }
 

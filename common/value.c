@@ -11,12 +11,7 @@ valuesEqual(Value a, Value b)
 		case val_bool: return BOOL_UNPACK(a) == BOOL_UNPACK(b);
 		case val_nil:  return true;
 		case val_num:  return NUM_UNPACK(a) == NUM_UNPACK(b);
-		case val_obj: {
-			ObjString* aStr = STRING_UNPACK(a);
-			ObjString* bStr = STRING_UNPACK(b);
-			bool res = (aStr->len == bStr->len) && (memcmp(aStr->chars, bStr->chars, aStr->len) == 0);
-			return res;
-		} break;
+		case val_obj:  return OBJ_UNPACK(a) == OBJ_UNPACK(b);
 		default: return false;
 	}
 }
