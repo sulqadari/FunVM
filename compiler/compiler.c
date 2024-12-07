@@ -156,11 +156,11 @@ static void
 emitObject(void* obj)
 {
 	uint16_t idx = makeObject(obj);
-	if (idx > UINT8_MAX) {
-		emitBytes(op_obj_strw, ((idx >> 8) & 0x00FF));
-		emitByte(idx & 0x00FF);
-	} else {
+	if (idx <= UINT8_MAX) {
 		emitBytes(op_obj_str, idx);
+	} else {
+		emitByte(op_obj_strw);
+		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
 	}
 }
 
@@ -180,11 +180,11 @@ static void
 emitConstant(Value value)
 {
 	uint16_t idx = makeConstant(value);
-	if (idx > UINT8_MAX) {
-		emitBytes(op_iconstw, ((idx >> 8) & 0x00FF));
-		emitByte(idx & 0x00FF);
-	} else {
+	if (idx <= UINT8_MAX) {
 		emitBytes(op_iconst, idx);
+	} else {
+		emitByte(op_iconstw);
+		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
 	}
 }
 

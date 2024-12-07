@@ -10,16 +10,20 @@
 
 typedef struct {
 	ByteCode* bCode;
-	uint8_t*  ip;	/* <! Instruction pointer. Points to the next bytecode to be used. */
-	Value stack[STACK_SIZE];
-	Value* stackTop;/* <! Points to the element just past the last item on the stack. */
+	uint8_t*  ip;	       /* <! Instruction pointer. Points to the next bytecode to be used. */
+	Value     stack[STACK_SIZE];
+	Value*    stackTop;    /* <! Points to the element just past the last item on the stack. */
+	Obj*      objects;
 } VM;
+
+extern VM vm;
 
 typedef enum {
   INTERPRET_OK,
   INTERPRET_COMPILE_ERROR,
   INTERPRET_RUNTIME_ERROR
 } InterpretResult;
+
 
 void initVM(void);
 void freeVM(void);

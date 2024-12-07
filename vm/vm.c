@@ -1,7 +1,9 @@
 #include <stdarg.h>
 #include "vm.h"
+#include "object.h"
+// #include "memory.h"
 
-static VM vm;
+// VM vm;
 
 static void
 resetStack(void)
@@ -23,12 +25,13 @@ void
 initVM(void)
 {
 	resetStack();
+	vm.objects = NULL;
 }
 
 void
 freeVM(void)
 {
-
+	freeObjects();
 }
 
 void
@@ -55,6 +58,22 @@ static bool
 isFalsey(Value value)
 {
 	return IS_NULL(value) || (IS_BOOL(value) && !BOOL_UNPACK(value));
+}
+
+static void
+concatenate(void)
+{
+	ObjString* b = STRING_UNPACK(pop());
+	ObjString* a = STRING_UNPACK(pop());
+
+	uint32_t len = a->len + b->len;
+	char* chars = ALLOCATE(char, len + 1);
+	memcpy(chars, a->chars, a->len);
+	memcpy(chars + a->len, b->chars, b->len);
+	chars[len] = '\0';
+
+	ObjString* result = takeString(chars, len);
+	push(OBJ_PACK(result));
 }
 
 /* Reads the byte currently pointed at by 'ip' and
@@ -103,13 +122,19 @@ readObjString(OpCode ins)
 static bool
 binaryOp(OpCode opType)
 {
-	if (!IS_NUM(peek(0)) || !IS_NUM(peek(1))) {
+	if ((opType == op_add) && IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+		concatenate();
+		return true;
+	}
+	else if (!IS_NUM(peek(0)) || !IS_NUM(peek(1))) {
 		runtimeError("Operands must be numbers.");
 		return false;
 	}
 
+
 	i32 b = NUM_UNPACK(pop());
 	i32 a = NUM_UNPACK(pop());
+
 
 	switch (opType) {
 		case op_add: push(NUM_PACK(a + b));  break;

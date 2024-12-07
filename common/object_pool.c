@@ -19,18 +19,18 @@ freeObjPool(ObjPool* objPool)
 int32_t
 writeObjPool(ObjPool* objPool, void* obj)
 {
+	uint32_t offset;
 	ObjType type = ((Obj*)obj)->type;
 
 	if (type == obj_string) {
 		ObjString* str = (ObjString*)obj;
-		uint32_t offset = objPool->size;
-		uint32_t prevSize = objPool->size;
+		offset = objPool->size;
 
 		objPool->size += sizeof(ObjString) + str->len;
-		objPool->values = GROW_ARRAY(uint8_t, objPool->values, prevSize, objPool->size);
+		objPool->values = GROW_ARRAY(uint8_t, objPool->values, offset, objPool->size);
 		
-		memcpy(objPool->values, str, sizeof(ObjString));
-		memcpy(objPool->values + sizeof(ObjString), str->chars, str->len);
+		memcpy(objPool->values + offset, str, sizeof(ObjString));
+		memcpy(objPool->values + sizeof(ObjString) + offset, str->chars, str->len);
 
 		return offset;
 	}

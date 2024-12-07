@@ -7,7 +7,7 @@ set(FUNVM_INTERPRETER "FVMexe")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) 
 
 option(USE_DEBUGGER "Apply debugging flags" YES)
-option(USE_SANITIZER "Apply memory leak and boundary violation control" NO)
+option(USE_SANITIZER "Apply memory leak and boundary violation control" YES)
 
 if (USE_DEBUGGER)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wall -O0 -g3")

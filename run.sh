@@ -10,8 +10,15 @@ fi
 script_name=$1
 script_path=$(pwd)/tests/$script_name
 binary_path=$(pwd)/tests/$script_name"b"
-bin_path=$(pwd)/build/bin/FVMCexe
+compiler_path=$(pwd)/build/bin/FVMCexe
 vm_path=$(pwd)/build/bin/FVMexe
 
+echo "********************************"
+echo "*       FunVM compiler         *"
+echo "********************************"
 $compiler_path  $script_path
+
+echo "********************************"
+echo "*      FunVM interpreter       *"
+echo "********************************"
 $vm_path $binary_path

@@ -5,7 +5,7 @@
 #include "value.h"
 
 #define OBJ_TYPE(value)        (OBJ_UNPACK(value)->type)
-#define IS_STRING(value)       isObjType(value, obj_string);
+#define IS_STRING(value)       isObjType(value, obj_string)
 #define STRING_UNPACK(value)   ((ObjString*)OBJ_UNPACK(value))
 #define CSTRING_UNPACK(value)  (((ObjString*)OBJ_UNPACK(value))->chars)
 
@@ -15,6 +15,7 @@ typedef enum {
 
 struct Obj {
 	ObjType type;
+	struct Obj* next;
 };
 
 struct ObjString {
@@ -23,6 +24,7 @@ struct ObjString {
 	const char* chars;
 };
 
+ObjString* takeString(const char* chars, uint32_t length);
 ObjString* copyString(const char* chars, uint32_t length);
 void printObject(Value value);
 

@@ -6,11 +6,17 @@
 #define ALLOCATE_OBJ(objTypeSize, objType)  \
 	(objTypeSize*)allocateObject(sizeof(objTypeSize), objType)
 
+VM vm;
+
 static Obj*
 allocateObject(size_t size, ObjType objType)
 {
 	Obj* object = (Obj*)reallocate(NULL, 0 , size);
 	object->type = objType;
+
+	object->next = vm.objects;
+	vm.objects   = object;
+	
 	return object;
 }
 
@@ -30,6 +36,12 @@ copyString(const char* chars, uint32_t length)
 	memcpy(heapChars, chars, length);
 	heapChars[length] = '\0';
 	return allocateString(heapChars, length);
+}
+
+ObjString*
+takeString(const char* chars, uint32_t length)
+{
+	return allocateString(chars, length);
 }
 
 void

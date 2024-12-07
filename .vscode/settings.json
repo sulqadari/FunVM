@@ -51,6 +51,8 @@
 		"set": "c",
 		"string": "c",
 		"unordered_map": "c",
-		"sstream": "c"
+		"sstream": "c",
+		"memory_resource": "c",
+		"__tuple": "c"
 	}
 }
