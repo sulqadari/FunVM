@@ -60,16 +60,15 @@ serializeByteCode(const char* path, ByteCode* bCode)
 		exit(74);
 	}
 
-	fwrite(&bCode->count, sizeof(uint32_t), 1, file);
-	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
+	fwrite(&bCode->count,        sizeof(uint32_t), 1, file);
+	fwrite(&bCode->capacity,     sizeof(uint32_t), 1, file);
+	fwrite(&cPool->count,        sizeof(uint32_t), 1, file);
+	fwrite(&cPool->capacity,     sizeof(uint32_t), 1, file);
+	fwrite(&objPool->size,       sizeof(uint32_t), 1, file);
 
-	fwrite(&cPool->count, sizeof(uint32_t), 1, file);
-	fwrite(&cPool->capacity, sizeof(uint32_t), 1, file);
-	fwrite(&objPool->size, sizeof(uint32_t), 1, file);
-
-	fwrite(bCode->code, sizeof(uint8_t), bCode->capacity, file);
-	fwrite(cPool->values, sizeof(int64_t), cPool->capacity, file);
-	fwrite(objPool->values, sizeof(uint8_t), objPool->size, file);
+	fwrite(bCode->code,      sizeof(uint8_t),  bCode->capacity, file);
+	fwrite(cPool->values,    sizeof(uint64_t), cPool->capacity, file);
+	fwrite(objPool->values,  sizeof(uint8_t),  objPool->size,   file);
 	
 	fclose(file);
 }
@@ -108,19 +107,17 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 
 	memcpy(&bCode->count,    pBuf += 0, 4);
 	memcpy(&bCode->capacity, pBuf += 4, 4);
-
 	memcpy(&cPool->count,    pBuf += 4, 4);
 	memcpy(&cPool->capacity, pBuf += 4, 4);
 	memcpy(&objPool->size,   pBuf += 4, 4);
 
-	bCode->code = bufAlloc(bCode->capacity, "bCode->code");
-	memcpy(bCode->code, pBuf += 4, bCode->capacity);
-
-	cPool->values = bufAlloc(cPool->capacity * sizeof(int64_t), "cPool->values");
-	memcpy(cPool->values, pBuf += bCode->capacity, cPool->capacity * sizeof(int64_t));
-
+	bCode->code     = bufAlloc(bCode->capacity, "bCode->code");
+	cPool->values   = bufAlloc(cPool->capacity * sizeof(Value), "cPool->values");
 	objPool->values = bufAlloc(objPool->size, "objPool->values");
-	memcpy(objPool->values, (pBuf += (cPool->capacity * sizeof(int32_t))), objPool->size);
+	
+	memcpy(bCode->code,     pBuf += 4, bCode->capacity);
+	memcpy(cPool->values,   pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
+	memcpy(objPool->values, pBuf += (cPool->capacity * sizeof(Value)), objPool->size);
 
 	free(buffer);
 	fclose(file);
