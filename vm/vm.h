@@ -4,16 +4,19 @@
 #include "common.h"
 #include "bytecode.h"
 #include "memory.h"
-#include "values.h"
+#include "value.h"
 
 #define STACK_SIZE (8)
 
 typedef struct {
 	ByteCode* bCode;
-	uint8_t*  ip;	/* <! Instruction pointer. Points to the next bytecode to be used. */
-	i32 stack[STACK_SIZE];
-	i32* stackTop;/* <! Points to the element just past the last item on the stack. */
+	uint8_t*  ip;	       /* <! Instruction pointer. Points to the next bytecode to be used. */
+	Value     stack[STACK_SIZE];
+	Value*    stackTop;    /* <! Points to the element just past the last item on the stack. */
+	Obj*      objects;
 } VM;
+
+extern VM vm;
 
 typedef enum {
   INTERPRET_OK,
@@ -21,11 +24,12 @@ typedef enum {
   INTERPRET_RUNTIME_ERROR
 } InterpretResult;
 
+
 void initVM(void);
 void freeVM(void);
 InterpretResult interpret(ByteCode* bCode);
 
-void push(i32 value);
-i32 pop(void);
+void push(Value value);
+Value pop(void);
 
 #endif /* FUNVM_VM_H */

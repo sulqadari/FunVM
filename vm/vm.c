@@ -1,76 +1,79 @@
-#include "vm.h"
-#include "values.h"
 #include <stdarg.h>
+#include "vm.h"
+#include "object.h"
+// #include "memory.h"
 
-static VM vm;
+// VM vm;
 
-typedef struct {
-	OpCode code;
-	const char* str;
-} OpStr;
-
-OpStr opStrArray[] = {
-	{op_iconst, "op_iconst"},
-	{op_sconst, "op_sconst"},
-	{op_bconst, "op_bconst"},
-	{op_iconstw, "op_iconstw"},
-	{op_sconstw, "op_sconstw"},
-	{op_bconstw, "op_bconstw"},
-	{op_null, "op_null"},
-	{op_true, "op_true"},
-	{op_false, "op_false"},
-	{op_eq, "op_eq"},
-	{op_neq, "op_neq"},
-	{op_gt, "op_gt"},
-	{op_gteq, "op_gteq"},
-	{op_lt, "op_lt"},
-	{op_lteq, "op_lteq"},
-	{op_add, "op_add"},
-	{op_sub, "op_sub"},
-	{op_mul, "op_mul"},
-	{op_div, "op_div"},
-	{op_not, "op_not"},
-	{op_negate, "op_negate"},
-	{op_ret, "op_ret"},
-};
-
-static const char*
-opToStr(OpCode opcode)
+static void
+resetStack(void)
 {
-	return opStrArray[opcode].str;
+	vm.stackTop = vm.stack;
 }
 
-// forward declaration.
-static void runtimeError(const char* format, ...);
-
-static InterpretResult
-printOnReturn(OpCode previous)
+static void
+runtimeError(const char* format, ...)
 {
-	switch (previous) {
-		case op_iconst:
-		case op_sconst:
-		case op_bconst:
-		case op_iconstw:
-		case op_sconstw:
-		case op_bconstw:
-		case op_negate:      printValue(pop(), val_int);  break;
-		case op_null:        printValue(pop(), val_null); break;
-		case op_true:
-		case op_false:
-		case op_eq:
-		case op_neq:
-		case op_gt:
-		case op_gteq:
-		case op_lt:
-		case op_lteq:        printValue(pop(), val_bool); break;
-		case op_obj_strw:
-		case op_obj_str:         printValue(pop(), val_obj); break;
-		default:
-			runtimeError("unprintable opcode '%s'.", opToStr(previous));
-		return INTERPRET_RUNTIME_ERROR;
-	}
-	printf("\n");
-	return INTERPRET_OK;
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
+}
+
+void
+initVM(void)
+{
+	resetStack();
+	vm.objects = NULL;
+}
+
+void
+freeVM(void)
+{
+	freeObjects();
+}
+
+void
+push(Value value)
+{
+	*vm.stackTop = value;
+	vm.stackTop++;
+}
+
+Value
+pop(void)
+{
+	vm.stackTop--;
+	return *vm.stackTop;
+}
+
+static Value
+peek(int distance)
+{
+	return vm.stackTop[-1 - distance];
+}
+
+static bool
+isFalsey(Value value)
+{
+	return IS_NULL(value) || (IS_BOOL(value) && !BOOL_UNPACK(value));
+}
+
+static void
+concatenate(void)
+{
+	ObjString* b = STRING_UNPACK(pop());
+	ObjString* a = STRING_UNPACK(pop());
+
+	uint32_t len = a->len + b->len;
+	char* chars = ALLOCATE(char, len + 1);
+	memcpy(chars, a->chars, a->len);
+	memcpy(chars + a->len, b->chars, b->len);
+	chars[len] = '\0';
+
+	ObjString* result = takeString(chars, len);
+	push(OBJ_PACK(result));
 }
 
 /* Reads the byte currently pointed at by 'ip' and
@@ -89,17 +92,15 @@ readShortCode(void)
 	return ((idx1 << 8) | (idx2 & 0x00FF));
 }
 
-static int32_t
-readConst(void)
+static Value
+readConst(OpCode ins)
 {
-	uint8_t idx = readByteCode();
-	return vm.bCode->constants.values[idx];
-}
+	uint16_t idx;
+	if (ins == op_iconst)
+		idx = readByteCode();
+	else
+		idx = readShortCode();
 
-static int32_t
-readConstW(void)
-{
-	uint16_t idx = readShortCode();
 	return vm.bCode->constants.values[idx];
 }
 
@@ -118,150 +119,88 @@ readObjString(OpCode ins)
 	return str;
 }
 
-static void
+static bool
 binaryOp(OpCode opType)
 {
-	i32 b = pop();
-	i32 a = pop();
+	if ((opType == op_add) && IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+		concatenate();
+		return true;
+	}
+	else if (!IS_NUM(peek(0)) || !IS_NUM(peek(1))) {
+		runtimeError("Operands must be numbers.");
+		return false;
+	}
+
+
+	i32 b = NUM_UNPACK(pop());
+	i32 a = NUM_UNPACK(pop());
+
 
 	switch (opType) {
-		case op_add: push(a + b); break;
-		case op_sub: push(a - b); break;
-		case op_mul: push(a * b); break;
-		case op_div: push(a / b); break;
-		case op_gt:  push(a > b); break;
-		case op_lt:  push(a < b); break;
-		default: break; // unreachable
+		case op_add: push(NUM_PACK(a + b));  break;
+		case op_sub: push(NUM_PACK(a - b));  break;
+		case op_mul: push(NUM_PACK(a * b));  break;
+		case op_div: push(NUM_PACK(a / b));  break;
+		case op_gt:  push(BOOL_PACK(a > b)); break;
+		case op_lt:  push(BOOL_PACK(a < b)); break;
+		default: return false;
 	}
-}
-
-static void
-resetStack(void)
-{
-	vm.stackTop = vm.stack;
-}
-
-static void
-runtimeError(const char* format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fputs("\n", stderr);
-
-	resetStack();
-}
-
-void
-initVM(void)
-{
-	resetStack();
-}
-
-void
-freeVM(void)
-{
-
-}
-
-void
-push(i32 value)
-{
-	*vm.stackTop = value;
-	vm.stackTop++;
-}
-
-i32
-pop(void)
-{
-	vm.stackTop--;
-	return *vm.stackTop;
-}
-
-static i32
-peek(uint32_t distance)
-{
-	return vm.stackTop[-1 - distance];
-}
-
-static boolean
-isFalsey(i32 value)
-{
-	if (((uint32_t)null == value) || (False == value)) {
-		return True;
-	}
-	return False;
+	return true;
 }
 
 static InterpretResult
 run(void)
 {
-	OpCode ins = 0;
-	OpCode previous = 0;
+	OpCode ins;
 	while (true) {
-		previous = ins;
 		ins = readByteCode();
 		switch (ins) {
 			case op_iconst:
-			case op_sconst:
-			case op_bconst: {
-				i32 constant = readConst();
-				push(constant);
-			} break;
 			case op_iconstw:
-			case op_sconstw:
-			case op_bconstw: {
-				i32 constant = readConstW();
+			{
+				Value constant = readConst(ins);
 				push(constant);
 			} break;
-			case op_null:  {
-				push((uint32_t)null);
+			case op_obj_str:
+			case op_obj_strw: {
+				ObjString* str = readObjString(ins);
+				push(OBJ_PACK(str));
 			} break;
-			case op_true:  {
-				push(True);
+			case op_null:  push(NULL_PACK());      break;
+			case op_true:  push(BOOL_PACK(true));  break;
+			case op_false: push(BOOL_PACK(false)); break;
+			case op_eq: {
+				Value b = pop();
+				Value a = pop();
+				push(BOOL_PACK(valuesEqual(a, b)));
 			} break;
-			case op_false: {
-				push(False);
-			} break;
-			case op_eq:
-			case op_neq:
 			case op_gt:
-			case op_gteq:
 			case op_lt:
-			case op_lteq: {
-				i32 b = pop();
-				i32 a = pop();
-				push(valuesEquality(a, b, ins));
-			} break;
-			case op_add: {
-				binaryOp(op_add);
-			} break;
-			case op_sub: {
-				binaryOp(op_sub);
-			} break;
-			case op_mul: {
-				binaryOp(op_mul);
-			} break;
-			case op_div: {
-				binaryOp(op_div);
+			case op_add:
+			case op_sub:
+			case op_mul:
+			case op_div:
+			{
+				if(!binaryOp(ins))
+					return INTERPRET_RUNTIME_ERROR;
 			} break;
 			case op_not: {
-				push(isFalsey(pop()));
+				push(BOOL_PACK(isFalsey(pop())));
 			} break;
-			case op_negate: {
-				push(-pop());
+			case op_negate:
+			{
+				if (!IS_NUM(peek(0))) {
+					runtimeError("Operand must be a number.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				push(NUM_PACK(-NUM_UNPACK(pop())));
 			} break;
-			case op_obj_str: {
-				ObjString* str = readObjString(op_obj_str);
-				push((i32)str);
-			} break;
-			case op_obj_strw: {
-				ObjString* str = readObjString(op_obj_strw);
-				push((i32)str);
-			} break;
-			case op_ret: {
-				return printOnReturn(previous);
+			case op_ret:
+			{
+				printValue(pop());
+				printf("\n");
+				return INTERPRET_OK;
 			}
 		}
 	}

@@ -35,18 +35,10 @@ typedef struct {
 static Parser parser;
 static ByteCode* currCtx;
 
-
 static ByteCode*
 getCurrentCtx(void)
 {
 	return currCtx;
-}
-
-static OpCode
-getPreviousOpCode(void)
-{
-	uint32_t idx = getCurrentCtx()->count;
-	return getCurrentCtx()->code[idx - 1];
 }
 
 static void
@@ -164,34 +156,35 @@ static void
 emitObject(void* obj)
 {
 	uint16_t idx = makeObject(obj);
-	if (idx > UINT8_MAX) {
-		emitBytes(op_obj_strw, ((idx >> 8) & 0x00FF));
-		emitByte(idx & 0x00FF);
-	} else {
+	if (idx <= UINT8_MAX) {
 		emitBytes(op_obj_str, idx);
+	} else {
+		emitByte(op_obj_strw);
+		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
 	}
 }
 
 static uint16_t
-makeConstant(i32 value)
+makeConstant(Value value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
 	if (idx > UINT16_MAX) {
-		error("Too many constants in one constants pool.");
+		error("Too many constants in one chunk.");
+		exit(1);
 	}
 
 	return (uint16_t)idx;
 }
 
 static void
-emitConstant(i32 value)
+emitConstant(Value value)
 {
 	uint16_t idx = makeConstant(value);
-	if (idx > UINT8_MAX) {
-		emitBytes(op_iconstw, ((idx >> 8) & 0x00FF));
-		emitByte(idx & 0x00FF);
-	} else {
+	if (idx <= UINT8_MAX) {
 		emitBytes(op_iconst, idx);
+	} else {
+		emitByte(op_iconstw);
+		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
 	}
 }
 
@@ -213,17 +206,29 @@ binary(bool canAssign)
 	parsePrecedence((Precedence)(rule->prec + 1));
 
 	switch (opType) {
-		case tkn_neq:   emitByte(op_neq);  break;
-		case tkn_2eq:   emitByte(op_eq);   break;
-		case tkn_gt:    emitByte(op_gt);   break;
-		case tkn_gteq:  emitByte(op_gteq); break;
-		case tkn_lt:    emitByte(op_lt);   break;
-		case tkn_lteq:  emitByte(op_lteq); break;
+		case tkn_neq:  emitBytes(op_eq, op_not); break;
+		case tkn_2eq:  emitByte(op_eq);          break;
+		case tkn_gt:   emitByte(op_gt);          break;
+		case tkn_gteq: emitBytes(op_lt, op_not); break;
+		case tkn_lt:   emitByte(op_lt);          break;
+		case tkn_lteq: emitBytes(op_gt, op_not); break;
+
 		case tkn_plus:  emitByte(op_add); break;
 		case tkn_minus: emitByte(op_sub); break;
 		case tkn_star:  emitByte(op_mul); break;
 		case tkn_slash: emitByte(op_div); break;
 		default: return; // Unreachable
+	}
+}
+
+static void
+literal(bool canAssign)
+{
+	switch (parser.previous.type) {
+		case tkn_null:  emitByte(op_null);  break;
+		case tkn_false: emitByte(op_false); break;
+		case tkn_true:  emitByte(op_true);  break;
+		default: return; // UNreachable.
 	}
 }
 
@@ -235,97 +240,65 @@ grouping(bool canAssign)
 }
 
 static void
-signedInt(bool canAssign)
+number(bool canAssign)
 {
 	i32 value = strtol(parser.previous.start, NULL, 10);
-	emitConstant(value);
-}
-
-static void
-signedShort(bool canAssign)
-{
-	i16 value = strtol(parser.previous.start, NULL, 10);
-	emitConstant((i32)value);
-}
-
-static void
-signedByte(bool canAssign)
-{
-	i8 value = strtol(parser.previous.start, NULL, 10);
-	emitConstant((i32)value);
+	emitConstant(NUM_PACK(value));
 }
 
 static void
 string(bool canAssign)
 {
-	//Trim the leading and trailing quotation marks.
-	ObjString* str = copyString(parser.previous.start + 1, parser.previous.length - 2);
-	emitObject((void*)str);
-}
-
-static void
-literal(bool canAssign)
-{
-	switch (parser.previous.type) {
-		case tkn_false: emitByte(op_false); break;
-		case tkn_true:  emitByte(op_true); break;
-		case tkn_null:  emitByte(op_null); break;
-		default: return;
-	}
+	/* Trim the leading and trailing quotation marks. */
+	ObjString* objString = copyString(parser.previous.start + 1, parser.previous.length - 2);
+	// Value value = OBJ_PACK(objString);
+	emitObject((void*)objString);
+	// emitConstant(value);
 }
 
 static void
 unary(bool canAssign)
 {
 	TokenType opType = parser.previous.type;
-	
 	parsePrecedence(prec_unary);
-	OpCode previousOp = getPreviousOpCode();
 
 	switch (opType) {
-		case tkn_not:   emitByte(op_not); break;
-		case tkn_minus: {
-			if (previousOp == op_true || previousOp == op_false || previousOp == op_null) {
-				error("Negation is only applicable to integers.");
-			}
-			emitByte(op_negate);
-		} break;
-		default: return;
+		case tkn_not:   emitByte(op_not);    break;
+		case tkn_minus: emitByte(op_negate); break;
+		default: return; // Unreachable
 	}
 }
 
 ParseRule rules[] = {
 	[tkn_lparen]   = {grouping, NULL, prec_none},
-	[tkn_rparen]   = {NULL, NULL, prec_none},
-	[tkn_lbrace]   = {NULL, NULL, prec_none},
-	[tkn_rbrace]   = {NULL, NULL, prec_none},
-	[tkn_lbracket] = {NULL, NULL, prec_none},
-	[tkn_rbracket] = {NULL, NULL, prec_none},
+	[tkn_rparen]   = {NULL,  NULL, prec_none},
+	[tkn_lbrace]   = {NULL,  NULL, prec_none},
+	[tkn_rbrace]   = {NULL,  NULL, prec_none},
+	[tkn_lbracket] = {NULL,  NULL, prec_none},
+	[tkn_rbracket] = {NULL,  NULL, prec_none},
 	[tkn_semicolon] = {NULL, NULL, prec_none},
-	[tkn_comma]    = {NULL, NULL, prec_none},
-	[tkn_dot]      = {NULL, NULL, prec_none},
+	[tkn_comma]    = {NULL,  NULL, prec_none},
+	[tkn_dot]      = {NULL,  NULL, prec_none},
 	[tkn_minus]    = {unary, binary, prec_term},
 	[tkn_plus]     = {NULL,  binary, prec_term},
-	[tkn_slash]    = {NULL, binary, prec_factor},
-	[tkn_star]     = {NULL, binary, prec_factor},
+	[tkn_slash]    = {NULL,  binary, prec_factor},
+	[tkn_star]     = {NULL,  binary, prec_factor},
 	
 	[tkn_not]      = {unary, NULL, prec_none},
-	[tkn_neq]      = {NULL, binary, prec_equality},
-	[tkn_eq]       = {NULL, NULL, prec_none},
-	[tkn_2eq]      = {NULL, binary, prec_equality},
-	[tkn_gt]       = {NULL, binary, prec_comparison},
-	[tkn_gteq]     = {NULL, binary, prec_comparison},
-	[tkn_lt]       = {NULL, binary, prec_comparison},
-	[tkn_lteq]     = {NULL, binary, prec_comparison},
-	[tkn_and]      = {NULL, NULL, prec_none},
-	[tkn_or]       = {NULL, NULL, prec_none},
+	[tkn_neq]      = {NULL,  binary, prec_equality},
+	[tkn_eq]       = {NULL,  NULL, prec_none},
+	[tkn_2eq]      = {NULL,  binary, prec_equality},
+	[tkn_gt]       = {NULL,  binary, prec_comparison},
+	[tkn_gteq]     = {NULL,  binary, prec_comparison},
+	[tkn_lt]       = {NULL,  binary, prec_comparison},
+	[tkn_lteq]     = {NULL,  binary, prec_comparison},
+	[tkn_and]      = {NULL,  NULL, prec_none},
+	[tkn_or]       = {NULL,  NULL, prec_none},
 	
 	[tkn_id]       = {NULL, NULL, prec_none},
 	[tkn_str]      = {string, NULL, prec_none},
 
-	[tkn_i32]      = {signedInt, NULL, prec_none},
-	[tkn_i16]      = {signedShort, NULL, prec_none},
-	[tkn_i8]      = {signedByte, NULL, prec_none},
+	[tkn_i32]      = {number, NULL, prec_none},
 	[tkn_if]       = {NULL, NULL, prec_none},
 	[tkn_else]     = {NULL, NULL, prec_none},
 	[tkn_switch]   = {NULL, NULL, prec_none},
@@ -354,7 +327,7 @@ parsePrecedence(Precedence prec)
 
 	if (prefixRule == NULL) {
 		error("expect expression.");
-		exit(1);
+		return;
 	}
 
 	bool canAssign = (prec <= prec_assignment);

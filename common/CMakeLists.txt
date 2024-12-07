@@ -2,11 +2,10 @@ add_library(${FUNVM_COMMON}
 	bytecode.c
 	const_pool.c
 	memory.c
-	object_pool.c
-	object.c
 	source_handler.c
-	debug.c
-	values.c
+	value.c
+	object.c
+	object_pool.c
 )
 
 target_include_directories(${FUNVM_COMMON}

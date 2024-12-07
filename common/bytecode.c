@@ -1,6 +1,5 @@
 #include "bytecode.h"
 #include "memory.h"
-#include "object_pool.h"
 
 uint32_t* lines;
 
@@ -41,7 +40,7 @@ writeByteCode(ByteCode* bCode, uint8_t byte, uint32_t line)
 }
 
 uint32_t
-addConstant(ByteCode* bCode, i32 value)
+addConstant(ByteCode* bCode, Value value)
 {
 	writeConstPool(&bCode->constants, value);
 	return bCode->constants.count - 1;

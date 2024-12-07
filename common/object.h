@@ -2,38 +2,36 @@
 #define FUNVM_OBJECT_H
 
 #include "common.h"
-#include "values.h"
+#include "value.h"
+
+#define OBJ_TYPE(value)        (OBJ_UNPACK(value)->type)
+#define IS_STRING(value)       isObjType(value, obj_string)
+#define STRING_UNPACK(value)   ((ObjString*)OBJ_UNPACK(value))
+#define CSTRING_UNPACK(value)  (((ObjString*)OBJ_UNPACK(value))->chars)
 
 typedef enum {
-	obj_raw,
-	obj_string,
-	obj_array
+	obj_string
 } ObjType;
 
-struct Object {
+struct Obj {
 	ObjType type;
+	struct Obj* next;
 };
 
 struct ObjString {
-  Object obj;
-  uint32_t length;
-  char* chars;
+	Obj         obj;
+	uint32_t    len;
+	const char* chars;
 };
 
-struct ObjArray {
-  Object obj;
-  uint32_t length;
-};
-
-#define OBJECT_TYPE(value)	(((Object*)value)->type)
-#define IS_OBJECT(value)	((value).type == obj_raw)
-#define IS_STRING(value)	((value).type == obj_string)
-#define IS_ARRAY(value)		((value).type == obj_array)
-
-#define OBJECT_STRING(value)	((ObjString*)value)
-#define OBJECT_CSTRING(value)	(((ObjString*)value)->chars)
-
+ObjString* takeString(const char* chars, uint32_t length);
 ObjString* copyString(const char* chars, uint32_t length);
-void printObject(u32 value);
+void printObject(Value value);
+
+static inline bool
+isObjType(Value value, ObjType type)
+{
+	return IS_OBJ(value) && OBJ_UNPACK(value)->type == type;
+}
 
 #endif /* FUNVM_OBJECT_H */

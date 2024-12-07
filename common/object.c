@@ -1,26 +1,31 @@
-#include "common.h"
 #include "memory.h"
 #include "object.h"
-#include "values.h"
+#include "value.h"
 #include "vm.h"
 
-#define ALLOCATE_OBJ(type, objType)	\
-	(type*)allocateObject(sizeof(type), objType)
+#define ALLOCATE_OBJ(objTypeSize, objType)  \
+	(objTypeSize*)allocateObject(sizeof(objTypeSize), objType)
 
-static Object*
-allocateObject(size_t size, ObjType type)
+VM vm;
+
+static Obj*
+allocateObject(size_t size, ObjType objType)
 {
-	Object* obj = (Object*)reallocate(NULL, 0, size);
-	obj->type = type;
-	return obj;
+	Obj* object = (Obj*)reallocate(NULL, 0 , size);
+	object->type = objType;
+
+	object->next = vm.objects;
+	vm.objects   = object;
+	
+	return object;
 }
 
 static ObjString*
-allocateString(char* chars, uint32_t length)
+allocateString(const char* heapChars, uint32_t length)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, obj_string);
-	string->length = length;
-	string->chars = chars;
+	string->len = length;
+	string->chars = heapChars;
 	return string;
 }
 
@@ -33,15 +38,18 @@ copyString(const char* chars, uint32_t length)
 	return allocateString(heapChars, length);
 }
 
-void printObject(u32 value)
+ObjString*
+takeString(const char* chars, uint32_t length)
 {
-	switch (OBJECT_TYPE(value)) {
-		case obj_raw:
-		break;
+	return allocateString(chars, length);
+}
+
+void
+printObject(Value value)
+{
+	switch (OBJ_TYPE(value)) {
 		case obj_string:
-			printf("%s", OBJECT_CSTRING(value));
-		break;
-		case obj_array:
+			printf("%s", CSTRING_UNPACK(value));
 		break;
 	}
 }

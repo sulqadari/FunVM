@@ -1,3 +1,4 @@
+#include "value.h"
 #include "memory.h"
 #include "object_pool.h"
 
@@ -18,17 +19,18 @@ freeObjPool(ObjPool* objPool)
 int32_t
 writeObjPool(ObjPool* objPool, void* obj)
 {
-	ObjType type = OBJECT_TYPE(obj);
+	uint32_t offset;
+	ObjType type = ((Obj*)obj)->type;
 
 	if (type == obj_string) {
-		
-		uint32_t offset = objPool->size;
-		objPool->size += sizeof(ObjString) + OBJECT_STRING(obj)->length;
-		
+		ObjString* str = (ObjString*)obj;
+		offset = objPool->size;
+
+		objPool->size += sizeof(ObjString) + str->len;
 		objPool->values = GROW_ARRAY(uint8_t, objPool->values, offset, objPool->size);
 		
-		memcpy(objPool->values, obj, sizeof(ObjString));
-		memcpy(objPool->values + sizeof(ObjString), OBJECT_CSTRING(obj), OBJECT_STRING(obj)->length);
+		memcpy(objPool->values + offset, str, sizeof(ObjString));
+		memcpy(objPool->values + sizeof(ObjString) + offset, str->chars, str->len);
 
 		return offset;
 	}
