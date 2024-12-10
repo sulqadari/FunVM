@@ -8,4 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define FUNVM_MEM_MANAGER
+
 #endif /* FUNVM_COMMON_H */

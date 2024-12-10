@@ -4,8 +4,10 @@
 #include "common.h"
 
 #if defined(FUNVM_MEM_MANAGER)
-#	define fvm_realloc _realloc
-#	define fvm_free _free
+#	include "heap.h"
+#	define fvm_alloc heapAlloc
+#	define fvm_realloc realloc
+#	define fvm_free heapFree
 #else
 #	define fvm_realloc realloc
 #	define fvm_free free
