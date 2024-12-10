@@ -17,14 +17,17 @@ main(int argc, char* argv[])
 		usage();
 	
 	heapInit();
-	uint8_t* ptr;
-	ptr = fvm_alloc(4);
-	ptr = fvm_alloc(8);
-	ptr = fvm_alloc(12);
-	ptr = fvm_alloc(16);
-	ptr = fvm_alloc(4);
-	ptr = fvm_alloc(20);
-	ptr = fvm_alloc(24);
+	uint8_t* ptr[5];
+	ptr[0] = fvm_alloc(4);
+	ptr[1] = fvm_alloc(4);
+	ptr[2] = fvm_alloc(4);
+	ptr[3] = fvm_alloc(4);
+	ptr[4] = fvm_alloc(4);
+	fvm_free(ptr[4]);
+	fvm_free(ptr[3]);
+	fvm_free(ptr[2]);
+	fvm_free(ptr[1]);
+	fvm_free(ptr[0]);
 	// char* source;
 	// ByteCode bCode;
 	
