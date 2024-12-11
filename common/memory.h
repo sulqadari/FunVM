@@ -6,7 +6,7 @@
 #if defined(FUNVM_MEM_MANAGER)
 #	include "heap.h"
 #	define fvm_alloc heapAlloc
-#	define fvm_realloc realloc
+#	define fvm_realloc heapRealloc
 #	define fvm_free heapFree
 #else
 #	define fvm_realloc realloc

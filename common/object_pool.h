@@ -2,7 +2,7 @@
 #define FUNVM_OBJECT_POOL_H
 
 #include "common.h"
-#include "values.h"
+#include "value.h"
 #include "object.h"
 
 typedef struct {

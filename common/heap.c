@@ -4,7 +4,7 @@
 #	define NULL ((void*)0)
 #endif
 
-#define HEAP_STATIC_SIZE       			(1 * 40)	/*<! The max value is 0x07FFFF (524,287 bytes). */
+#define HEAP_STATIC_SIZE       			(1 * 72)	/*<! The max value is 0x07FFFF (524,287 bytes). */
 #define HEAP_INIT_SIZE         			((block_t*)heap)->size
 #define HEAP_INIT_INDX         			((block_t*)heap)->index
 #define GET_BLOCK_INDEX(blk)   			((block_t*)((uint8_t*)blk - sizeof(block_t)))->index
@@ -49,37 +49,38 @@ heapInit(void)
  * Allocate memory from the heap.
  */
 void*
-heapAlloc(uint32_t requested)
+heapAlloc(uint32_t newSize)
 {
 	void* result = NULL;
-	block_t* block = (block_t*)heap;
+	block_t* currBlock = (block_t*)heap;
 	uint32_t blockSize = 0;
 	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
 
-	requested = ALLIGN4(requested);
+	newSize = ALLIGN4(newSize);
 	// Starting from the first block, iterate through the entire heap
-	for (; (uint32_t)block < heapBound; block = GET_NEXT_BLOCK(block, blockSize)) {
-		if (block->size > 0) {
-			blockSize = block->size;
+	for (; (uint32_t)currBlock < heapBound; currBlock = GET_NEXT_BLOCK(currBlock, blockSize)) {
+		if (currBlock->size > 0) {
+			blockSize = currBlock->size;
 			continue;
 		}
 		
-		blockSize = 0 - block->size; // Get the number of available space in this block
+		blockSize = 0 - currBlock->size; // Get the number of available space in this block
 
-		if (requested == blockSize) {
-			block->size = requested;
-			block->index = (blockIdx++ & 0x0FFF);
-			result = (void*)((uint8_t*)block + sizeof(block_t));
+		if (newSize == blockSize) {
+
+			currBlock->size = newSize;
+			currBlock->index = (blockIdx++ & 0x0FFF);
+			result = (void*)((uint8_t*)currBlock + sizeof(block_t));
 			break;
-		} else if (blockSize > requested + sizeof(block_t)) {
+		} else if (blockSize > newSize + sizeof(block_t)) {
 			
-			block->size = requested;
-			block->index = (blockIdx++ & 0x0FFF);
-			block_t* nextFreeBlk = GET_NEXT_BLOCK(block, requested);
-			blockSize  -= requested + sizeof(block_t);
+			currBlock->size = newSize;
+			currBlock->index = (blockIdx++ & 0x0FFF);
+			block_t* nextFreeBlk = GET_NEXT_BLOCK(currBlock, newSize);
+			blockSize  -= newSize + sizeof(block_t);
 			nextFreeBlk->size = 0 - blockSize;
 			
-			result = (void*)((uint8_t*)block + sizeof(block_t));
+			result = (void*)((uint8_t*)currBlock + sizeof(block_t));
 			break;
 		}
 	}
@@ -87,50 +88,125 @@ heapAlloc(uint32_t requested)
 	return result;
 }
 
+void*
+heapRealloc(void* ptr, uint32_t newSize)
+{
+	block_t* currBlock = (block_t*)heap;
+	uint32_t blockSize = 0;
+	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
+	int16_t blkIdx = GET_BLOCK_INDEX(ptr);
+	newSize = ALLIGN4(newSize);
+
+	// Nothing to do.
+	if (newSize == 0) {
+		goto _done;
+	}
+
+	for (; (uint32_t)currBlock < heapBound; currBlock = GET_NEXT_BLOCK(currBlock, blockSize)) {
+		if (currBlock->index == blkIdx)
+			break;
+
+		blockSize = (currBlock->size < 0) ? (0 - currBlock->size) : currBlock->size;
+	}
+
+	// Requested block not found within the heap. Allocate new one and return.
+	if ((uint32_t)currBlock >= heapBound || currBlock->size < 0) {
+		ptr = heapAlloc(newSize);
+		goto _done;
+	}
+
+	// Requested length equals to actual one. Just return.
+	if (currBlock->size == newSize) {
+		goto _done;
+	}
+
+	// A user wants to increase the size of memory block.
+	if (newSize > currBlock->size) {
+		block_t* next = GET_NEXT_BLOCK(currBlock, currBlock->size);
+		int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
+		// if the next block is vacant?
+		if (next->size < 0) {
+			// Does this block has enough space?
+			if ((0 - next->size) >= extentLen) {
+				// store the state of this vacant block
+				int32_t freeBlockSiz = next->size;
+				int32_t freeBlockIdx = next->index;
+
+				// clean up this memory region.
+				next->index = 0;
+				next->size = 0;
+
+				// advance the the starting offset of this block
+				next = (block_t*)((uint8_t*)next + extentLen);
+				next->index = freeBlockIdx;
+				
+				// FIXME: each block that ends up with 'size == 0' creates a holes in the heap.
+				// Consider the picture below (each cell represents 4-byte of block_t:size field):
+				//   ____________________________________block N-2 (before: 4; after: 8)
+				//  |                           _________block N-1 (before: 4; after: 0)
+				//  |                          |   ______block N
+				//  |                          |  |
+				// | 8|  |  |  |  |  |  |  |  | 0|12|...|  |
+				// Here, the four bytes of 'N-1 block' - dedicated for 'block_t' structure itself - are left unreachable.
+				// Moreover, both heapAlloc() and heapFree() eventually fall into infinite loop trying to step over to the next block
+				// by the means of zero-length offset. 
+				// May be a good solution is wipe out such a block and assign its 4 bytes to the previous one, even if
+				// the latter is already in use.
+				next->size = freeBlockSiz - extentLen; // adjust its size field to borrowed length.
+				currBlock->size = newSize;
+				goto _done;
+			}
+		} 
+	}
+
+_done:
+	return ptr;
+}
+
 void
 heapFree(void* ptr)
 {
-	block_t* block = (block_t*)heap;
+	block_t* currBlock = (block_t*)heap;
 	uint32_t blockSize = 0;
 	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
 	int16_t blkIdx = GET_BLOCK_INDEX(ptr);
 
-	for (; (uint32_t)block < heapBound; block = GET_NEXT_BLOCK(block, blockSize)) {
-		if (block->index == blkIdx)
+	for (; (uint32_t)currBlock < heapBound; currBlock = GET_NEXT_BLOCK(currBlock, blockSize)) {
+		if (currBlock->index == blkIdx)
 			break;
 
-		blockSize = (block->size < 0) ? (0 - block->size) : block->size;
+		blockSize = (currBlock->size < 0) ? (0 - currBlock->size) : currBlock->size;
 	}
 
 	// Bail out either we reached the upper bound or this block wasn't allocated.
-	if ((uint32_t)block >= heapBound || block->size < 0)
+	if ((uint32_t)currBlock >= heapBound || currBlock->size < 0) {
 		return;
+	}
 
-	block->size  = 0 - block->size;	// mark as free.
-	block->index = 0x00;
+	currBlock->size  = 0 - currBlock->size;							// mark as free.
+	currBlock->index = 0x00;
 	blockIdx--;
 
-	// Starting from the first block, perform defragmentation.
-	block_t* curr = (block_t*)heap;
+	currBlock = (block_t*)heap;										// Starting from the first block, perform defragmentation.
 	block_t* prev;
-	while ((uint32_t)curr < heapBound) {
-		if (curr->size < 0) {
-			prev = curr;									// store 'curr' block in 'prev' variable.
-			curr = GET_NEXT_BLOCK(curr, 0 - curr->size);	// get the next one.
-			if ((uint32_t)curr >= heapBound)				// We've reached the end. Bail out.
-				break;
-			
-			if (curr->size >= 0)							// This just fetched block is in use and thus can't be merged.
-				continue;									// Skip this iteration.
-
-			// To this point, we have two subsequent unused blocks. Merge them.
-			prev->size -= sizeof(block_t) - curr->size;		// Add to the 'prev' unused block the length of the  'curr' unused one.
-			prev = curr;									// Store the reference to unused block and 
-			curr = GET_NEXT_BLOCK(curr, 0 - curr->size);	// then advance to the subsequent one.
-			prev->size = 0;									// now clear any evidence about once existed unused block.
-			prev->index = 0x00;
-		} else {
-			curr = GET_NEXT_BLOCK(curr, curr->size); // get the next one.
+	while ((uint32_t)currBlock < heapBound) {
+		if (currBlock->size > 0) {
+			currBlock = GET_NEXT_BLOCK(currBlock, currBlock->size);
+			continue;
 		}
+
+		prev = currBlock;											// store 'currBlock' block in 'prev' variable.
+		currBlock = GET_NEXT_BLOCK(currBlock, 0 - currBlock->size);	// get a next one.
+		if ((uint32_t)currBlock >= heapBound)						// We've reached the end. Bail out.
+			break;
+		
+		if (currBlock->size >= 0)									// The next block is in use, thus can't be merged. Skip this iteration
+			continue;												// 
+																	// To this point, we have two subsequent unused blocks. Merge them.
+		prev->size -= sizeof(block_t) - currBlock->size;			// Add to the 'prev' unused block the length of the 'currBlock' (which is vacant too).
+		prev = currBlock;											// Store the reference to unused block and 
+		currBlock = GET_NEXT_BLOCK(currBlock, 0 - currBlock->size);	// then advance to the subsequent one.
+		prev->size = 0;												// now clear any evidence about once existed unused block.
+		prev->index = 0x00;
 	}
 }
