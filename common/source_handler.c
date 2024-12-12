@@ -1,10 +1,11 @@
 #include "common.h"
 #include "bytecode.h"
+#include "memory.h"
 
 static void*
 bufAlloc(uint32_t size, char* msg)
 {
-	void* buffer = malloc(size);
+	void* buffer = fvm_alloc(size);
 	if (NULL == buffer) {
 		fprintf(stderr, "Failed to allocate memory for %s\n", msg);
 		exit(74);

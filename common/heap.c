@@ -4,7 +4,7 @@
 #	define NULL ((void*)0)
 #endif
 
-#define HEAP_STATIC_SIZE       			(1 * 72)	/*<! The max value is 0x07FFFF (524,287 bytes). */
+#define HEAP_STATIC_SIZE       			(1 * 64)	/*<! The max value is 0x07FFFF (524,287 bytes). */
 #define HEAP_INIT_SIZE         			((block_t*)heap)->size
 #define HEAP_INIT_INDX         			((block_t*)heap)->index
 #define GET_BLOCK_INDEX(blk)   			((block_t*)((uint8_t*)blk - sizeof(block_t)))->index
@@ -17,7 +17,7 @@
  *                 this field.
  * block_t* next - a next vacant block. */
 typedef struct {
-	uint32_t index : 12;	/*<! up to 4096 addressable blocks. */
+	uint32_t index : 12;	/*<! up to 4096 addressable blocks (RFU). */
 	int32_t  size  : 20;	/*<! up to 0x07FFFF (524,287) bytes of memory. */
 } block_t;
 
@@ -109,7 +109,9 @@ heapRealloc(void* ptr, uint32_t newSize)
 		blockSize = (currBlock->size < 0) ? (0 - currBlock->size) : currBlock->size;
 	}
 
-	// Requested block not found within the heap. Allocate new one and return.
+	// A block to be resized not found. Allocate new one and return.
+	// Making it more clear: during the search we've reached the end OR block is found,
+	// but it wasn't allocated beforehand.
 	if ((uint32_t)currBlock >= heapBound || currBlock->size < 0) {
 		ptr = heapAlloc(newSize);
 		goto _done;
@@ -120,26 +122,30 @@ heapRealloc(void* ptr, uint32_t newSize)
 		goto _done;
 	}
 
-	// A user wants to increase the size of memory block.
+	// User wants to increase the size of memory block.
 	if (newSize > currBlock->size) {
-		block_t* next = GET_NEXT_BLOCK(currBlock, currBlock->size);
-		int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
-		// if the next block is vacant?
-		if (next->size < 0) {
-			// Does this block has enough space?
-			if ((0 - next->size) >= extentLen) {
+
+		block_t* donor = GET_NEXT_BLOCK(currBlock, currBlock->size);
+		
+		// is donor block vacant?
+		if (donor->size < 0) {
+			
+			int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
+
+			// Does donor has enough space?
+			if ((0 - donor->size) >= extentLen) {
+
 				// store the state of this vacant block
-				int32_t freeBlockSiz = next->size;
-				int32_t freeBlockIdx = next->index;
+				int32_t donorSiz = donor->size;
+				int32_t donorIdx = donor->index;
 
-				// clean up this memory region.
-				next->index = 0;
-				next->size = 0;
+				// clean up donor's state.
+				donor->index = 0;
+				donor->size = 0;
 
-				// advance the the starting offset of this block
-				next = (block_t*)((uint8_t*)next + extentLen);
-				next->index = freeBlockIdx;
-				
+				// shift donor's starting offset.
+				donor = (block_t*)((uint8_t*)donor + extentLen);
+
 				// FIXME: each block that ends up with 'size == 0' creates a holes in the heap.
 				// Consider the picture below (each cell represents 4-byte of block_t:size field):
 				//   ____________________________________block N-2 (before: 4; after: 8)
@@ -152,11 +158,25 @@ heapRealloc(void* ptr, uint32_t newSize)
 				// by the means of zero-length offset. 
 				// May be a good solution is wipe out such a block and assign its 4 bytes to the previous one, even if
 				// the latter is already in use.
-				next->size = freeBlockSiz - extentLen; // adjust its size field to borrowed length.
+				donor->size = donorSiz - extentLen; // adjust its size field to borrowed length.
+				donor->index = donorIdx;
+
 				currBlock->size = newSize;
-				goto _done;
 			}
-		} 
+			// then what? Consider a block is vacant but hasn't enough space to borrow?
+			else {
+
+			}
+		}
+		// Donor (adjacent) block is occupied. We need to move 'ptr' to other place. 
+		else {
+
+		}
+		goto _done;
+	}
+	// User wants to reduce the size of memory block.
+	else {
+
 	}
 
 _done:

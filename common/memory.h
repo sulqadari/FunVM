@@ -2,15 +2,19 @@
 #define FUNVM_MEMORY_H
 
 #include "common.h"
+#if(1)
+#define FUNVM_MEM_MANAGER
+#endif
 
 #if defined(FUNVM_MEM_MANAGER)
 #	include "heap.h"
-#	define fvm_alloc heapAlloc
+#	define fvm_alloc   heapAlloc
 #	define fvm_realloc heapRealloc
-#	define fvm_free heapFree
+#	define fvm_free    heapFree
 #else
+#	define fvm_alloc   malloc
 #	define fvm_realloc realloc
-#	define fvm_free free
+#	define fvm_free    free
 #endif /* FUNVM_MEM_MANAGER */
 
 #define GROW_CAPACITY(cap)						\
