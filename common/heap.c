@@ -24,6 +24,13 @@ typedef struct {
 static uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
 static uint16_t blockIdx = 0;
 
+static void
+copyRange(uint8_t* dest, uint8_t* source, uint32_t length)
+{
+	for (uint32_t i = 0; i < length; ++i) {
+		dest[i] = source[i];
+	}
+}
 
 /**
  * Initializes heap storage.
@@ -94,13 +101,24 @@ heapRealloc(void* ptr, uint32_t newSize)
 	block_t* currBlock = (block_t*)heap;
 	uint32_t blockSize = 0;
 	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
-	int16_t blkIdx = GET_BLOCK_INDEX(ptr);
-	newSize = ALLIGN4(newSize);
+	int16_t blkIdx;
+
+	if (ptr == NULL) {
+		goto _done;
+	}
+
+	// Attempt to access to address which is out of heap range.
+	if ((uint32_t)ptr < (uint32_t)currBlock || (uint32_t)ptr > heapBound) {
+		ptr = NULL;
+	}
 
 	// Nothing to do.
 	if (newSize == 0) {
 		goto _done;
 	}
+
+	blkIdx = GET_BLOCK_INDEX(ptr);
+	newSize = ALLIGN4(newSize);
 
 	for (; (uint32_t)currBlock < heapBound; currBlock = GET_NEXT_BLOCK(currBlock, blockSize)) {
 		if (currBlock->index == blkIdx)
@@ -117,57 +135,46 @@ heapRealloc(void* ptr, uint32_t newSize)
 		goto _done;
 	}
 
-	// Requested length equals to actual one. Just return.
-	if (currBlock->size == newSize) {
+	// Requested length equals or less that actual one. Just return. The problem with reducing the size is as follows:
+	// Consider we want to decrease the length from 8 to 4. Then attempt to calculate an offset to the next block in
+	// chain using updated size field will end up with the pointer to an empty space in memory, having no chance to
+	// reach a next block in the chain, which is 4 bytes ahead.
+	if (currBlock->size == newSize || currBlock->size > newSize) {
 		goto _done;
 	}
 
-	// User wants to increase the size of memory block.
-	if (newSize > currBlock->size) {
+	block_t* donor = GET_NEXT_BLOCK(currBlock, currBlock->size);
+	uint32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
 
-		block_t* donor = GET_NEXT_BLOCK(currBlock, currBlock->size);
-		int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
+	// is donor block vacant AND has enough space?
+	if ((donor->size < 0) && ((0 - donor->size) >= extentLen)) {
 
-		// is donor block vacant AND has enough space?
-		if ((donor->size < 0) && ((0 - donor->size) >= extentLen)) {
+		// store the state of donor block
+		int32_t donorSiz = donor->size;
+		int32_t donorIdx = donor->index;
 
-			// store the state of donor block
-			int32_t donorSiz = donor->size;
-			int32_t donorIdx = donor->index;
+		// clean up donor's state. These four bytes go under 'currBlock'.
+		donor->index = 0;
+		donor->size  = 0;
 
-			// clean up donor's state.
-			donor->index = 0;
+		// advance donor's starting offset.
+		donor           = (block_t*)((uint8_t*)donor + extentLen);
+		donor->size     = donorSiz - extentLen; // reduce the value of 'size' field to the borrowed length.
+		donor->index    = donorIdx;
+		currBlock->size = newSize;
+
+		// It may hapen that donor gave us all the space he had and now has no free space anymore.
+		// Thus clear this region and pass these four bytes over to the currBlock too.
+		if (donor->size == 0) {
 			donor->size = 0;
-
-			// shift donor's starting offset.
-			donor = (block_t*)((uint8_t*)donor + extentLen);
-
-			// FIXME: each block that ends up with 'size == 0' creates a hole in the heap.
-			// Consider the picture below (each cell represents 4-byte of block_t:size field):
-			//   ____________________________________block N-2 (before: 4; after: 8)
-			//  |                           _________block N-1 (before: 4; after: 0)
-			//  |                          |   ______block N
-			//  |                          |  |
-			// | 8|  |  |  |  |  |  |  |  | 0|12|...|  |
-			// Here, the four bytes of 'N-1 block' - dedicated for 'block_t' structure itself - are left unreachable.
-			// Moreover, both heapAlloc() and heapFree() eventually fall into infinite loop trying to step over to the next block
-			// by means of zero-length offset. 
-			// May be a good solution is wipe out such a block and assign its 4 bytes to the previous one, even if
-			// the latter is already in use.
-			donor->size = donorSiz - extentLen; // reduce its size value to borrowed length.
-			donor->index = donorIdx;
-
-			currBlock->size = newSize;
-		}
-		// Donor (adjacent) block is either occupied or hasn't enough space. TODO:
-		// 1. create a new block; 2. copy the content from the previos block; 3. delete previous block.
-		else {
-
+			currBlock->size += sizeof(block_t);
 		}
 	}
-	// User wants to reduce the size of memory block.
-	else {
-
+	else { // Donor (adjacent) block is either occupied or hasn't enough space.
+		ptr = heapAlloc(newSize);
+		copyRange((uint8_t*)ptr, (uint8_t*)currBlock, currBlock->size);
+		heapFree((void*)currBlock);
+		goto _done;
 	}
 
 _done:
@@ -180,7 +187,18 @@ heapFree(void* ptr)
 	block_t* currBlock = (block_t*)heap;
 	uint32_t blockSize = 0;
 	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
-	int16_t blkIdx = GET_BLOCK_INDEX(ptr);
+	int16_t blkIdx;
+
+	if (ptr == NULL) {
+		return;
+	}
+
+	// Attempt to free an address which is out of heap range.
+	if ((uint32_t)ptr < (uint32_t)currBlock || (uint32_t)ptr > heapBound) {
+		return;
+	}
+
+	blkIdx = GET_BLOCK_INDEX(ptr);
 
 	for (; (uint32_t)currBlock < heapBound; currBlock = GET_NEXT_BLOCK(currBlock, blockSize)) {
 		if (currBlock->index == blkIdx)
@@ -213,11 +231,11 @@ heapFree(void* ptr)
 		
 		if (currBlock->size >= 0)									// The next block is in use, thus can't be merged. Skip this iteration
 			continue;												// 
-																	// To this point, we have two subsequent unused blocks. Merge them.
+																	// To this point, we have two adjacent unused blocks. Merge them.
 		prev->size -= sizeof(block_t) - currBlock->size;			// Add to the 'prev' unused block the length of the 'currBlock' (which is vacant too).
 		prev = currBlock;											// Store the reference to unused block and 
 		currBlock = GET_NEXT_BLOCK(currBlock, 0 - currBlock->size);	// then advance to the subsequent one.
-		prev->size = 0;												// now clear any evidence about once existed unused block.
+		prev->size = 0x00;											// now clear any evidence about once existed unused block.
 		prev->index = 0x00;
 	}
 }
