@@ -126,53 +126,44 @@ heapRealloc(void* ptr, uint32_t newSize)
 	if (newSize > currBlock->size) {
 
 		block_t* donor = GET_NEXT_BLOCK(currBlock, currBlock->size);
-		
-		// is donor block vacant?
-		if (donor->size < 0) {
-			
-			int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
+		int32_t extentLen = newSize - currBlock->size;  // the number of bytes we want to borrow from adjacent block.
 
-			// Does donor has enough space?
-			if ((0 - donor->size) >= extentLen) {
+		// is donor block vacant AND has enough space?
+		if ((donor->size < 0) && ((0 - donor->size) >= extentLen)) {
 
-				// store the state of this vacant block
-				int32_t donorSiz = donor->size;
-				int32_t donorIdx = donor->index;
+			// store the state of donor block
+			int32_t donorSiz = donor->size;
+			int32_t donorIdx = donor->index;
 
-				// clean up donor's state.
-				donor->index = 0;
-				donor->size = 0;
+			// clean up donor's state.
+			donor->index = 0;
+			donor->size = 0;
 
-				// shift donor's starting offset.
-				donor = (block_t*)((uint8_t*)donor + extentLen);
+			// shift donor's starting offset.
+			donor = (block_t*)((uint8_t*)donor + extentLen);
 
-				// FIXME: each block that ends up with 'size == 0' creates a holes in the heap.
-				// Consider the picture below (each cell represents 4-byte of block_t:size field):
-				//   ____________________________________block N-2 (before: 4; after: 8)
-				//  |                           _________block N-1 (before: 4; after: 0)
-				//  |                          |   ______block N
-				//  |                          |  |
-				// | 8|  |  |  |  |  |  |  |  | 0|12|...|  |
-				// Here, the four bytes of 'N-1 block' - dedicated for 'block_t' structure itself - are left unreachable.
-				// Moreover, both heapAlloc() and heapFree() eventually fall into infinite loop trying to step over to the next block
-				// by the means of zero-length offset. 
-				// May be a good solution is wipe out such a block and assign its 4 bytes to the previous one, even if
-				// the latter is already in use.
-				donor->size = donorSiz - extentLen; // adjust its size field to borrowed length.
-				donor->index = donorIdx;
+			// FIXME: each block that ends up with 'size == 0' creates a hole in the heap.
+			// Consider the picture below (each cell represents 4-byte of block_t:size field):
+			//   ____________________________________block N-2 (before: 4; after: 8)
+			//  |                           _________block N-1 (before: 4; after: 0)
+			//  |                          |   ______block N
+			//  |                          |  |
+			// | 8|  |  |  |  |  |  |  |  | 0|12|...|  |
+			// Here, the four bytes of 'N-1 block' - dedicated for 'block_t' structure itself - are left unreachable.
+			// Moreover, both heapAlloc() and heapFree() eventually fall into infinite loop trying to step over to the next block
+			// by means of zero-length offset. 
+			// May be a good solution is wipe out such a block and assign its 4 bytes to the previous one, even if
+			// the latter is already in use.
+			donor->size = donorSiz - extentLen; // reduce its size value to borrowed length.
+			donor->index = donorIdx;
 
-				currBlock->size = newSize;
-			}
-			// then what? Consider a block is vacant but hasn't enough space to borrow?
-			else {
-
-			}
+			currBlock->size = newSize;
 		}
-		// Donor (adjacent) block is occupied. We need to move 'ptr' to other place. 
+		// Donor (adjacent) block is either occupied or hasn't enough space. TODO:
+		// 1. create a new block; 2. copy the content from the previos block; 3. delete previous block.
 		else {
 
 		}
-		goto _done;
 	}
 	// User wants to reduce the size of memory block.
 	else {
