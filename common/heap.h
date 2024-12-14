@@ -3,6 +3,18 @@
 
 #include <stdint.h>
 
+typedef struct block_t block_t;
+
+/**
+ * int32_t size  - negative value designates a free memory block. When the block is
+ *                 allocated, the actual length of the payload will be assigned to
+ *                 this field.
+ * block_t* next - a next vacant block. */
+struct block_t {
+	int32_t  size;
+	block_t* next;
+};
+
 void  heapInit(void);
 void* heapAlloc(uint32_t size);
 void  heapFree(void* ptr);

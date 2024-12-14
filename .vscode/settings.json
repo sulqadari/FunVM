@@ -54,6 +54,7 @@
 		"sstream": "c",
 		"memory_resource": "c",
 		"__tuple": "c",
-		"globals.h": "c"
+		"globals.h": "c",
+		"heap.h": "c"
 	}
 }
