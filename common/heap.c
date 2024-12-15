@@ -212,8 +212,7 @@ _done:
 void
 heapFree(void* ptr)
 {
-	block_t* prev;
-	block_t* currBlk;
+	block_t* currBlk = NULL;
 	
 	if (ptr == NULL) {
 		return;
@@ -230,26 +229,28 @@ heapFree(void* ptr)
 	currBlk->size = 0 - currBlk->size;									// mark as vacant.
 
 	currBlk = (block_t*)heap;			// Starting from the first block, perform defragmentation.
+	block_t* nextBlk = NULL;
 	while (currBlk != NULL) {
 		if (currBlk->size > 0) {		// this block is in use.
 			currBlk = currBlk->next;	// Proceed to next one.
 			continue;
 		}
 
-		prev = currBlk;					// store 'currBlk' in 'prev';
-		currBlk = currBlk->next;		// now 'currBlk' points to 'next' one.
-
-		if (currBlk == NULL) {
-			break;						// We've reached the end, i.e. there is no vacant blocks ahead to be merged with. Bail out.
-		}
-
-		if (currBlk->size >= 0)			// The 'next' block is in use, thus can't be merged. Skip this iteration
-			continue;					//
+		nextBlk = currBlk->next;		// take the reference to the next one.
+		if (nextBlk == NULL)
+			break;
 		
-		prev->size -= sizeof(block_t) - currBlk->size;	// Add to the 'prev' unused block the length of the 'currBlk' (which is vacant too).
-		prev = currBlk;									// Store the reference to unused block.
-		currBlk = currBlk->next;						// Advance to the subsequent one.
-		prev->size = 0x00;								// now clear any evidence about once existed unused block.
-		prev->next = 0x00;
+		if (nextBlk->size >= 0) {		// if the next block is in use, then skip this iteration.
+			currBlk = currBlk->next;
+			continue;
+		}
+		
+		// add to current block the length of the next vacant block.
+		currBlk->size -= sizeof(block_t) - nextBlk->size;
+		currBlk->next = nextBlk->next;	// store the reference to a block, which goes right after 
+										// one we are about to merge.
+		// clean up staled service data
+		nextBlk->size = 0;
+		nextBlk->next = NULL;
 	}
 }

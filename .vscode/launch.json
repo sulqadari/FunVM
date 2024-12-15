@@ -25,6 +25,16 @@
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
+		},
+		{
+			"name": "FunVM Heap",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/bin/heap_test",
+			"args": [
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
 		}
 	]
 }

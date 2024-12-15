@@ -11,6 +11,7 @@ option(USE_SANITIZER "Apply memory leak and boundary violation control" NO)
 
 if (USE_DEBUGGER)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wall -O0 -g3")
+	add_subdirectory(tests/native)
 else()
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wall -Ofast")
 endif()
