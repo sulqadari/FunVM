@@ -5,7 +5,7 @@
 #	define NULL ((void*)0)
 #endif
 
-#define HEAP_STATIC_SIZE				(1 * 48)
+#define HEAP_STATIC_SIZE				(1 * 512)
 #define HEAP_GET_SIZE(arr)         		((block_t*)arr)->size
 #define HEAP_GET_NEXT(arr)         		((block_t*)arr)->next
 #define ALLIGN4(value)         			(((value + 3) >> 2) << 2)
@@ -28,7 +28,7 @@ findBlock(block_t* ptr)
 	block_t* curr = (block_t*)heap;
 	ptr = (block_t*)((uint8_t*)ptr - sizeof(block_t));
 
-	// Attempt to free an address which is out of heap range.
+	// Attempt to access an address which is out of heap range.
 	if ((uint32_t)ptr < (uint32_t)curr || (uint32_t)ptr >= heapBound) {
 		return NULL;
 	}
@@ -126,51 +126,34 @@ _again:
 void*
 heapRealloc(void* ptr, uint32_t newSize)
 {
-#if(0)
-	block_t* currBlk = (block_t*)heap;
-	uint32_t blockSize = 0;
-	uint32_t heapBound = (uint32_t)(heap + HEAP_STATIC_SIZE);
-	int16_t blkIdx;
-
-	if (ptr == NULL) {
-		goto _done;
-	}
-
-	// Attempt to access to address which is out of heap range.
-	if ((uint32_t)ptr < (uint32_t)currBlk || (uint32_t)ptr > heapBound) {
-		ptr = NULL;
-	}
+	block_t* currBlk = NULL;
 
 	// Nothing to do.
 	if (newSize == 0) {
 		goto _done;
 	}
-
-	blkIdx = GET_BLOCK_INDEX(ptr);
-	newSize = ALLIGN4(newSize);
-
-	for (; (uint32_t)currBlk < heapBound; currBlk = GET_NEXT_BLOCK(currBlk, blockSize)) {
-		if (currBlk->index == blkIdx)
-			break;
-
-		blockSize = (currBlk->size < 0) ? (0 - currBlk->size) : currBlk->size;
+	
+	// Attempt to access to address which is out of heap range.
+	if ((ptr != NULL) && ((uint32_t)ptr < (uint32_t)heap || (uint32_t)ptr > heapBound)) {
+		ptr = NULL;
 	}
+	
+	newSize = ALLIGN4(newSize);
+	currBlk = findBlock(ptr);
 
 	// A block to be resized not found. Allocate new one and return.
-	if ((uint32_t)currBlk >= heapBound || currBlk->size < 0) {
+	if (currBlk == NULL || currBlk->size < 0) {
 		ptr = heapAlloc(newSize);
 		goto _done;
 	}
+	
 
-	// Requested length equals or less that actual one. Just return. The problem with reducing the size is as follows:
-	// Consider we want to decrease the length from 8 to 4. Then attempt to calculate an offset to the next block in
-	// chain using updated size field will end up with the pointer to an empty space in memory, having no chance to
-	// reach a next block in the chain, which is 4 bytes ahead.
-	if (currBlk->size == newSize || currBlk->size > newSize) {
+	// Current inplementation doesn't handle requests to reduce the allocated size.
+	if (currBlk->size >= newSize) {
 		goto _done;
 	}
 
-	block_t* donor = GET_NEXT_BLOCK(currBlk, currBlk->size);
+	block_t* donor = currBlk->next;
 	uint32_t extentLen = newSize - currBlk->size;  // the number of bytes we want to borrow from adjacent block.
 
 	// is donor block vacant AND has enough space?
@@ -178,18 +161,19 @@ heapRealloc(void* ptr, uint32_t newSize)
 
 		// store the state of donor block
 		int32_t donorSiz = donor->size;
-		int32_t donorIdx = donor->index;
+		block_t* donorNext = donor->next;
 
 		// clean up donor's state. These four bytes go under 'currBlk'.
-		donor->index = 0;
+		donor->next = NULL;
 		donor->size  = 0;
 
 		// advance donor's starting offset.
 		donor           = (block_t*)((uint8_t*)donor + extentLen);
 		donor->size     = donorSiz - extentLen; // reduce the value of 'size' field to the borrowed length.
-		donor->index    = donorIdx;
-		currBlk->size = newSize;
-
+		donor->next     = donorNext;
+		currBlk->size   = newSize;
+		currBlk->next   = donor;
+		
 		// It may hapen that donor gave us all the space he had and now has no free space anymore.
 		// Thus clear this region and pass these four bytes over to the currBlk too.
 		if (donor->size == 0) {
@@ -199,13 +183,14 @@ heapRealloc(void* ptr, uint32_t newSize)
 	}
 	else { // Donor (adjacent) block is either occupied or hasn't enough space.
 		ptr = heapAlloc(newSize);
-		copyRange((uint8_t*)ptr, (uint8_t*)currBlk, currBlk->size);
+		if (ptr == NULL)
+			goto _done;
+		
+		memcpy((uint8_t*)ptr, (uint8_t*)currBlk, currBlk->size);
 		heapFree((void*)currBlk);
-		goto _done;
 	}
 
 _done:
-#endif
 	return ptr;
 }
 

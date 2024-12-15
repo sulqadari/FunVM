@@ -2,7 +2,6 @@ add_library(${FUNVM_COMMON}
 	bytecode.c
 	const_pool.c
 	memory.c
-	source_handler.c
 	value.c
 	object.c
 	object_pool.c

@@ -2,9 +2,6 @@
 #define FUNVM_MEMORY_H
 
 #include "common.h"
-#if(1)
-#define FUNVM_MEM_MANAGER
-#endif
 
 #if defined(FUNVM_MEM_MANAGER)
 #	include "heap.h"

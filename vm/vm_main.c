@@ -1,12 +1,72 @@
 #include "common.h"
 #include "vm.h"
-#include "source_handler.h"
 
 static void
 usage(void)
 {
 	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
 	exit(1);
+}
+
+static void*
+bufAlloc(uint32_t size, char* msg)
+{
+	void* buffer = fvm_alloc(size);
+	if (NULL == buffer) {
+		fprintf(stderr, "Failed to allocate memory for %s\n", msg);
+		exit(74);
+	}
+
+	return buffer;
+}
+
+static void
+deserializeByteCode(const char* path, ByteCode* bCode)
+{
+	size_t fileSize;
+	FILE* file;
+
+	uint8_t* buffer;
+	uint8_t* pBuf; 
+	size_t bytesRead;
+	ConstPool* cPool = &bCode->constants;
+	ObjPool* objPool = &bCode->objects;
+
+	file = fopen(path, "rb");
+	if (NULL == file) {
+		fprintf(stderr, "Couldn't open source file '%s'.\n", path);
+		exit(74);
+	}
+
+	fseek(file, 0L, SEEK_END);	/* Move file prt to EOF. */
+	fileSize = ftell(file);		/* How far we are from the start of file? */
+	rewind(file);				/* Rewind file ptr back to the beginning. */
+
+	buffer = bufAlloc(fileSize, "serialized data");
+	pBuf = buffer;
+
+	bytesRead = fread(pBuf, sizeof(char), fileSize, file);
+	if (bytesRead < fileSize) {
+		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
+		exit(76);
+	}
+
+	memcpy(&bCode->count,    pBuf += 0, 4);
+	memcpy(&bCode->capacity, pBuf += 4, 4);
+	memcpy(&cPool->count,    pBuf += 4, 4);
+	memcpy(&cPool->capacity, pBuf += 4, 4);
+	memcpy(&objPool->size,   pBuf += 4, 4);
+
+	bCode->code     = bufAlloc(bCode->capacity, "bCode->code");
+	cPool->values   = bufAlloc(cPool->capacity * sizeof(Value), "cPool->values");
+	objPool->values = bufAlloc(objPool->size, "objPool->values");
+	
+	memcpy(bCode->code,     pBuf += 4, bCode->capacity);
+	memcpy(cPool->values,   pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
+	memcpy(objPool->values, pBuf += (cPool->capacity * sizeof(Value)), objPool->size);
+
+	fvm_free(buffer);
+	fclose(file);
 }
 
 int
@@ -16,7 +76,9 @@ main(int argc, char* argv[])
 		usage();
 	
 	ByteCode bCode;
-
+#if defined(FUNVM_MEM_MANAGER)
+	heapInit();
+#endif
 	initByteCode(&bCode);
 	deserializeByteCode(argv[1], &bCode);
 

@@ -27,7 +27,7 @@
 			"stopAtEntry": true
 		},
 		{
-			"name": "FunVM Heap",
+			"name": "FunVM heap",
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/heap_test",
@@ -35,6 +35,17 @@
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
+		},
+		{
+			"name": "FunVM heap realloc",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/bin/heap_realloc_test",
+			"args": [
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
 		}
+		
 	]
 }

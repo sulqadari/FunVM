@@ -1,3 +1,6 @@
+#if !defined(FUNVM_MEM_MANAGER)
+#	define FUNVM_MEM_MANAGER
+#endif
 #include "common.h"
 #include "memory.h"
 
@@ -12,8 +15,6 @@
 static void
 allocateBunch(uint8_t* ptr[5])
 {
-	uint8_t order;
-
 	for (uint8_t i = 1; i < 4; ++i) {
 		ptr[i - 1] = fvm_alloc(i * 4);
 		ASSERT_NULL(ptr[i - 1]);
@@ -24,8 +25,6 @@ allocateBunch(uint8_t* ptr[5])
 static void
 _01allocateBunch(uint8_t* ptr[5])
 {
-	uint8_t order;
-
 	for (int8_t i = 3; i >= 1; --i) {
 		ptr[i - 1] = fvm_alloc(i * 4);
 		ASSERT_NULL(ptr[i - 1]);
