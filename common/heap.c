@@ -226,7 +226,7 @@ heapFree(void* ptr)
 		}
 
 		nextBlk = currBlk->next;		// take the reference to the next one.
-		if (nextBlk == NULL)
+		if (nextBlk == NULL)			// There is no more blocks ahead. Bail out.
 			break;
 		
 		if (nextBlk->size >= 0) {		// if the next block is in use, then skip this iteration.
