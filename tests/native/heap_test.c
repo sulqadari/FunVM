@@ -4,6 +4,7 @@
 #include "common.h"
 #include "memory.h"
 
+extern uint8_t heap[];
 
 #define ASSERT_NULL(expr)								\
 	do {												\
@@ -11,6 +12,17 @@
 			printf("ERROR: at line %d\n", __LINE__);	\
 		}												\
 	} while (0)
+
+static void
+asserClean(void)
+{
+	for (uint32_t i = 4; i < HEAP_STATIC_SIZE; ++i) {
+		if (heap[i] != 0) {
+			printf("ERROR: expected 0x00, but found %02X at offset %d\n", heap[i], i);
+			exit(1);
+		}
+	}
+}
 
 static void
 allocateBunch(uint8_t* ptr[5])
@@ -97,4 +109,7 @@ main(int argc, char* argv[])
 	fvm_free(ptr[0]);
 	fvm_free(ptr[2]);
 	fvm_free(ptr[1]);
+
+	asserClean();
+	printf("test\n\t%s\nresult\n\tSUCCESS\n", __FILE__);
 }

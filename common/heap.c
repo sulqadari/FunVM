@@ -5,12 +5,11 @@
 #	define NULL ((void*)0)
 #endif
 
-#define HEAP_STATIC_SIZE				(1 * 512)
 #define HEAP_GET_SIZE(arr)         		((block_t*)arr)->size
 #define HEAP_GET_NEXT(arr)         		((block_t*)arr)->next
 #define ALLIGN4(value)         			(((value + 3) >> 2) << 2)
 
-static uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
+uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
 static uint32_t heapBound;
 
 static block_t*
@@ -93,6 +92,11 @@ heapAlloc(uint32_t newSize)
 _again:
 	if (currBlk == NULL) {
 		return NULL;
+	}
+
+	if (currBlk->size > 0) {
+		currBlk = currBlk->next;
+		goto _again;
 	}
 
 	blockSize = (0 - currBlk->size); // Decode the size of block.
@@ -186,8 +190,8 @@ heapRealloc(void* ptr, uint32_t newSize)
 		if (ptr == NULL)
 			goto _done;
 		
-		memcpy((uint8_t*)ptr, (uint8_t*)currBlk, currBlk->size);
-		heapFree((void*)currBlk);
+		memcpy((uint8_t*)ptr, (uint8_t*)currBlk + sizeof(block_t), currBlk->size);
+		heapFree((void*)currBlk + sizeof(block_t));
 	}
 
 _done:

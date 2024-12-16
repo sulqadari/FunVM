@@ -20,9 +20,9 @@ if (USE_SANITIZER)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -static-libasan -fno-omit-frame-pointer")
 endif()
 
-# add_compile_definitions(
-# 	FUNVM_MEM_MANAGER
-# )
+add_compile_definitions(
+	FUNVM_MEM_MANAGER
+)
 
 add_subdirectory(vm)
 add_subdirectory(compiler)
