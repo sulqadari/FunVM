@@ -12,6 +12,12 @@
 uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
 static uint32_t heapBound;
 
+/**
+ * Returns a pointer to address which is 'offset' bytes ahead from 'curr'.
+ * @param block_t* curr - an address to start from
+ * @param uint32_t offset - number of bytes to step over.
+ * @returns block_t* - the pointer to address or NULL.
+ */
 static block_t*
 getNext(block_t* curr, uint32_t offset)
 {
@@ -83,48 +89,42 @@ heapInit(void)
 void*
 heapAlloc(uint32_t newSize)
 {
-	block_t* currBlk   = NULL;
-	uint32_t blockSize = 0;
-
+	uint32_t decSize = 0;
+	void* ptr        = NULL;
+	block_t* next    = NULL;
+	block_t* currBlk = findVacant();
+	
 	newSize = ALLIGN4(newSize);
-	currBlk = findVacant();
 
-_again:
-	if (currBlk == NULL) {
-		return NULL;
-	}
-
-	if (currBlk->size > 0) {
-		currBlk = currBlk->next;
-		goto _again;
-	}
-
-	blockSize = (0 - currBlk->size); // Decode the size of block.
-
-	if (newSize == blockSize) {
-		currBlk->size = newSize;
-		return (void*)((uint8_t*)currBlk + sizeof(block_t));
-	}
-
-	if (newSize + sizeof(block_t) < blockSize) {
+	for (; currBlk != NULL; currBlk = currBlk->next) {
 		
-		block_t* next = getNext(currBlk, newSize);
-		currBlk->size = newSize;
-
-		if (next == NULL) {
-			currBlk->next = NULL;
+		if (currBlk->size > 0) {		// This block is occupied, proceed to next one.
+			continue;			
+		} else {						// Decode the size of block.
+			decSize = (0 - currBlk->size);
 		}
-		else {
+
+		if (newSize == decSize) {		// Block's size matches exactly.
+			ptr = (void*)((uint8_t*)currBlk + sizeof(block_t));
+			break;
+		}
+		else if (newSize + sizeof(block_t) < decSize) {
+
+			next = getNext(currBlk, newSize);
+			if (next != NULL) {							// if 'next' isn't null, then update its size length.
+				decSize   -= newSize + sizeof(block_t);	// subtract the block size and reserved space for the new block.
+				next->size = 0 - decSize;				// encode new value.
+				next->next = currBlk->next;				// Now, the 'next' points to one, which was referenced by previous block
+			}
+
 			currBlk->next = next;
-			blockSize    -= newSize + sizeof(block_t);
-			next->size    = 0 - blockSize;
+			currBlk->size = newSize;
+			ptr = (void*)((uint8_t*)currBlk + sizeof(block_t));
+			break;
 		}
-		
-		return (void*)((uint8_t*)currBlk + sizeof(block_t));
-	} else {
-		currBlk = currBlk->next;
-		goto _again;
 	}
+
+	return ptr;
 }
 
 void*
