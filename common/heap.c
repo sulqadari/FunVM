@@ -95,7 +95,7 @@ heapInit(void)
 void*
 heapAlloc(uint32_t newSize)
 {
-	uint32_t decSize = 0;
+	uint32_t decodedSize = 0;
 	void* ptr        = NULL;
 	block_t* next    = NULL;
 	block_t* currBlk = findVacant();
@@ -107,20 +107,21 @@ heapAlloc(uint32_t newSize)
 		if (currBlk->size > 0) {		// This block is occupied, proceed to next one.
 			continue;			
 		} else {						// Decode the size of block.
-			decSize = (0 - currBlk->size);
+			decodedSize = (0 - currBlk->size);
 		}
 
-		if (newSize == decSize) {		// Block's size matches exactly.
+		if (newSize == decodedSize) {		// Block's size matches exactly.
+			currBlk->size = decodedSize;
 			ptr = (void*)((uint8_t*)currBlk + sizeof(block_t));
 			break;
 		}
-		else if (newSize + sizeof(block_t) < decSize) {
+		else if (newSize + sizeof(block_t) < decodedSize) {
 
 			next = getNext(currBlk, newSize);
-			if (next != NULL) {							// if 'next' isn't null, then update its size length.
-				decSize   -= newSize + sizeof(block_t);	// subtract the block size and reserved space for the new block.
-				next->size = 0 - decSize;				// encode new value.
-				next->next = currBlk->next;				// Now, the 'next' points to one, which was referenced by previous block
+			if (next != NULL) {								// if 'next' isn't null, then update its size length.
+				decodedSize -= newSize + sizeof(block_t);	// subtract the block size and reserved space for the new block.
+				next->size   = 0 - decodedSize;				// encode new value.
+				next->next   = currBlk->next;				// Now, the 'next' points to one, which was referenced by previous block
 			}
 
 			currBlk->next = next;
@@ -181,7 +182,7 @@ heapRealloc(void* ptr, uint32_t newSize)
 
 		// advance donor's starting offset.
 		donor           = (block_t*)((uint8_t*)donor + extentLen);
-		donor->size     = donorSize - extentLen; // reduce the value of 'size' field for the borrowed length.
+		donor->size     = 0 - (donorSize - extentLen); // reduce the value of 'size' field for the borrowed length.
 		
 		// It may hapen that donor gave us all the space he had and now has no free space anymore.
 		// Thus clear this region and pass these four bytes over to the currBlk too.

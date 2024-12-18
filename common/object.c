@@ -14,6 +14,7 @@ allocateObject(size_t size, ObjType objType)
 	Obj* object  = (Obj*)reallocate(NULL, 0 , size);
 	if (object == NULL) {
 		fprintf(stderr, "ERROR: failed not enough memory\nfile: %s\nline: %d\n", __FILE__, __LINE__);
+		exit(1);
 	}
 	object->type = objType;
 	object->next = vm.objects;
