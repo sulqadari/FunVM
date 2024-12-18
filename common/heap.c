@@ -27,6 +27,12 @@ getNext(block_t* curr, uint32_t offset)
 		return (block_t*)((uint8_t*)curr + sizeof(block_t) + (offset));
 }
 
+static uint8_t
+isOutOfRange(void* ptr)
+{
+	return ((uint32_t)ptr < (uint32_t)heap || (uint32_t)ptr >= heapBound) ? 1 : 0;
+}
+
 static block_t*
 findBlock(block_t* ptr)
 {
@@ -34,7 +40,7 @@ findBlock(block_t* ptr)
 	ptr = (block_t*)((uint8_t*)ptr - sizeof(block_t));
 
 	// Attempt to access an address which is out of heap range.
-	if ((uint32_t)ptr < (uint32_t)curr || (uint32_t)ptr >= heapBound) {
+	if ((ptr == NULL) || isOutOfRange(ptr)) {
 		return NULL;
 	}
 
@@ -131,40 +137,42 @@ void*
 heapRealloc(void* ptr, uint32_t newSize)
 {
 	block_t* currBlk = NULL;
-
-	// Nothing to do.
-	if (newSize == 0) {
-		goto _done;
-	}
 	
-	// Attempt to access to address which is out of heap range.
-	if ((ptr != NULL) && ((uint32_t)ptr < (uint32_t)heap || (uint32_t)ptr > heapBound)) {
-		ptr = NULL;
-	}
+	do {
+		// Nothing to do.
+		if (newSize == 0)
+			break;
+
+		newSize = ALLIGN4(newSize);
+		currBlk = findBlock(ptr);
+
+		// A block to be resized not found. Allocate new one and return.
+		if (currBlk == NULL || currBlk->size < 0) {
+			ptr = heapAlloc(newSize);
+			break;
+		}
+
+		// Current inplementation doesn't handle requests to reduce the allocated size.
+		if (currBlk->size >= newSize) {
+			break;
+		}
+
+		block_t* donor = currBlk->next;
+		uint32_t extentLen = newSize - currBlk->size;  // the number of bytes we want to borrow from adjacent block.
+
+		// The donor is NULL, occupied or hans't enought space
+		if ((donor == NULL) || (donor->size > 0) || ((0 - donor->size) < extentLen)) {
+			ptr = heapAlloc(newSize);
+			if (ptr == NULL)
+				break;
+			
+			memcpy((uint8_t*)ptr, (uint8_t*)currBlk + sizeof(block_t), currBlk->size);
+			heapFree((void*)currBlk + sizeof(block_t));
+			break;
+		}
 	
-	newSize = ALLIGN4(newSize);
-	currBlk = findBlock(ptr);
-
-	// A block to be resized not found. Allocate new one and return.
-	if (currBlk == NULL || currBlk->size < 0) {
-		ptr = heapAlloc(newSize);
-		goto _done;
-	}
-	
-
-	// Current inplementation doesn't handle requests to reduce the allocated size.
-	if (currBlk->size >= newSize) {
-		goto _done;
-	}
-
-	block_t* donor = currBlk->next;
-	uint32_t extentLen = newSize - currBlk->size;  // the number of bytes we want to borrow from adjacent block.
-
-	// is donor block vacant AND has enough space?
-	if ((donor->size < 0) && ((0 - donor->size) >= extentLen)) {
-
 		// store the state of donor block
-		int32_t donorSiz = donor->size;
+		int32_t donorSize = 0 - donor->size;
 		block_t* donorNext = donor->next;
 
 		// clean up donor's state. These four bytes go under 'currBlk'.
@@ -173,28 +181,23 @@ heapRealloc(void* ptr, uint32_t newSize)
 
 		// advance donor's starting offset.
 		donor           = (block_t*)((uint8_t*)donor + extentLen);
-		donor->size     = donorSiz - extentLen; // reduce the value of 'size' field to the borrowed length.
-		donor->next     = donorNext;
-		currBlk->size   = newSize;
-		currBlk->next   = donor;
+		donor->size     = donorSize - extentLen; // reduce the value of 'size' field for the borrowed length.
 		
 		// It may hapen that donor gave us all the space he had and now has no free space anymore.
 		// Thus clear this region and pass these four bytes over to the currBlk too.
 		if (donor->size == 0) {
-			donor->size = 0;
-			currBlk->size += sizeof(block_t);
+			donor->next = NULL;
+			currBlk->size = newSize + sizeof(block_t); // add the bytes dedicated for 'block_t' struct to currBlock
+			currBlk->next = donorNext; // make the curr points to one, being pointed by donor.
+		} else {
+			donor->next     = donorNext;
+			currBlk->size   = newSize;
+			currBlk->next   = donor;
 		}
-	}
-	else { // Donor (adjacent) block is either occupied or hasn't enough space.
-		ptr = heapAlloc(newSize);
-		if (ptr == NULL)
-			goto _done;
-		
-		memcpy((uint8_t*)ptr, (uint8_t*)currBlk + sizeof(block_t), currBlk->size);
-		heapFree((void*)currBlk + sizeof(block_t));
-	}
 
-_done:
+		ptr = (void*)((uint8_t*)currBlk + sizeof(block_t));
+	} while (0);
+
 	return ptr;
 }
 
