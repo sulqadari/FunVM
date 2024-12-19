@@ -12,6 +12,10 @@ reallocate(void* ptr, size_t oldSize, size_t newSize)
 		}
 
 		result = fvm_realloc(ptr, newSize);
+		if (result == NULL) {
+			fprintf(stderr, "ERROR: not enough memory\nfile: %s\nline: %d\n", __FILE__, __LINE__);
+			exit(1);
+		}
 	} while(0);
 
 	return result;

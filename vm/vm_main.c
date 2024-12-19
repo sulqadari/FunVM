@@ -8,18 +8,6 @@ usage(void)
 	exit(1);
 }
 
-static void*
-bufAlloc(uint32_t size, char* msg)
-{
-	void* buffer = fvm_alloc(size);
-	if (NULL == buffer) {
-		fprintf(stderr, "Failed to allocate memory for %s\n", msg);
-		exit(74);
-	}
-
-	return buffer;
-}
-
 static void
 deserializeByteCode(const char* path, ByteCode* bCode)
 {
@@ -42,7 +30,7 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	fileSize = ftell(file);		/* How far we are from the start of file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	buffer = bufAlloc(fileSize, "serialized data");
+	buffer = ALLOCATE(uint8_t, fileSize);
 	pBuf = buffer;
 
 	bytesRead = fread(pBuf, sizeof(char), fileSize, file);
@@ -57,15 +45,15 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	memcpy(&cPool->capacity, pBuf += 4, 4);
 	memcpy(&objPool->size,   pBuf += 4, 4);
 
-	bCode->code     = bufAlloc(bCode->capacity, "bCode->code");
-	cPool->values   = bufAlloc(cPool->capacity * sizeof(Value), "cPool->values");
-	objPool->values = bufAlloc(objPool->size, "objPool->values");
+	bCode->code     = ALLOCATE(uint8_t, bCode->capacity);
+	cPool->values   = ALLOCATE(Value, cPool->capacity * sizeof(Value));
+	objPool->values = ALLOCATE(uint8_t, objPool->size);
 	
 	memcpy(bCode->code,     pBuf += 4, bCode->capacity);
 	memcpy(cPool->values,   pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
 	memcpy(objPool->values, pBuf += (cPool->capacity * sizeof(Value)), objPool->size);
 
-	fvm_free(buffer);
+	FREE(uint8_t, buffer);
 	fclose(file);
 }
 

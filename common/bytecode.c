@@ -19,6 +19,7 @@ freeByteCode(ByteCode* bCode)
 	FREE_ARRAY(uint8_t, bCode->code, bCode->capacity);
 	// FREE_ARRAY(uint32_t, lines, bCode->capacity);
 	freeConstPool(&bCode->constants);
+	freeObjPool(&bCode->objects);
 	initByteCode(bCode);
 }
 

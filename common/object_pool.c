@@ -28,7 +28,6 @@ writeObjPool(ObjPool* objPool, void* obj)
 
 		objPool->size += sizeof(ObjString) + str->len;
 		objPool->values = GROW_ARRAY(uint8_t, objPool->values, offset, objPool->size);
-		
 		memcpy(objPool->values + offset, str, sizeof(ObjString));
 		memcpy(objPool->values + sizeof(ObjString) + offset, str->chars, str->len);
 
