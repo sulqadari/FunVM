@@ -9,7 +9,7 @@
 #define HEAP_GET_NEXT(arr)         		((block_t*)arr)->next
 #define ALLIGN4(value)         			(((value + 3) >> 2) << 2)
 
-uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
+static uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
 static uint32_t heapBound;
 
 /**
