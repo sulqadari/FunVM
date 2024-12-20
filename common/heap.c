@@ -138,7 +138,7 @@ heapAlloc(uint32_t newSize)
 			ptr = takeSuitableBlock(currBlk, actualSize);
 			break;
 		}									// Block's size is greater than required.
-		else if (newSize + sizeof(block_t) < actualSize) {
+		else if (actualSize > newSize + sizeof(block_t)) {
 			ptr = splitUpMemory(currBlk, actualSize, newSize, next);
 			break;
 		}
