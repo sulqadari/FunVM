@@ -9,16 +9,6 @@ resetStack(void)
 	vm.stackTop = vm.stack;
 }
 
-static void
-runtimeError(const char* format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fputs("\n", stderr);
-}
-
 void
 initVM(void)
 {
@@ -32,6 +22,16 @@ freeVM(void)
 {
 	freeTable(&vm.strings);
 	freeObjects();
+}
+
+static void
+runtimeError(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
 }
 
 void
@@ -137,12 +137,12 @@ binaryOp(OpCode opType)
 
 
 	switch (opType) {
+		case op_gt:  push(BOOL_PACK(a > b)); break;
+		case op_lt:  push(BOOL_PACK(a < b)); break;
 		case op_add: push(NUM_PACK(a + b));  break;
 		case op_sub: push(NUM_PACK(a - b));  break;
 		case op_mul: push(NUM_PACK(a * b));  break;
 		case op_div: push(NUM_PACK(a / b));  break;
-		case op_gt:  push(BOOL_PACK(a > b)); break;
-		case op_lt:  push(BOOL_PACK(a < b)); break;
 		default: return false;
 	}
 	return true;
@@ -166,7 +166,7 @@ run(void)
 				ObjString* str = readObjString(ins);
 				push(OBJ_PACK(str));
 			} break;
-			case op_null:  push(NULL_PACK());      break;
+			case op_null:  push(NULL_PACK);      break;
 			case op_true:  push(BOOL_PACK(true));  break;
 			case op_false: push(BOOL_PACK(false)); break;
 			case op_eq: {

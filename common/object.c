@@ -36,9 +36,9 @@ allocateString(const char* heapChars, uint32_t length, uint32_t hash)
 {
 	ObjString* string = ALLOCATE_OBJ(ObjString, obj_string);
 	string->len   = length;
-	string->chars = heapChars;
 	string->hash  = hash;
-	tableSet(&vm.strings, string, NULL_PACK());
+	string->chars = heapChars;
+	tableSet(&vm.strings, string, NULL_PACK);
 	return string;
 }
 

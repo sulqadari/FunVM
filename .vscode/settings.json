@@ -55,6 +55,7 @@
 		"memory_resource": "c",
 		"__tuple": "c",
 		"globals.h": "c",
-		"heap.h": "c"
+		"heap.h": "c",
+		"hash_table.h": "c"
 	}
 }

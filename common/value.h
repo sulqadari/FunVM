@@ -25,7 +25,7 @@ typedef struct {
 
 // Original naming is: BOOL_VAL, NIL_VAL and NUMBER_VAL
 #define BOOL_PACK(value) ((Value){val_bool, {.boolean = value}})
-#define NULL_PACK()      ((Value){val_nil,  {.number  = 0}})
+#define NULL_PACK        ((Value){val_nil,  {.number  = 0}})
 #define NUM_PACK(value)  ((Value){val_num,  {.number  = value}})
 #define OBJ_PACK(value)  ((Value){val_obj,  {.obj  = (Obj*)value}})
 
