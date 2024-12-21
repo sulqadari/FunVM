@@ -148,8 +148,9 @@ skipWhiteSpace(void)
 static TokenType
 checkKeyword(int32_t start, uint32_t length, const char* rest, TokenType type)
 {
-	if ((scanner.current - scanner.start) == (start + length) &&
-		(memcmp(scanner.start + start, rest, length) == 0)) {
+	if ((scanner.current - scanner.start) == (start + length)
+		&& (memcmp(scanner.start + start, rest, length) == 0))
+	{
 			return type;
 	}
 
@@ -162,10 +163,6 @@ identifierType(void)
 	switch (scanner.start[0]) {
 		
 		case 'b': return checkKeyword(1, 4, "reak", tkn_break);
-		case 'e': return checkKeyword(1, 3, "lse", tkn_else);
-		case 'n': return checkKeyword(1, 3, "ull", tkn_null);
-		case 'r': return checkKeyword(1, 5, "eturn", tkn_ret);
-		case 'w': return checkKeyword(1, 4, "hile", tkn_while);
 		case 'c':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -173,13 +170,8 @@ identifierType(void)
 					case 'o': return checkKeyword(2, 6, "ntinue", tkn_continue);
 				}
 			}
-		case 's':
-			if ((scanner.current - scanner.start) > 1) {
-				switch (scanner.start[1]) {
-					case 'w': return checkKeyword(2, 4, "itch", tkn_switch);
-					case 'u': return checkKeyword(2, 3, "per", tkn_super);
-				}
-			}
+		break;
+		case 'e': return checkKeyword(1, 3, "lse", tkn_else);
 		case 'f':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -188,6 +180,21 @@ identifierType(void)
 					case 'u': return checkKeyword(2, 1, "n", tkn_fun);
 				}
 			}
+		break;
+		case 'i': return checkKeyword(1, 1, "f", tkn_if);
+		case 'n': return checkKeyword(1, 3, "ull", tkn_null);
+		case 'p': return checkKeyword(1, 4, "rint", tkn_print);
+		case 'r': return checkKeyword(1, 5, "eturn", tkn_ret);
+		case 'v': return checkKeyword(1, 2, "ar", tkn_var);
+		case 'w': return checkKeyword(1, 4, "hile", tkn_while);
+		case 's':
+			if ((scanner.current - scanner.start) > 1) {
+				switch (scanner.start[1]) {
+					case 'w': return checkKeyword(2, 4, "itch", tkn_switch);
+					case 'u': return checkKeyword(2, 3, "per", tkn_super);
+				}
+			}
+		break;
 		case 't':
 			if ((scanner.current - scanner.start) > 1) {
 				switch (scanner.start[1]) {
@@ -195,13 +202,7 @@ identifierType(void)
 					case 'r': return checkKeyword(2, 2, "ue", tkn_true);
 				}
 			}
-		case 'i':
-			if ((scanner.current - scanner.start) > 1) {
-				switch (scanner.start[1]) {
-					case 'f': return checkKeyword(0, 2, "if", tkn_if);
-					case '3': return checkKeyword(0, 3, "i32", tkn_i32);
-				}
-			}
+		break;
 	}
 	return tkn_id;
 }
@@ -221,7 +222,7 @@ number(void)
 	while (isDigit(peek()))
 		advance();
 	
-	return makeToken(tkn_i32);
+	return makeToken(tkn_var);
 }
 
 static Token
@@ -273,8 +274,6 @@ scanToken(void)
 		case '<': return makeToken(isNext('=') ? tkn_lteq : tkn_lt);
 		case '>': return makeToken(isNext('=') ? tkn_gteq : tkn_gt);
 		case '"': return string();
-		// case '': return makeToken(tkn_);
-		// case '': return makeToken(tkn_);
 	}
 
 	return errorToken("Unexpected character.");

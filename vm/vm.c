@@ -162,14 +162,16 @@ run(void)
 				push(constant);
 			} break;
 			case op_obj_str:
-			case op_obj_strw: {
+			case op_obj_strw:
+			{
 				ObjString* str = readObjString(ins);
 				push(OBJ_PACK(str));
 			} break;
 			case op_null:  push(NULL_PACK);      break;
 			case op_true:  push(BOOL_PACK(true));  break;
 			case op_false: push(BOOL_PACK(false)); break;
-			case op_eq: {
+			case op_eq:
+			{
 				Value b = pop();
 				Value a = pop();
 				push(BOOL_PACK(valuesEqual(a, b)));
@@ -184,7 +186,8 @@ run(void)
 				if(!binaryOp(ins))
 					return INTERPRET_RUNTIME_ERROR;
 			} break;
-			case op_not: {
+			case op_not:
+			{
 				push(BOOL_PACK(isFalsey(pop())));
 			} break;
 			case op_negate:
@@ -196,10 +199,17 @@ run(void)
 
 				push(NUM_PACK(-NUM_UNPACK(pop())));
 			} break;
-			case op_ret:
+			case op_print:
 			{
 				printValue(pop());
 				printf("\n");
+			} break;
+			case op_pop:
+			{
+				pop();
+			} break;
+			case op_ret:
+			{
 				return INTERPRET_OK;
 			}
 		}

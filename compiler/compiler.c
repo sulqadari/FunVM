@@ -197,6 +197,8 @@ commitCompilation(void)
 static void expression(void);
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void statement(void);
+static void declaration(void);
 
 static void
 binary(bool canAssign)
@@ -296,7 +298,7 @@ ParseRule rules[] = {
 	[tkn_id]       = {NULL, NULL, prec_none},
 	[tkn_str]      = {string, NULL, prec_none},
 
-	[tkn_i32]      = {number, NULL, prec_none},
+	[tkn_var]      = {number, NULL, prec_none},
 	[tkn_if]       = {NULL, NULL, prec_none},
 	[tkn_else]     = {NULL, NULL, prec_none},
 	[tkn_switch]   = {NULL, NULL, prec_none},
@@ -354,6 +356,77 @@ expression(void)
 	parsePrecedence(prec_assignment);
 }
 
+static void
+expressionStatement(void)
+{
+	expression();
+	consume(tkn_semicolon, "Expect ';' after value.");
+	emitByte(op_pop);
+}
+
+static void
+synchronize(void)
+{
+	parser.panicMode = false;
+	
+
+	while (parser.current.type != tkn_eof) {
+		
+		// at the very first iteration, check that the previous token wasn't one,
+		// which designates the end of expression.
+		if (parser.previous.type == tkn_semicolon)
+			return;
+		
+		switch (parser.current.type) {
+			case tkn_class:		// These tokens mark the synchronization point,
+			case tkn_fun:		// i.e. they represent a starting point of new statements.
+			case tkn_var:		// We want to skip all tokens within erroneous expression, and jump over 
+			case tkn_for:		// to these ones so that the compiler proceeds to further statements and expression.
+			case tkn_if:		// Doing this way the compiler will process and reveal not only current
+			case tkn_while:		// error (which led us to this function) but all other ahead too (if any),
+			case tkn_print:		// yielding all errors in one message.
+			case tkn_ret:
+				return;
+			default: /* do nothing. */
+		}
+		advance();
+	}
+}
+
+static void
+printStatement(void)
+{
+	consume(tkn_lparen, "Expect '(' after 'print'.");
+	expression();
+	consume(tkn_rparen, "Expect ')' after 'print'.");
+	consume(tkn_semicolon, "Expect ';' after value.");
+	emitByte(op_print);
+}
+
+static void
+statement(void)
+{
+	if (match(tkn_print)) {
+		printStatement();
+	} else {
+		expressionStatement();
+	}
+}
+
+static void
+declaration(void)
+{
+	if (match(tkn_var)) {
+		varDeclaration();
+	} else {
+		statement();
+	}
+
+	if (parser.panicMode)
+		synchronize();
+}
+
+
 bool
 compile(const char* source, ByteCode* bCode)
 {
@@ -363,8 +436,11 @@ compile(const char* source, ByteCode* bCode)
 	parser.panicMode = false;
 
 	advance();
-	expression();
-	consume(tkn_eof, "Expect end of expression.");
+	// consume(tkn_eof, "Expect end of expression.");
+	while (!match(tkn_eof)) {
+		declaration();
+	}
+
 	commitCompilation();
 	return !parser.hadError;
 }

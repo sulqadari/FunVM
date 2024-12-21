@@ -22,6 +22,8 @@ typedef enum {
 	op_div,
 	op_not,
 	op_negate,
+	op_print,
+	op_pop,
 	op_ret,
 } OpCode;
 

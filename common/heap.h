@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define HEAP_STATIC_SIZE		(1 * 1024)
+#define HEAP_STATIC_SIZE		(5 * 1024)
 typedef struct block_t block_t;
 
 /**

@@ -33,7 +33,7 @@ typedef enum {
 	tkn_id,
 	tkn_str,
 	// Keywords.
-	tkn_i32,
+	tkn_var,
 	tkn_if,
 	tkn_else, 
 	tkn_switch,
@@ -50,6 +50,7 @@ typedef enum {
 	tkn_false,
 	tkn_true,
 	tkn_err,
+	tkn_print,
 	tkn_eof
 } TokenType;
 
