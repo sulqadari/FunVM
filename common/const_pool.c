@@ -13,7 +13,7 @@ initConstPool(ConstPool* cPool)
 void
 freeConstPool(ConstPool* cPool)
 {
-	FREE_ARRAY(i32, cPool->values, cPool->capacity);
+	FREE_ARRAY(int32_t, cPool->values, cPool->capacity);
 	initConstPool(cPool);
 }
 

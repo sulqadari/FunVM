@@ -244,7 +244,7 @@ grouping(bool canAssign)
 static void
 number(bool canAssign)
 {
-	i32 value = strtol(parser.previous.start, NULL, 10);
+	int32_t value = strtol(parser.previous.start, NULL, 10);
 	emitConstant(NUM_PACK(value));
 }
 
@@ -318,6 +318,13 @@ ParseRule rules[] = {
 	[tkn_eof]      = {NULL, NULL, prec_none},
 };
 
+
+static ParseRule*
+getRule(TokenType type)
+{
+	return &rules[type];
+}
+
 /** Parses an expression at the given precedence level or higher. */
 static void
 parsePrecedence(Precedence prec)
@@ -344,16 +351,52 @@ parsePrecedence(Precedence prec)
 	}
 }
 
-static ParseRule*
-getRule(TokenType type)
+static uint16_t
+identifierConstant(Token* name)
 {
-	return &rules[type];
+	// Value identifier = OBJ_PACK(copyString(name->start, name->length));
+	// return makeConstant(identifier);
+	ObjString* identifier = copyString(name->start, name->length);
+	return makeObject((void*)identifier);
+}
+
+static uint16_t
+parseVariable(const char* errorMessage)
+{
+	consume(tkn_id, errorMessage);
+	return identifierConstant(&parser.previous);
+}
+
+static void
+defineVariable(uint16_t global)
+{
+	if (global <= UINT8_MAX) {
+		emitBytes(op_gvar, global);
+	} else {
+		emitByte(op_gvarw);
+		emitBytes(((global >> 8) & 0x00FF), (global & 0x00FF));
+	}
 }
 
 static void
 expression(void)
 {
 	parsePrecedence(prec_assignment);
+}
+
+static void
+varDeclaration(void)
+{
+	uint16_t global = parseVariable("Expect variable name.");
+
+	if (match(tkn_eq)) {
+		expression();
+	} else {
+		emitByte(op_null);
+	}
+
+	consume(tkn_semicolon, "Expect ';' after variable declaration");
+	defineVariable(global);
 }
 
 static void

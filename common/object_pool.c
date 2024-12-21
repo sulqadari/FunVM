@@ -12,7 +12,7 @@ initObjPool(ObjPool* objPool)
 void
 freeObjPool(ObjPool* objPool)
 {
-	FREE_ARRAY(i32, objPool->values, objPool->size);
+	FREE_ARRAY(int32_t, objPool->values, objPool->size);
 	initObjPool(objPool);
 }
 

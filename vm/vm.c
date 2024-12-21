@@ -15,12 +15,14 @@ initVM(void)
 	resetStack();
 	vm.objects = NULL;
 	initTable(&vm.strings);
+	initTable(&vm.globals);
 }
 
 void
 freeVM(void)
 {
 	freeTable(&vm.strings);
+	freeTable(&vm.globals);
 	freeObjects();
 }
 
@@ -109,10 +111,17 @@ readObjString(OpCode ins)
 {
 	uint16_t idx;
 
-	if (ins == op_obj_str)
-		idx = readByteCode();
-	else
-		idx = readShortCode();
+	switch (ins) {
+		case op_obj_str:
+		case op_gvar:
+			idx = readByteCode();
+		break;
+		case op_gvarw:
+		case op_obj_strw:
+			idx = readShortCode();
+		break;
+		default: /* do nothings. */
+	}
 
 	ObjString* str = (ObjString*)&vm.bCode->objects.values[idx];
 	str->chars = (char*)&vm.bCode->objects.values[idx + sizeof(ObjString)];
@@ -132,8 +141,8 @@ binaryOp(OpCode opType)
 	}
 
 
-	i32 b = NUM_UNPACK(pop());
-	i32 a = NUM_UNPACK(pop());
+	int32_t b = NUM_UNPACK(pop());
+	int32_t a = NUM_UNPACK(pop());
 
 
 	switch (opType) {
@@ -206,6 +215,16 @@ run(void)
 			} break;
 			case op_pop:
 			{
+				pop();
+			} break;
+			case op_gvar:
+			case op_gvarw:
+			{
+				ObjString* name = readObjString(ins);
+				if (!tableSet(&vm.globals, name, peek(0))) {
+					runtimeError("Global variable '%.*s' is already defined.", name->len, name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
 				pop();
 			} break;
 			case op_ret:

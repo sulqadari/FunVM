@@ -3,7 +3,6 @@
 
 #include "common.h"
 
-typedef int32_t i32;
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
 
@@ -18,7 +17,7 @@ typedef struct {
 	ValueType type;
 	union {
 		bool boolean;
-		i32 number;
+		int32_t number;
 		Obj* obj;
 	} as;
 } Value;
