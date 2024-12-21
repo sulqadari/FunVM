@@ -26,6 +26,10 @@ typedef enum {
 	op_pop,
 	op_gvar,
 	op_gvarw,
+	op_get_gvar,
+	op_get_gvarw,
+	op_set_gvar,
+	op_set_gvarw,
 	op_ret,
 } OpCode;
 

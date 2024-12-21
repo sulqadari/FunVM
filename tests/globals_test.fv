@@ -1,11 +1,3 @@
-var projName;
-var majorVersion;
-var minorVersion;
-var patchVersion;
+var projName = "FunVM";
 
-/*
 print(projName);
-print(majorVersion);
-print(minorVersion);
-print(patchVersion);
-*/

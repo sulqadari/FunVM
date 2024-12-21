@@ -199,6 +199,7 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 static void statement(void);
 static void declaration(void);
+static void namedVariable(Token name, bool canAssign);
 
 static void
 binary(bool canAssign)
@@ -257,6 +258,12 @@ string(bool canAssign)
 }
 
 static void
+variable(bool canAssign)
+{
+	namedVariable(parser.previous, canAssign);
+}
+
+static void
 unary(bool canAssign)
 {
 	TokenType opType = parser.previous.type;
@@ -295,7 +302,7 @@ ParseRule rules[] = {
 	[tkn_and]      = {NULL,  NULL, prec_none},
 	[tkn_or]       = {NULL,  NULL, prec_none},
 	
-	[tkn_id]       = {NULL, NULL, prec_none},
+	[tkn_id]       = {variable, NULL, prec_none},
 	[tkn_str]      = {string, NULL, prec_none},
 
 	[tkn_var]      = {number, NULL, prec_none},
@@ -358,6 +365,27 @@ identifierConstant(Token* name)
 	// return makeConstant(identifier);
 	ObjString* identifier = copyString(name->start, name->length);
 	return makeObject((void*)identifier);
+}
+
+static void
+namedVariable(Token name, bool canAssign)
+{
+	uint16_t arg = identifierConstant(&name);
+	OpCode opcode;
+
+	if (canAssign && match(tkn_eq)) {
+		expression();
+		opcode = op_set_gvar;
+	} else {
+		opcode = op_get_gvar;
+	}
+
+	if (arg <= UINT8_MAX) {
+		emitBytes(opcode, arg);
+	} else {
+		emitByte(opcode + 1);
+		emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+	}
 }
 
 static uint16_t
