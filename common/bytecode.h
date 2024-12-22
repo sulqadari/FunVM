@@ -7,8 +7,6 @@
 typedef enum {
 	op_iconst,
 	op_iconstw,
-	op_obj_str,
-	op_obj_strw,
 	op_null,
 	op_true,
 	op_false,
