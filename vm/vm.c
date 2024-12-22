@@ -106,29 +106,27 @@ readConst(OpCode ins)
 	return vm.bCode->constants.values[idx];
 }
 
-static ObjString*
-readObjString(OpCode ins)
-{
-	uint16_t idx;
+// static ObjString*
+// readObjString(OpCode ins)
+// {
+// 	uint16_t idx;
 
-	switch (ins) {
-		case op_obj_str:
-		case op_gvar:
-		case op_get_gvar:
-			idx = readByteCode();
-		break;
-		case op_gvarw:
-		case op_obj_strw:
-		case op_get_gvarw:
-			idx = readShortCode();
-		break;
-		default: /* do nothings. */
-	}
+// 	switch (ins) {
+// 		case op_obj_str:
+// 		case op_gvar:
+// 		case op_get_gvar:
+// 			idx = readByteCode();
+// 		break;
+// 		case op_gvarw:
+// 		case op_obj_strw:
+// 		case op_get_gvarw:
+// 			idx = readShortCode();
+// 		break;
+// 		default: /* do nothings. */
+// 	}
 
-	ObjString* str = (ObjString*)&vm.bCode->objects.values[idx];
-	str->chars = (char*)&vm.bCode->objects.values[idx + sizeof(ObjString)];
-	return str;
-}
+// 	return NULL;
+// }
 
 static bool
 binaryOp(OpCode opType)
@@ -175,8 +173,8 @@ run(void)
 			case op_obj_str:
 			case op_obj_strw:
 			{
-				ObjString* str = readObjString(ins);
-				push(OBJ_PACK(str));
+				// ObjString* str = readObjString(ins);
+				// push(OBJ_PACK(str));
 			} break;
 			case op_null:  push(NULL_PACK);      break;
 			case op_true:  push(BOOL_PACK(true));  break;
@@ -222,33 +220,33 @@ run(void)
 			case op_gvar:
 			case op_gvarw:
 			{
-				ObjString* name = readObjString(ins);
-				if (!tableSet(&vm.globals, name, peek(0))) {
-					runtimeError("Global variable '%s' is already declared.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				pop();
+				// ObjString* name = readObjString(ins);
+				// if (!tableSet(&vm.globals, name, peek(0))) {
+				// 	runtimeError("Global variable '%s' is already declared.", name->chars);
+				// 	return INTERPRET_RUNTIME_ERROR;
+				// }
+				// pop();
 			} break;
 			case op_get_gvar:
 			case op_get_gvarw:
 			{
-				ObjString* name = readObjString(ins);
-				Value value;
-				if (!tableGet(&vm.globals, name, &value)) {
-					runtimeError("Global variable '%s' is not declared.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				push(value);
+				// ObjString* name = readObjString(ins);
+				// Value value;
+				// if (!tableGet(&vm.globals, name, &value)) {
+				// 	runtimeError("Global variable '%s' is not declared.", name->chars);
+				// 	return INTERPRET_RUNTIME_ERROR;
+				// }
+				// push(value);
 			} break;
 			case op_set_gvar:
 			case op_set_gvarw:
 			{
-				ObjString* name = readObjString(ins);
-				if (tableSet(&vm.globals, name, peek(0))) {
-					tableDelete(&vm.globals, name);
-					runtimeError("Undefined global variable '%s'.", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				// ObjString* name = readObjString(ins);
+				// if (tableSet(&vm.globals, name, peek(0))) {
+				// 	tableDelete(&vm.globals, name);
+				// 	runtimeError("Undefined global variable '%s'.", name->chars);
+				// 	return INTERPRET_RUNTIME_ERROR;
+				// }
 			} break;
 			case op_ret:
 			{

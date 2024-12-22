@@ -3,7 +3,6 @@
 
 #include "common.h"
 #include "const_pool.h"
-#include "object_pool.h"
 
 typedef enum {
 	op_iconst,
@@ -38,7 +37,6 @@ typedef struct {
 	uint32_t capacity;
 	uint8_t* code;
 	ConstPool constants;
-	ObjPool objects;
 } ByteCode;
 
 extern uint32_t* lines;
@@ -47,6 +45,5 @@ void initByteCode(ByteCode* bCode);
 void freeByteCode(ByteCode* bCode);
 void writeByteCode(ByteCode* bCode, uint8_t byte, uint32_t line);
 uint32_t addConstant(ByteCode* bCode, Value value);
-uint32_t addObject(ByteCode* bCode, void* obj);
 
 #endif /* FUNVM_BYTECODE_H */

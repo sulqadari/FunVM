@@ -140,31 +140,6 @@ emitReturn(void)
 }
 
 static uint16_t
-makeObject(void* obj)
-{
-	int32_t idx = addObject(getCurrentCtx(), obj);
-	if (idx > UINT16_MAX) {
-		error("Too many constants in one objects pool.");
-	} else if (idx < 0) {
-		error("Unknown type of object.");
-	}
-
-	return (uint16_t)idx;
-}
-
-static void
-emitObject(void* obj)
-{
-	uint16_t idx = makeObject(obj);
-	if (idx <= UINT8_MAX) {
-		emitBytes(op_obj_str, idx);
-	} else {
-		emitByte(op_obj_strw);
-		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
-	}
-}
-
-static uint16_t
 makeConstant(Value value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
@@ -253,8 +228,7 @@ static void
 string(bool canAssign)
 {
 	/* Trim the leading and trailing quotation marks. */
-	ObjString* objString = copyString(parser.previous.start + 1, parser.previous.length - 2);
-	emitObject((void*)objString);
+	emitConstant(OBJ_PACK(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
 static void
@@ -361,10 +335,8 @@ parsePrecedence(Precedence prec)
 static uint16_t
 identifierConstant(Token* name)
 {
-	// Value identifier = OBJ_PACK(copyString(name->start, name->length));
-	// return makeConstant(identifier);
-	ObjString* identifier = copyString(name->start, name->length);
-	return makeObject((void*)identifier);
+	Value identifier = OBJ_PACK(copyString(name->start, name->length));
+	return makeConstant(identifier);
 }
 
 static void

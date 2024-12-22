@@ -18,7 +18,6 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	uint8_t* pBuf; 
 	size_t bytesRead;
 	ConstPool* cPool = &bCode->constants;
-	ObjPool* objPool = &bCode->objects;
 
 	file = fopen(path, "rb");
 	if (NULL == file) {
@@ -43,15 +42,12 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	memcpy(&bCode->capacity, pBuf += 4, 4);
 	memcpy(&cPool->count,    pBuf += 4, 4);
 	memcpy(&cPool->capacity, pBuf += 4, 4);
-	memcpy(&objPool->size,   pBuf += 4, 4);
 
 	bCode->code     = ALLOCATE(uint8_t, bCode->capacity);
 	cPool->values   = ALLOCATE(Value, cPool->capacity * sizeof(Value));
-	objPool->values = ALLOCATE(uint8_t, objPool->size);
 	
 	memcpy(bCode->code,     pBuf += 4, bCode->capacity);
 	memcpy(cPool->values,   pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
-	memcpy(objPool->values, pBuf += (cPool->capacity * sizeof(Value)), objPool->size);
 
 	FREE(uint8_t, buffer);
 	fclose(file);

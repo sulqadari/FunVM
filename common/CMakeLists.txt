@@ -4,7 +4,6 @@ add_library(${FUNVM_COMMON}
 	memory.c
 	value.c
 	object.c
-	object_pool.c
 	hash_table.c
 	globals.c
 	heap.c
