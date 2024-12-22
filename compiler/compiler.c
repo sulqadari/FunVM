@@ -332,11 +332,14 @@ parsePrecedence(Precedence prec)
 	}
 }
 
+/**
+ * Adds the lexeme of a given token to the bytecode's constant table as a string.
+ * @returns uint16_t index of the constant in the constant pool.
+ * */
 static uint16_t
 identifierConstant(Token* name)
 {
-	Value identifier = OBJ_PACK(copyString(name->start, name->length));
-	return makeConstant(identifier);
+	return makeConstant(OBJ_PACK(copyString(name->start, name->length)));
 }
 
 static void
@@ -367,13 +370,18 @@ parseVariable(const char* errorMessage)
 	return identifierConstant(&parser.previous);
 }
 
+/**
+ * Produces the bytecode instruction that defines the new variable
+ * and stores its initial value.
+ * @param uint16_t the index of the variable's name in the constant table.
+ */
 static void
 defineVariable(uint16_t global)
 {
 	if (global <= UINT8_MAX) {
-		emitBytes(op_gvar, global);
+		emitBytes(op_def_gvar, global);
 	} else {
-		emitByte(op_gvarw);
+		emitByte(op_def_gvarw);
 		emitBytes(((global >> 8) & 0x00FF), (global & 0x00FF));
 	}
 }
@@ -442,7 +450,7 @@ printStatement(void)
 	consume(tkn_lparen, "Expect '(' after 'print'.");
 	expression();
 	consume(tkn_rparen, "Expect ')' after 'print'.");
-	consume(tkn_semicolon, "Expect ';' after value.");
+	consume(tkn_semicolon, "Expect ';' after pirnt().");
 	emitByte(op_print);
 }
 

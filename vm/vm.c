@@ -106,6 +106,18 @@ readConst(OpCode ins)
 	return vm.bCode->constants.values[idx];
 }
 
+static ObjString*
+readString(OpCode ins)
+{
+	Value str;
+	if (ins == op_def_gvar || ins == op_get_gvar || ins == op_set_gvar)
+		str = readConst(op_iconst);
+	else
+		str = readConst(op_iconstw);
+
+	return STRING_UNPACK(str);
+}
+
 static bool
 binaryOp(OpCode opType)
 {
@@ -189,20 +201,35 @@ run(void)
 			{
 				pop();
 			} break;
-			case op_gvar:
-			case op_gvarw:
+			case op_def_gvar:
+			case op_def_gvarw:
 			{
-				
+				ObjString* name = readString(ins);
+				if (!tableSet(&vm.globals, name, peek(0))) {
+					runtimeError("Global variable '%s' has already been defined.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				pop();
 			} break;
 			case op_get_gvar:
 			case op_get_gvarw:
 			{
-				
+				ObjString* name = readString(ins);
+				Value value;
+				if (!tableGet(&vm.globals, name, &value)) {
+					runtimeError("Global variable '%s' is not defined.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
 			} break;
 			case op_set_gvar:
 			case op_set_gvarw:
 			{
-				
+				ObjString* name = readString(ins);
+				if (tableSet(&vm.globals, name, peek(0))) {
+					tableDelete(&vm.globals, name);
+					runtimeError("Global variable '%s' is not defined.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
 			} break;
 			case op_ret:
 			{
