@@ -7,6 +7,8 @@ static void
 resetStack(void)
 {
 	vm.stackTop = vm.stack;
+	vm.stackStart = vm.stack - 1;
+	vm.stackEnd = vm.stack + STACK_SIZE;
 }
 
 void
@@ -39,6 +41,10 @@ runtimeError(const char* format, ...)
 void
 push(Value value)
 {
+	if (vm.stackTop >= vm.stackEnd) {
+		runtimeError("Stack overflow.");
+		exit(1);
+	}
 	*vm.stackTop = value;
 	vm.stackTop++;
 }
@@ -47,7 +53,21 @@ Value
 pop(void)
 {
 	vm.stackTop--;
+	if (vm.stackTop <= vm.stackStart) {
+		runtimeError("Stack underflow.");
+		exit(1);
+	}
 	return *vm.stackTop;
+}
+
+void
+popN(uint16_t count)
+{
+	vm.stackTop = vm.stackTop - count;
+	if (vm.stackTop <= vm.stackStart) {
+		runtimeError("Stack underflow.");
+		exit(1);
+	}
 }
 
 static Value
@@ -106,28 +126,25 @@ readConst(OpCode ins)
 	return vm.bCode->constants.values[idx];
 }
 
-static ObjString*
-readObjString(OpCode ins)
+static uint16_t
+readLocalVarOffset(OpCode ins)
 {
-	uint16_t idx;
+	if (op_get_locvar || op_set_locvar)
+		return readByteCode();
+	else
+		return readShortCode();
+}
 
-	switch (ins) {
-		case op_obj_str:
-		case op_gvar:
-		case op_get_gvar:
-			idx = readByteCode();
-		break;
-		case op_gvarw:
-		case op_obj_strw:
-		case op_get_gvarw:
-			idx = readShortCode();
-		break;
-		default: /* do nothings. */
-	}
+static ObjString*
+readString(OpCode ins)
+{
+	Value str;
+	if (ins == op_def_gvar || ins == op_get_gvar || ins == op_set_gvar)
+		str = readConst(op_iconst);
+	else
+		str = readConst(op_iconstw);
 
-	ObjString* str = (ObjString*)&vm.bCode->objects.values[idx];
-	str->chars = (char*)&vm.bCode->objects.values[idx + sizeof(ObjString)];
-	return str;
+	return STRING_UNPACK(str);
 }
 
 static bool
@@ -172,12 +189,6 @@ run(void)
 				Value constant = readConst(ins);
 				push(constant);
 			} break;
-			case op_obj_str:
-			case op_obj_strw:
-			{
-				ObjString* str = readObjString(ins);
-				push(OBJ_PACK(str));
-			} break;
 			case op_null:  push(NULL_PACK);      break;
 			case op_true:  push(BOOL_PACK(true));  break;
 			case op_false: push(BOOL_PACK(false)); break;
@@ -219,12 +230,17 @@ run(void)
 			{
 				pop();
 			} break;
-			case op_gvar:
-			case op_gvarw:
+			case op_popn:
 			{
-				ObjString* name = readObjString(ins);
+				uint16_t count = readByteCode();
+				popN(count);
+			} break;
+			case op_def_gvar:
+			case op_def_gvarw:
+			{
+				ObjString* name = readString(ins);
 				if (!tableSet(&vm.globals, name, peek(0))) {
-					runtimeError("Global variable '%s' is already declared.", name->chars);
+					runtimeError("Global variable '%s' has already been defined.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				pop();
@@ -232,24 +248,37 @@ run(void)
 			case op_get_gvar:
 			case op_get_gvarw:
 			{
-				ObjString* name = readObjString(ins);
+				ObjString* name = readString(ins);
 				Value value;
 				if (!tableGet(&vm.globals, name, &value)) {
-					runtimeError("Global variable '%s' is not declared.", name->chars);
+					runtimeError("Global variable '%s' is not defined.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
-				push(value);
 			} break;
 			case op_set_gvar:
 			case op_set_gvarw:
 			{
-				ObjString* name = readObjString(ins);
+				ObjString* name = readString(ins);
 				if (tableSet(&vm.globals, name, peek(0))) {
 					tableDelete(&vm.globals, name);
-					runtimeError("Undefined global variable '%s'.", name->chars);
+					runtimeError("Global variable '%s' is not defined.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
 			} break;
+			case op_get_locvar:
+			case op_get_locvarw:
+			{
+				uint16_t slot = readLocalVarOffset(ins);
+				push(vm.stack[slot]);
+			}
+			break;
+			case op_set_locvar:
+			case op_set_locvarw:
+			{
+				uint16_t slot = readLocalVarOffset(ins);
+				vm.stack[slot] = peek(0);
+			}
+			break;
 			case op_ret:
 			{
 				return INTERPRET_OK;

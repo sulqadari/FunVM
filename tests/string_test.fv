@@ -1,1 +1,5 @@
-"123" == "123"
+print("123" == "123");
+//print("This is simple string");
+//print("are 123 and 123 equal?");
+print("123" == "1234");
+print("123" != "1234");

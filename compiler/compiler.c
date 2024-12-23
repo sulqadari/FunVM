@@ -32,7 +32,19 @@ typedef struct {
 	Precedence prec;
 } ParseRule;
 
+typedef struct {
+	Token name;
+	int32_t depth;
+} Local;
+
+typedef struct {
+	Local locals[UINT8_MAX + 1];
+	int32_t localCount;
+	int32_t scopeDepth;
+} Compiler;
+
 static Parser parser;
+static Compiler* current = NULL;
 static ByteCode* currCtx;
 
 static ByteCode*
@@ -140,31 +152,6 @@ emitReturn(void)
 }
 
 static uint16_t
-makeObject(void* obj)
-{
-	int32_t idx = addObject(getCurrentCtx(), obj);
-	if (idx > UINT16_MAX) {
-		error("Too many constants in one objects pool.");
-	} else if (idx < 0) {
-		error("Unknown type of object.");
-	}
-
-	return (uint16_t)idx;
-}
-
-static void
-emitObject(void* obj)
-{
-	uint16_t idx = makeObject(obj);
-	if (idx <= UINT8_MAX) {
-		emitBytes(op_obj_str, idx);
-	} else {
-		emitByte(op_obj_strw);
-		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
-	}
-}
-
-static uint16_t
 makeConstant(Value value)
 {
 	int32_t idx = addConstant(getCurrentCtx(), value);
@@ -189,9 +176,42 @@ emitConstant(Value value)
 }
 
 static void
+initCompiler(Compiler* compiler) {
+	compiler->localCount = 0;
+	compiler->scopeDepth = 0;
+	current = compiler;
+}
+
+static void
 commitCompilation(void)
 {
 	emitReturn();
+}
+
+static void
+beginScope(void)
+{
+	current->scopeDepth++;
+}
+
+static void
+endScope(void)
+{
+	current->scopeDepth--;
+	uint16_t count = 0;
+	while (current->localCount > 0
+		&& current->locals[current->localCount - 1].depth > current->scopeDepth)
+	{
+		count++;
+		current->localCount--;
+	}
+
+	if (count <= UINT8_MAX) {
+		emitBytes(op_popn, count);
+	} else {
+		emitByte(op_popn);
+		emitBytes(((count >> 8) & 0xFF), (count & 0xFF));
+	}
 }
 
 static void expression(void);
@@ -253,8 +273,7 @@ static void
 string(bool canAssign)
 {
 	/* Trim the leading and trailing quotation marks. */
-	ObjString* objString = copyString(parser.previous.start + 1, parser.previous.length - 2);
-	emitObject((void*)objString);
+	emitConstant(OBJ_PACK(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
 static void
@@ -358,50 +377,157 @@ parsePrecedence(Precedence prec)
 	}
 }
 
+
+static bool
+identifiersEqual(Token* a, Token* b)
+{
+	if (a->length != b->length)
+		return false;
+	
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int32_t
+resolveLocal(Compiler* compiler, Token* name)
+{
+	for (int32_t i = compiler->localCount - 1; i >= 0; --i) {
+		
+		Local* local = &compiler->locals[i];
+		if (identifiersEqual(name, &local->name)) {	
+			if (local->depth == -1) {
+				error("Can't read local variable in its own initializer.");
+			}
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+/**
+ * Adds the lexeme of a given token to the bytecode's constant table as a string.
+ * @returns uint16_t index of the constant in the constant pool.
+ * */
 static uint16_t
 identifierConstant(Token* name)
 {
-	// Value identifier = OBJ_PACK(copyString(name->start, name->length));
-	// return makeConstant(identifier);
-	ObjString* identifier = copyString(name->start, name->length);
-	return makeObject((void*)identifier);
+	return makeConstant(OBJ_PACK(copyString(name->start, name->length)));
 }
 
 static void
 namedVariable(Token name, bool canAssign)
 {
-	uint16_t arg = identifierConstant(&name);
-	OpCode opcode;
+	OpCode getOp, setOp;
+	int32_t arg = resolveLocal(current, &name);
+
+	if (arg != -1) {
+		getOp = op_get_locvar;
+		setOp = op_set_locvar;
+	} else {
+		arg = identifierConstant(&name);
+		getOp = op_get_gvar;
+		setOp = op_set_gvar;
+	}
 
 	if (canAssign && match(tkn_eq)) {
 		expression();
-		opcode = op_set_gvar;
+		if (arg <= UINT8_MAX) {
+			emitBytes(setOp, arg);
+		} else {
+			emitByte(setOp + 1);
+			emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+		}
 	} else {
-		opcode = op_get_gvar;
-	}
-
-	if (arg <= UINT8_MAX) {
-		emitBytes(opcode, arg);
-	} else {
-		emitByte(opcode + 1);
-		emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+		if (arg <= UINT8_MAX) {
+			emitBytes(getOp, arg);
+		} else {
+			emitByte(getOp + 1);
+			emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+		}
 	}
 }
 
+/**
+ * Adds a local variable to the compiler's list of locals in the current scope.
+ */
+static void
+addLocal(Token name)
+{
+	if (current->localCount > UINT8_MAX) {
+		error("Too many local variables in function");
+		return;
+	}
+
+	Local* local = &current->locals[current->localCount++];
+	local->name = name;
+	local->depth = -1;
+}
+
+/**
+ * Records the existence of a local variable.
+ */
+static void
+declareVariable(void)
+{
+	if (current->scopeDepth == 0)
+		return;	// Leave if we are in global scope.
+	
+	Token* name = &parser.previous;
+
+	for (int32_t i = current->localCount - 1; i >= 0; --i) {
+		Local* local = &current->locals[i];
+		if (local->depth != -1 && local->depth < current->scopeDepth) {
+			break;
+		}
+
+		if (identifiersEqual(name, &local->name)) {
+			error("The variable is already declared in this scope");
+		}
+	}
+
+	addLocal(*name);
+}
+
+/**
+ * Consumes the identifier token for the variable name and adds its lexeme to the bytecode's
+ * constatn table as a string.
+ * @returns uint16_t the constant table index of the lexeme.
+ */
 static uint16_t
 parseVariable(const char* errorMessage)
 {
 	consume(tkn_id, errorMessage);
+
+	declareVariable();
+	if (current->scopeDepth > 0)
+		return 0;
+	
 	return identifierConstant(&parser.previous);
 }
 
 static void
+markInitialized(void)
+{
+	current->locals[current->localCount - 1].depth = current->scopeDepth;
+}
+
+/**
+ * Produces the bytecode instruction that defines the new variable
+ * and stores its initial value.
+ * @param uint16_t the index of the variable's name in the constant table.
+ */
+static void
 defineVariable(uint16_t global)
 {
+	if (current->scopeDepth > 0) {
+		markInitialized();
+		return;		// There is no code to create a local variable at runtime.
+	}
+	
 	if (global <= UINT8_MAX) {
-		emitBytes(op_gvar, global);
+		emitBytes(op_def_gvar, global);
 	} else {
-		emitByte(op_gvarw);
+		emitByte(op_def_gvarw);
 		emitBytes(((global >> 8) & 0x00FF), (global & 0x00FF));
 	}
 }
@@ -410,6 +536,16 @@ static void
 expression(void)
 {
 	parsePrecedence(prec_assignment);
+}
+
+static void
+block(void)
+{
+	while (!check(tkn_rbrace) && !check(tkn_eof)) {
+		declaration();
+	}
+
+	consume(tkn_rbrace, "Expect '}' after block");
 }
 
 static void
@@ -470,7 +606,7 @@ printStatement(void)
 	consume(tkn_lparen, "Expect '(' after 'print'.");
 	expression();
 	consume(tkn_rparen, "Expect ')' after 'print'.");
-	consume(tkn_semicolon, "Expect ';' after value.");
+	consume(tkn_semicolon, "Expect ';' after pirnt().");
 	emitByte(op_print);
 }
 
@@ -479,6 +615,10 @@ statement(void)
 {
 	if (match(tkn_print)) {
 		printStatement();
+	} else if (match(tkn_lbrace)) {
+		beginScope();
+		block();
+		endScope();
 	} else {
 		expressionStatement();
 	}
@@ -502,6 +642,9 @@ bool
 compile(const char* source, ByteCode* bCode)
 {
 	initScanner(source);
+	Compiler compiler;
+	initCompiler(&compiler);
+
 	currCtx = bCode;
 	parser.hadError = false;
 	parser.panicMode = false;

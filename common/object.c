@@ -38,6 +38,8 @@ allocateString(const char* heapChars, uint32_t length, uint32_t hash)
 	string->len   = length;
 	string->hash  = hash;
 	string->chars = heapChars;
+
+	// Add this new string into 'interns' hash table
 	tableSet(&vm.strings, string, NULL_PACK);
 	return string;
 }

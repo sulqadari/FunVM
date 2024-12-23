@@ -9,18 +9,6 @@ usage(void)
 	exit(1);
 }
 
-static void*
-bufAlloc(uint32_t size, char* msg)
-{
-	void* buffer = fvm_alloc(size);
-	if (NULL == buffer) {
-		fprintf(stderr, "Failed to allocate memory for %s\n", msg);
-		exit(74);
-	}
-
-	return buffer;
-}
-
 static char*
 readSourceFile(const char* path)
 {
@@ -39,7 +27,7 @@ readSourceFile(const char* path)
 	fileSize = ftell(file);		/* How far we are from start of the file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	buffer = bufAlloc(fileSize + 1, "source file");
+	buffer = ALLOCATE(char, fileSize + 1);
 
 	bytesRead = fread(buffer, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
@@ -54,11 +42,10 @@ readSourceFile(const char* path)
 }
 
 static void
-serializeByteCode(const char* path, ByteCode* bCode)
+serialize(const char* path, ByteCode* bCode)
 {
 	FILE* file;
 	ConstPool* cPool = &bCode->constants;
-	ObjPool* objPool = &bCode->objects;
 	char binFileName[256];
 
 	sprintf(binFileName, "%sb", path);
@@ -72,11 +59,9 @@ serializeByteCode(const char* path, ByteCode* bCode)
 	fwrite(&bCode->capacity,     sizeof(uint32_t), 1, file);
 	fwrite(&cPool->count,        sizeof(uint32_t), 1, file);
 	fwrite(&cPool->capacity,     sizeof(uint32_t), 1, file);
-	fwrite(&objPool->size,       sizeof(uint32_t), 1, file);
 
 	fwrite(bCode->code,      sizeof(uint8_t),  bCode->capacity, file);
 	fwrite(cPool->values,    sizeof(uint64_t), cPool->capacity, file);
-	fwrite(objPool->values,  sizeof(uint8_t),  objPool->size,   file);
 	
 	fclose(file);
 }
@@ -100,7 +85,7 @@ main(int argc, char* argv[])
 		exit(1);
 	}
 
-	serializeByteCode(argv[1], &bCode);
+	serialize(argv[1], &bCode);
 	freeByteCode(&bCode);
 	fvm_free(source);
 }
