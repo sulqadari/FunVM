@@ -11,4 +11,5 @@ target_link_libraries(${FUNVM_COMPILER}
 target_include_directories(${FUNVM_COMPILER}
 	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${PROJECT_SOURCE_DIR}/common
+	PRIVATE ${PROJECT_SOURCE_DIR}/vm
 )

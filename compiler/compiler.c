@@ -2,6 +2,7 @@
 #include "scanner.h"
 #include "bytecode.h"
 #include "object.h"
+#include "vm.h"
 
 typedef struct {
 	Token current;
@@ -38,7 +39,7 @@ typedef struct {
 } Local;
 
 typedef struct {
-	Local locals[UINT8_MAX + 1];
+	Local locals[STACK_SIZE];
 	int32_t localCount;
 	int32_t scopeDepth;
 } Compiler;
@@ -206,12 +207,9 @@ endScope(void)
 		current->localCount--;
 	}
 
-	if (count <= UINT8_MAX) {
-		emitBytes(op_popn, count);
-	} else {
-		emitByte(op_popn);
-		emitBytes(((count >> 8) & 0xFF), (count & 0xFF));
-	}
+	emitByte(op_popn);
+	emitBytes(((count >> 8) & 0xFF), (count & 0xFF));
+
 }
 
 static void expression(void);
@@ -453,7 +451,7 @@ namedVariable(Token name, bool canAssign)
 static void
 addLocal(Token name)
 {
-	if (current->localCount > UINT8_MAX) {
+	if (current->localCount > UINT16_MAX) {
 		error("Too many local variables in function");
 		return;
 	}
