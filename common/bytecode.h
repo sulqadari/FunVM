@@ -27,6 +27,10 @@ typedef enum {
 	op_get_gvarw,
 	op_set_gvar,
 	op_set_gvarw,
+	op_get_locvar,
+	op_get_locvarw,
+	op_set_locvar,
+	op_set_locvarw,
 	op_ret,
 } OpCode;
 

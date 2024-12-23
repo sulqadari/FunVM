@@ -106,6 +106,15 @@ readConst(OpCode ins)
 	return vm.bCode->constants.values[idx];
 }
 
+static uint16_t
+readLocalVarOffset(OpCode ins)
+{
+	if (op_get_locvar || op_set_locvar)
+		return readByteCode();
+	else
+		return readShortCode();
+}
+
 static ObjString*
 readString(OpCode ins)
 {
@@ -231,6 +240,20 @@ run(void)
 					return INTERPRET_RUNTIME_ERROR;
 				}
 			} break;
+			case op_get_locvar:
+			case op_get_locvarw:
+			{
+				uint16_t slot = readLocalVarOffset(ins);
+				push(vm.stack[slot]);
+			}
+			break;
+			case op_set_locvar:
+			case op_set_locvarw:
+			{
+				uint16_t slot = readLocalVarOffset(ins);
+				vm.stack[slot] = peek(0);
+			}
+			break;
 			case op_ret:
 			{
 				return INTERPRET_OK;
