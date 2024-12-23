@@ -232,7 +232,7 @@ run(void)
 			} break;
 			case op_popn:
 			{
-				uint16_t count = readByteCode();
+				uint16_t count = readShortCode();
 				popN(count);
 			} break;
 			case op_def_gvar:

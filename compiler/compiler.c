@@ -2,6 +2,7 @@
 #include "scanner.h"
 #include "bytecode.h"
 #include "object.h"
+#include "vm.h"
 
 typedef struct {
 	Token current;
@@ -38,13 +39,13 @@ typedef struct {
 } Local;
 
 typedef struct {
-	Local locals[UINT8_MAX + 1];
+	Local locals[STACK_SIZE];
 	int32_t localCount;
 	int32_t scopeDepth;
 } Compiler;
 
 static Parser parser;
-static Compiler* current = NULL;
+static Compiler* currCplr = NULL;
 static ByteCode* currCtx;
 
 static ByteCode*
@@ -116,12 +117,17 @@ consume(TokenType type, const char* message)
 	errorAtCurrent(message);
 }
 
+/** Checks wether a current token is of given type.*/
 static bool
 check(const TokenType type)
 {
 	return type == parser.current.type;
 }
 
+/**
+ * Advances the parser if current token is of given type.
+ * @returns true if match.
+ */
 static bool
 match(TokenType type)
 {
@@ -143,6 +149,12 @@ emitBytes(uint8_t byte1, uint8_t byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
+}
+
+static void
+emitShort(uint16_t shrt)
+{
+	emitBytes(((shrt >> 8) & 0x00FF), (shrt & 0x00FF));
 }
 
 static void
@@ -171,15 +183,8 @@ emitConstant(Value value)
 		emitBytes(op_iconst, idx);
 	} else {
 		emitByte(op_iconstw);
-		emitBytes(((idx >> 8) & 0x00FF), (idx & 0x00FF));
+		emitShort(idx);
 	}
-}
-
-static void
-initCompiler(Compiler* compiler) {
-	compiler->localCount = 0;
-	compiler->scopeDepth = 0;
-	current = compiler;
 }
 
 static void
@@ -191,27 +196,24 @@ commitCompilation(void)
 static void
 beginScope(void)
 {
-	current->scopeDepth++;
+	currCplr->scopeDepth++;
 }
 
 static void
 endScope(void)
 {
-	current->scopeDepth--;
 	uint16_t count = 0;
-	while (current->localCount > 0
-		&& current->locals[current->localCount - 1].depth > current->scopeDepth)
+
+	currCplr->scopeDepth--;
+	while (currCplr->localCount > 0														// When leaving a scope, count the amount of variables that must be
+		&& currCplr->locals[currCplr->localCount - 1].depth > currCplr->scopeDepth)		// discarded from the stack.
 	{
-		count++;
-		current->localCount--;
+		count++;					// Instead of producing 'op_pop' for each variable to be removed from the stack,
+		currCplr->localCount--;		// count their number.
 	}
 
-	if (count <= UINT8_MAX) {
-		emitBytes(op_popn, count);
-	} else {
-		emitByte(op_popn);
-		emitBytes(((count >> 8) & 0xFF), (count & 0xFF));
-	}
+	emitByte(op_popn);				// Use this common bytecode instruction which will shrink the top of the stack
+	emitShort(count);				// to the given length.
 }
 
 static void expression(void);
@@ -418,7 +420,7 @@ static void
 namedVariable(Token name, bool canAssign)
 {
 	OpCode getOp, setOp;
-	int32_t arg = resolveLocal(current, &name);
+	int32_t arg = resolveLocal(currCplr, &name);
 
 	if (arg != -1) {
 		getOp = op_get_locvar;
@@ -435,14 +437,14 @@ namedVariable(Token name, bool canAssign)
 			emitBytes(setOp, arg);
 		} else {
 			emitByte(setOp + 1);
-			emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+			emitShort(arg);
 		}
 	} else {
 		if (arg <= UINT8_MAX) {
 			emitBytes(getOp, arg);
 		} else {
 			emitByte(getOp + 1);
-			emitBytes(((arg >> 8) & 0x00FF), (arg & 0x00FF));
+			emitShort(arg);
 		}
 	}
 }
@@ -453,12 +455,12 @@ namedVariable(Token name, bool canAssign)
 static void
 addLocal(Token name)
 {
-	if (current->localCount > UINT8_MAX) {
+	if (currCplr->localCount > STACK_SIZE) {
 		error("Too many local variables in function");
 		return;
 	}
 
-	Local* local = &current->locals[current->localCount++];
+	Local* local = &currCplr->locals[currCplr->localCount++];
 	local->name = name;
 	local->depth = -1;
 }
@@ -469,17 +471,18 @@ addLocal(Token name)
 static void
 declareVariable(void)
 {
-	if (current->scopeDepth == 0)
+	if (currCplr->scopeDepth == 0)
 		return;	// Leave if we are in global scope.
 	
 	Token* name = &parser.previous;
 
-	for (int32_t i = current->localCount - 1; i >= 0; --i) {
-		Local* local = &current->locals[i];
-		if (local->depth != -1 && local->depth < current->scopeDepth) {
-			break;
-		}
-
+	// Detect two or more variables with the same name in joint scope.
+	for (int32_t i = currCplr->localCount - 1; i >= 0; --i) {				// Starting from the innermost scope, which is current one, interate through the array.
+		Local* local = &currCplr->locals[i];
+		if (local->depth != -1 && local->depth < currCplr->scopeDepth) {	// if local's depth is less than currCplr's one, then that means that we didn't find
+			break;															// a variable with the same name in current scope and stepped back to outer scope.
+		}																	// We don't consider to having a variable with the same name in outer scope.
+																			// Thus, just stop looping.
 		if (identifiersEqual(name, &local->name)) {
 			error("The variable is already declared in this scope");
 		}
@@ -496,11 +499,15 @@ declareVariable(void)
 static uint16_t
 parseVariable(const char* errorMessage)
 {
+	// Report an error if the current token isn't variable's name.
 	consume(tkn_id, errorMessage);
 
 	declareVariable();
-	if (current->scopeDepth > 0)
-		return 0;
+
+	
+	
+	if (currCplr->scopeDepth > 0)	// Halt further execution if we're in a local scope.
+		return 0;					// In other words, the local variable's name shouldn't be stored in the constant pool.
 	
 	return identifierConstant(&parser.previous);
 }
@@ -508,7 +515,7 @@ parseVariable(const char* errorMessage)
 static void
 markInitialized(void)
 {
-	current->locals[current->localCount - 1].depth = current->scopeDepth;
+	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
 }
 
 /**
@@ -519,16 +526,16 @@ markInitialized(void)
 static void
 defineVariable(uint16_t global)
 {
-	if (current->scopeDepth > 0) {
+	if (currCplr->scopeDepth > 0) {
 		markInitialized();
-		return;		// There is no code to create a local variable at runtime.
+		return;		// There is no bytecode to create a local variable at runtime.
 	}
 	
 	if (global <= UINT8_MAX) {
 		emitBytes(op_def_gvar, global);
 	} else {
 		emitByte(op_def_gvarw);
-		emitBytes(((global >> 8) & 0x00FF), (global & 0x00FF));
+		emitShort(global);
 	}
 }
 
@@ -637,6 +644,12 @@ declaration(void)
 		synchronize();
 }
 
+static void
+initCompiler(Compiler* compiler) {
+	compiler->localCount = 0;
+	compiler->scopeDepth = 0;
+	currCplr = compiler;
+}
 
 bool
 compile(const char* source, ByteCode* bCode)

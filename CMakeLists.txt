@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(FunVM VERSION 0.1.4)
+project(FunVM VERSION 0.1.5)
 
 set(FUNVM_COMMON "Common")
 set(FUNVM_COMPILER "FVMCexe")
