@@ -1,3 +1,4 @@
+/*
 {
 	var a = 1;
 	{
@@ -24,4 +25,153 @@
 		print(a);
 	}
 	print(a);
+}
+*/
+{
+	var _1 = 1;
+	var _2 = 1;
+	var _3 = 1;
+	var _4 = 1;
+	var _5 = 1;
+	var _6 = 1;
+	var _7 = 1;
+	var _8 = 1;
+
+	var _9 = 1;
+	var _10 = 1;
+	var _11 = 1;
+	var _12 = 1;
+	var _13 = 1;
+	var _14 = 1;
+	var _15 = 1;
+	var _16 = 1;
+
+	var _17 = 1;
+	var _18 = 1;
+	var _19 = 1;
+	var _20 = 1;
+	var _21 = 1;
+	var _22 = 1;
+	var _23 = 1;
+	var _24 = 1;
+
+	var _25 = 1;
+	var _26 = 1;
+	var _27 = 1;
+	var _28 = 1;
+	var _29 = 1;
+	var _30 = 1;
+	var _31 = 1;
+	var _32 = 1;
+
+	var _33 = 1;
+	var _34 = 1;
+	var _35 = 1;
+	var _36 = 1;
+	var _37 = 1;
+	var _38 = 1;
+	var _39 = 1;
+	var _40 = 1;
+
+	var _41 = 1;
+	var _42 = 1;
+	var _43 = 1;
+	var _44 = 1;
+	var _45 = 1;
+	var _46 = 1;
+	var _47 = 1;
+	var _48 = 1;
+
+	var _49 = 1;
+	var _50 = 1;
+	var _51 = 1;
+	var _52 = 1;
+	var _53 = 1;
+	var _54 = 1;
+	var _55 = 1;
+	var _56 = 1;
+
+	var _57 = 1;
+	var _58 = 1;
+	var _59 = 1;
+	var _60 = 1;
+	var _61 = 1;
+	var _62 = 1;
+	var _63 = 1;
+	var _64 = 1;
+
+	//
+	var _a1 = 1;
+	var _a2 = 1;
+	var _a3 = 1;
+	var _a4 = 1;
+	var _a5 = 1;
+	var _a6 = 1;
+	var _a7 = 1;
+	var _a8 = 1;
+
+	var _a9 = 1;
+	var _a10 = 1;
+	var _a11 = 1;
+	var _a12 = 1;
+	var _a13 = 1;
+	var _a14 = 1;
+	var _a15 = 1;
+	var _a16 = 1;
+
+	var _a17 = 1;
+	var _a18 = 1;
+	var _a19 = 1;
+	var _a20 = 1;
+	var _a21 = 1;
+	var _a22 = 1;
+	var _a23 = 1;
+	var _a24 = 1;
+
+	var _a25 = 1;
+	var _a26 = 1;
+	var _a27 = 1;
+	var _a28 = 1;
+	var _a29 = 1;
+	var _a30 = 1;
+	var _a31 = 1;
+	var _a32 = 1;
+
+	var _a33 = 1;
+	var _a34 = 1;
+	var _a35 = 1;
+	var _a36 = 1;
+	var _a37 = 1;
+	var _a38 = 1;
+	var _a39 = 1;
+	var _a40 = 1;
+
+	var _a41 = 1;
+	var _a42 = 1;
+	var _a43 = 1;
+	var _a44 = 1;
+	var _a45 = 1;
+	var _a46 = 1;
+	var _a47 = 1;
+	var _a48 = 1;
+
+	var _a49 = 1;
+	var _a50 = 1;
+	var _a51 = 1;
+	var _a52 = 1;
+	var _a53 = 1;
+	var _a54 = 1;
+	var _a55 = 1;
+	var _a56 = 1;
+
+	var _a57 = 1;
+	var _a58 = 1;
+	var _a59 = 1;
+	var _a60 = 1;
+	var _a61 = 1;
+	var _a62 = 1;
+	var _a63 = 1;
+	var _a64 = 128; //
+
+	var _b65 = 129; //
 }

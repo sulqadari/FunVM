@@ -1,11 +1,11 @@
 {
 	"files.associations": {
+		"*.jcsh": "shellscript",
 		"*.fn": "javascript",
 		"00_Preface": "markdown",
 		"*.tivm": "javascript",
 		"*.txt": "cmake",
 		"*.fv": "javascript",
-		"*.jcsh": "shellscript",
 		"vm.h": "c",
 		"memory.h": "c",
 		"system_error": "c",
@@ -56,6 +56,7 @@
 		"__tuple": "c",
 		"globals.h": "c",
 		"heap.h": "c",
-		"hash_table.h": "c"
+		"hash_table.h": "c",
+		"compiler.h": "c"
 	}
 }

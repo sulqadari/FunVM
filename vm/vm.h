@@ -14,6 +14,8 @@ typedef struct {
 	uint8_t*  ip;	       /* <! Instruction pointer. Points to the next bytecode to be used. */
 	Value     stack[STACK_SIZE];
 	Value*    stackTop;    /* <! Points to the element just past the last item on the stack. */
+	Value*    stackStart;
+	Value*    stackEnd;
 	Table     globals;
 	Table     strings;
 	Obj*      objects;

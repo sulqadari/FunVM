@@ -198,12 +198,19 @@ static void
 endScope(void)
 {
 	current->scopeDepth--;
-
+	uint16_t count = 0;
 	while (current->localCount > 0
 		&& current->locals[current->localCount - 1].depth > current->scopeDepth)
 	{
-		emitByte(op_pop);
+		count++;
 		current->localCount--;
+	}
+
+	if (count <= UINT8_MAX) {
+		emitBytes(op_popn, count);
+	} else {
+		emitByte(op_popn);
+		emitBytes(((count >> 8) & 0xFF), (count & 0xFF));
 	}
 }
 
@@ -446,7 +453,7 @@ namedVariable(Token name, bool canAssign)
 static void
 addLocal(Token name)
 {
-	if (current->localCount >= UINT8_MAX) {
+	if (current->localCount > UINT8_MAX) {
 		error("Too many local variables in function");
 		return;
 	}

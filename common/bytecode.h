@@ -21,6 +21,7 @@ typedef enum {
 	op_negate,
 	op_print,
 	op_pop,
+	op_popn,
 	op_def_gvar,
 	op_def_gvarw,
 	op_get_gvar,

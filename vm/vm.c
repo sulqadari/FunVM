@@ -7,6 +7,8 @@ static void
 resetStack(void)
 {
 	vm.stackTop = vm.stack;
+	vm.stackStart = vm.stack - 1;
+	vm.stackEnd = vm.stack + STACK_SIZE;
 }
 
 void
@@ -39,6 +41,10 @@ runtimeError(const char* format, ...)
 void
 push(Value value)
 {
+	if (vm.stackTop >= vm.stackEnd) {
+		runtimeError("Stack overflow.");
+		exit(1);
+	}
 	*vm.stackTop = value;
 	vm.stackTop++;
 }
@@ -47,7 +53,21 @@ Value
 pop(void)
 {
 	vm.stackTop--;
+	if (vm.stackTop <= vm.stackStart) {
+		runtimeError("Stack underflow.");
+		exit(1);
+	}
 	return *vm.stackTop;
+}
+
+void
+popN(uint16_t count)
+{
+	vm.stackTop = vm.stackTop - count;
+	if (vm.stackTop <= vm.stackStart) {
+		runtimeError("Stack underflow.");
+		exit(1);
+	}
 }
 
 static Value
@@ -209,6 +229,11 @@ run(void)
 			case op_pop:
 			{
 				pop();
+			} break;
+			case op_popn:
+			{
+				uint16_t count = readByteCode();
+				popN(count);
 			} break;
 			case op_def_gvar:
 			case op_def_gvarw:
