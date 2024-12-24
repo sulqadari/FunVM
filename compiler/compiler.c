@@ -157,6 +157,33 @@ emitShort(uint16_t shrt)
 	emitBytes(((shrt >> 8) & 0x00FF), (shrt & 0x00FF));
 }
 
+/**
+ * Produces a bytecode that forces an execution flow to jump over to specified point.
+ * @returns int32_t offset of the opcode in the bytecode.
+ */
+static int32_t
+emitJump(OpCode opcode)
+{
+	emitByte(opcode);						// currCtx->count == 1 when we return from this function
+	emitShort(0xffff);						// currCtx->count == 3 when we return from this function
+
+	return getCurrentCtx()->count - 2;		// 3 - 2 = 1;
+}
+
+/**
+ * Updates the value of the operand of the bytecode, produced by the emitJump() function.
+ * @param int32_t number of bytes to jump over. */
+static void
+patchJump(int32_t offset)
+{
+	int32_t jumpOver = getCurrentCtx()->count - offset - 2;	// Consider, that emitJump() returned offset #1. After that we processed a
+	if (jumpOver >= UINT16_MAX) {							// 'then' branch which produced 10 bytes of code. Now, the 'currCtx->count'
+		error("Too much code to jump over");				// equals 14 (keep in mind, that emitJump() incremented the 'count' variable by '3').
+	}														// The following arithmetic expression reveals, that we need to jump
+	getCurrentCtx()->code[offset] = (jumpOver >> 8) & 0xff;	// over ((14 - 1 - 2) = 11) bytes of code. Here '2' adjusts the jump offset itself.
+	getCurrentCtx()->code[offset + 1] = jumpOver    & 0xff;
+}
+
 static void
 emitReturn(void)
 {
@@ -576,6 +603,30 @@ expressionStatement(void)
 }
 
 static void
+ifStatement(void)
+{
+	consume(tkn_lparen, "Expect '(' after 'if'.");
+	expression();									// expr within the if() statement
+	consume(tkn_rparen, "Expect ')' after 'if'.");
+
+	int32_t jmpOverThen = emitJump(op_jmp_false);	// Jump over the 'then' branch if an expression in if() statement...
+	// Pop expr at the beginning of the 'then' branch.
+	emitByte(op_pop);
+	statement();									// ...evaluates to 'false'; In this case it will proceed from the 'else' branch.
+													
+	int32_t jmpOverElse = emitJump(op_jmp);			// Jump FROM the end of the 'then' branch. This instruction forces the
+													// execution flow to jump over the 'else' branch in case it enters the 'then' branch.
+	patchJump(jmpOverThen);
+	
+	// Pop expr at the beginning of the 'else' branch.
+	emitByte(op_pop);
+	if (match(tkn_else))
+		statement();
+
+	patchJump(jmpOverElse);	// count the actual number of bytes in 'else' branch we need to jump over.
+}
+
+static void
 synchronize(void)
 {
 	parser.panicMode = false;
@@ -619,6 +670,8 @@ statement(void)
 {
 	if (match(tkn_print)) {
 		printStatement();
+	} else if (match(tkn_if)) {
+		ifStatement();
 	} else if (match(tkn_lbrace)) {
 		beginScope();
 		block();

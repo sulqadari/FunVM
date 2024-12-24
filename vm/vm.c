@@ -100,13 +100,13 @@ concatenate(void)
 
 /* Reads the byte currently pointed at by 'ip' and
  * then advances the instruction pointer. */
-static uint8_t
+static inline uint8_t
 readByteCode(void)
 {
 	return *vm.ip++;
 }
 
-static uint16_t
+static inline uint16_t
 readShortCode(void)
 {
 	uint16_t idx1 = readByteCode();
@@ -277,6 +277,20 @@ run(void)
 			{
 				uint16_t slot = readLocalVarOffset(ins);
 				vm.stack[slot] = peek(0);
+			}
+			break;
+			case op_jmp_false:
+			{
+				uint16_t offset = readShortCode();
+				if (isFalsey(peek(0))) {
+					vm.ip += offset;
+				}
+			}
+			break;
+			case op_jmp:
+			{
+				uint16_t offset = readShortCode();
+				vm.ip += offset;
 			}
 			break;
 			case op_ret:

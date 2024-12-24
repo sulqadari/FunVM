@@ -32,6 +32,8 @@ typedef enum {
 	op_get_locvarw,
 	op_set_locvar,
 	op_set_locvarw,
+	op_jmp_false,	/*<! Jump if false. */
+	op_jmp,
 	op_ret,
 } OpCode;
 
