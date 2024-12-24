@@ -396,7 +396,7 @@ resolveLocal(Compiler* compiler, Token* name)
 		
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {	
-			if (local->depth == -1) {
+			if (local->depth == -1) {	// we can't resolve a variable which is declared, but not defined.
 				error("Can't read local variable in its own initializer.");
 			}
 			return i;
@@ -462,8 +462,8 @@ addLocal(Token name)
 
 	Local* local = &currCplr->locals[currCplr->localCount++];
 	local->name = name;
-	local->depth = -1;
-}
+	local->depth = -1;	// marks a local as declared, but not defined. The difference between these states is that,
+}						// the 'declared' variable can't be used. 
 
 /**
  * Records the existence of a local variable.
@@ -479,9 +479,9 @@ declareVariable(void)
 	// Detect two or more variables with the same name in joint scope.
 	for (int32_t i = currCplr->localCount - 1; i >= 0; --i) {				// Starting from the innermost scope, which is current one, interate through the array.
 		Local* local = &currCplr->locals[i];
-		if (local->depth != -1 && local->depth < currCplr->scopeDepth) {	// if local's depth is less than currCplr's one, then that means that we didn't find
-			break;															// a variable with the same name in current scope and stepped back to outer scope.
-		}																	// We don't consider to having a variable with the same name in outer scope.
+		if (local->depth != -1 && local->depth < currCplr->scopeDepth) {	// if local is defined, and its depth is less than currCplr's one, then that means that we
+			break;															// didn't find a variable with the same name in current scope and stepped back to outer one.
+		}																	// We don't consider to having a variable with the same name in outer scope as an error.
 																			// Thus, just stop looping.
 		if (identifiersEqual(name, &local->name)) {
 			error("The variable is already declared in this scope");
@@ -503,9 +503,6 @@ parseVariable(const char* errorMessage)
 	consume(tkn_id, errorMessage);
 
 	declareVariable();
-
-	
-	
 	if (currCplr->scopeDepth > 0)	// Halt further execution if we're in a local scope.
 		return 0;					// In other words, the local variable's name shouldn't be stored in the constant pool.
 	
