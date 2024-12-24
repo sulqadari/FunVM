@@ -189,7 +189,7 @@ run(void)
 				Value constant = readConst(ins);
 				push(constant);
 			} break;
-			case op_null:  push(NULL_PACK);      break;
+			case op_null:  push(NULL_PACK);        break;
 			case op_true:  push(BOOL_PACK(true));  break;
 			case op_false: push(BOOL_PACK(false)); break;
 			case op_eq:
