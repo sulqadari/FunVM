@@ -158,7 +158,7 @@ emitShort(uint16_t shrt)
 }
 
 /**
- * Produces a bytecode that forces an execution flow to jump over to specified point.
+ * Produces a bytecode that forces an execution flow to jump over a chunk of bytecode.
  * @returns int32_t offset of the opcode in the bytecode.
  */
 static int32_t
@@ -324,53 +324,79 @@ unary(bool canAssign)
 	}
 }
 
+/**
+ * When this function is called, the value of left-hand side expression is already on the stack.
+ * If that value is falsey, then it will be keeped on the stack.
+ */
+static void
+_and(bool canAssign)
+{
+	int32_t endJump = emitJump(op_jmp_false);	// Skip entire clause if preceding condition is falsey.
+	emitByte(op_pop);							// Otherwise: discard the l-hand side value and...
+	parsePrecedence(prec_and);					// ...evaluate the right operand.
+	patchJump(endJump);
+}
+
+static void
+_or(bool canAssign)
+{
+	int32_t elseJump = emitJump(op_jmp_false);
+	int32_t endJump = emitJump(op_jmp);
+
+	patchJump(elseJump);
+	emitByte(op_pop);
+
+	parsePrecedence(prec_or);
+	patchJump(endJump);
+}
+
 ParseRule rules[] = {
 	[tkn_lparen]   = {grouping, NULL, prec_none},
-	[tkn_rparen]   = {NULL,  NULL, prec_none},
-	[tkn_lbrace]   = {NULL,  NULL, prec_none},
-	[tkn_rbrace]   = {NULL,  NULL, prec_none},
-	[tkn_lbracket] = {NULL,  NULL, prec_none},
-	[tkn_rbracket] = {NULL,  NULL, prec_none},
-	[tkn_semicolon] = {NULL, NULL, prec_none},
-	[tkn_comma]    = {NULL,  NULL, prec_none},
-	[tkn_dot]      = {NULL,  NULL, prec_none},
-	[tkn_minus]    = {unary, binary, prec_term},
-	[tkn_plus]     = {NULL,  binary, prec_term},
-	[tkn_slash]    = {NULL,  binary, prec_factor},
-	[tkn_star]     = {NULL,  binary, prec_factor},
+	[tkn_rparen]   = {NULL,     NULL, prec_none},
+	[tkn_lbrace]   = {NULL,     NULL, prec_none},
+	[tkn_rbrace]   = {NULL,     NULL, prec_none},
+	[tkn_lbracket] = {NULL,     NULL, prec_none},
+	[tkn_rbracket] = {NULL,     NULL, prec_none},
+	[tkn_semicolon] = {NULL,    NULL, prec_none},
+	[tkn_comma]    = {NULL,     NULL, prec_none},
+	[tkn_dot]      = {NULL,     NULL, prec_none},
+	[tkn_minus]    = {unary,    binary, prec_term},
+	[tkn_plus]     = {NULL,     binary, prec_term},
+	[tkn_slash]    = {NULL,     binary, prec_factor},
+	[tkn_star]     = {NULL,     binary, prec_factor},
 	
-	[tkn_not]      = {unary, NULL, prec_none},
-	[tkn_neq]      = {NULL,  binary, prec_equality},
-	[tkn_eq]       = {NULL,  NULL, prec_none},
-	[tkn_2eq]      = {NULL,  binary, prec_equality},
-	[tkn_gt]       = {NULL,  binary, prec_comparison},
-	[tkn_gteq]     = {NULL,  binary, prec_comparison},
-	[tkn_lt]       = {NULL,  binary, prec_comparison},
-	[tkn_lteq]     = {NULL,  binary, prec_comparison},
-	[tkn_and]      = {NULL,  NULL, prec_none},
-	[tkn_or]       = {NULL,  NULL, prec_none},
+	[tkn_not]      = {unary,    NULL,   prec_none},
+	[tkn_neq]      = {NULL,     binary, prec_equality},
+	[tkn_eq]       = {NULL,     NULL,   prec_none},
+	[tkn_2eq]      = {NULL,     binary, prec_equality},
+	[tkn_gt]       = {NULL,     binary, prec_comparison},
+	[tkn_gteq]     = {NULL,     binary, prec_comparison},
+	[tkn_lt]       = {NULL,     binary, prec_comparison},
+	[tkn_lteq]     = {NULL,     binary, prec_comparison},
+	[tkn_and]      = {NULL,     _and,   prec_and},
+	[tkn_or]       = {NULL,     _or,    prec_or},
 	
 	[tkn_id]       = {variable, NULL, prec_none},
-	[tkn_str]      = {string, NULL, prec_none},
+	[tkn_str]      = {string,   NULL, prec_none},
 
-	[tkn_var]      = {number, NULL, prec_none},
-	[tkn_if]       = {NULL, NULL, prec_none},
-	[tkn_else]     = {NULL, NULL, prec_none},
-	[tkn_switch]   = {NULL, NULL, prec_none},
-	[tkn_break]    = {NULL, NULL, prec_none},
-	[tkn_while]    = {NULL, NULL, prec_none},
-	[tkn_for]      = {NULL, NULL, prec_none},
-	[tkn_continue] = {NULL, NULL, prec_none},
-	[tkn_class]    = {NULL, NULL, prec_none},
-	[tkn_super]    = {NULL, NULL, prec_none},
-	[tkn_this]     = {NULL, NULL, prec_none},
-	[tkn_fun]      = {NULL, NULL, prec_none},
-	[tkn_null]     = {literal, NULL, prec_none},
-	[tkn_ret]      = {NULL, NULL, prec_none},
-	[tkn_false]    = {literal, NULL, prec_none},
-	[tkn_true]     = {literal, NULL, prec_none},
-	[tkn_err]      = {NULL, NULL, prec_none},
-	[tkn_eof]      = {NULL, NULL, prec_none},
+	[tkn_var]      = {number,   NULL, prec_none},
+	[tkn_if]       = {NULL,     NULL, prec_none},
+	[tkn_else]     = {NULL,     NULL, prec_none},
+	[tkn_switch]   = {NULL,     NULL, prec_none},
+	[tkn_break]    = {NULL,     NULL, prec_none},
+	[tkn_while]    = {NULL,     NULL, prec_none},
+	[tkn_for]      = {NULL,     NULL, prec_none},
+	[tkn_continue] = {NULL,     NULL, prec_none},
+	[tkn_class]    = {NULL,     NULL, prec_none},
+	[tkn_super]    = {NULL,     NULL, prec_none},
+	[tkn_this]     = {NULL,     NULL, prec_none},
+	[tkn_fun]      = {NULL,     NULL, prec_none},
+	[tkn_null]     = {literal,  NULL, prec_none},
+	[tkn_ret]      = {NULL,     NULL, prec_none},
+	[tkn_false]    = {literal,  NULL, prec_none},
+	[tkn_true]     = {literal,  NULL, prec_none},
+	[tkn_err]      = {NULL,     NULL, prec_none},
+	[tkn_eof]      = {NULL,     NULL, prec_none},
 };
 
 
@@ -609,13 +635,12 @@ ifStatement(void)
 	expression();									// expr within the if() statement
 	consume(tkn_rparen, "Expect ')' after 'if'.");
 
-	int32_t jmpOverThen = emitJump(op_jmp_false);	// Jump over the 'then' branch if an expression in if() statement...
-	// Pop expr at the beginning of the 'then' branch.
-	emitByte(op_pop);
-	statement();									// ...evaluates to 'false'; In this case it will proceed from the 'else' branch.
+	int32_t jmpOverThen = emitJump(op_jmp_false);	// Jump over the 'then' branch if expr in 'if()' stmt is falsey, e.g. proceed to 'else'.
+	emitByte(op_pop);								// Otherwise, if we're in 'if(){ }', then first of all pop out result of 'if('expr')' of the stack.
+	statement();									// Process the 'then branch'.
 													
-	int32_t jmpOverElse = emitJump(op_jmp);			// Jump FROM the end of the 'then' branch. This instruction forces the
-													// execution flow to jump over the 'else' branch in case it enters the 'then' branch.
+	int32_t jmpOverElse = emitJump(op_jmp);			// If exec flow entered the 'then' branch, then this instruction will force it to
+													// jump over the 'else' branch.
 	patchJump(jmpOverThen);
 	
 	// Pop expr at the beginning of the 'else' branch.
