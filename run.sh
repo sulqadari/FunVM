@@ -9,14 +9,16 @@ fi
 
 script_name=$1
 script_path=$(pwd)/tests/$script_name
-binary_path=$(pwd)/tests/$script_name"b"
+output_path=$(pwd)/tests/bin/
+
+binary_path=$(pwd)/tests/bin/$script_name"b"
 compiler_path=$(pwd)/build/bin/FVMCexe
 vm_path=$(pwd)/build/bin/FVMexe
 
 echo "********************************"
 echo "*       FunVM compiler         *"
 echo "********************************"
-$compiler_path  $script_path
+$compiler_path  $output_path $script_name
 
 echo "********************************"
 echo "*      FunVM interpreter       *"

@@ -157,6 +157,18 @@ emitShort(uint16_t shrt)
 	emitBytes(((shrt >> 8) & 0x00FF), (shrt & 0x00FF));
 }
 
+static void
+emitLoop(int32_t loopStart)
+{
+	emitByte(op_loop);
+	
+	int32_t offset = getCurrentCtx()->count - loopStart + 2;
+	if (offset > UINT16_MAX)
+		error("Loop body too large");
+	
+	emitShort((uint16_t)offset);
+}
+
 /**
  * Produces a bytecode that forces an execution flow to jump over a chunk of bytecode.
  * @returns int32_t offset of the opcode in the bytecode.
@@ -693,7 +705,19 @@ printStatement(void)
 static void
 whileStatement(void)
 {
-	
+	int32_t loopStart = getCurrentCtx()->count;
+
+	consume(tkn_lparen, "Expect '(' after 'while'");
+	expression();
+	consume(tkn_rparen, "Expect ')' after condition");
+
+	int32_t exitJump = emitJump(op_jmp_false);
+	emitByte(op_pop);
+	statement();
+
+	emitLoop(loopStart);
+
+	patchJump(exitJump);
 }
 
 static void

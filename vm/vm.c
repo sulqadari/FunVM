@@ -293,6 +293,12 @@ run(void)
 				vm.ip += offset;
 			}
 			break;
+			case op_loop:
+			{
+				uint16_t offset = readShortCode();
+				vm.ip -= offset;
+			}
+			break;
 			case op_ret:
 			{
 				return INTERPRET_OK;

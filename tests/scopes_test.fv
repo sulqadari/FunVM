@@ -1,0 +1,27 @@
+{
+	var a = 1;
+	{
+		var b = 2;
+		{
+			var c = 3;
+			print(c);
+			print(b);
+		}
+		print(b);
+		print(a);
+	}
+	print(a);
+
+	{
+		var b = a + 1;
+		{
+			var c = (b + a);
+			print(c);
+			print(b);
+		}
+		print(b);
+		a = a - 2;
+		print(a);
+	}
+	print(a);
+}
