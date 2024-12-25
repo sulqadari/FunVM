@@ -691,12 +691,20 @@ printStatement(void)
 }
 
 static void
+whileStatement(void)
+{
+	
+}
+
+static void
 statement(void)
 {
 	if (match(tkn_print)) {
 		printStatement();
 	} else if (match(tkn_if)) {
 		ifStatement();
+	} else if (match(tkn_while)) {
+		whileStatement();
 	} else if (match(tkn_lbrace)) {
 		beginScope();
 		block();
