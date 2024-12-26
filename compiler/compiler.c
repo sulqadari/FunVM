@@ -158,6 +158,45 @@ emitShort(uint16_t shrt)
 }
 
 static void
+emitLoop(int32_t loopStart)
+{
+	emitByte(op_loop);
+	
+	int32_t offset = getCurrentCtx()->count - loopStart + 2;
+	if (offset > UINT16_MAX)
+		error("Loop body too large");
+	
+	emitShort((uint16_t)offset);
+}
+
+/**
+ * Produces a bytecode that forces an execution flow to jump over a chunk of bytecode.
+ * @returns int32_t offset of the opcode in the bytecode.
+ */
+static int32_t
+emitJump(OpCode opcode)
+{
+	emitByte(opcode);						// currCtx->count == 1 when we return from this function
+	emitShort(0xffff);						// currCtx->count == 3 when we return from this function
+
+	return getCurrentCtx()->count - 2;		// 3 - 2 = 1;
+}
+
+/**
+ * Updates the value of the operand of the bytecode, produced by the emitJump() function.
+ * @param int32_t number of bytes to jump over. */
+static void
+patchJump(int32_t offset)
+{
+	int32_t jumpOver = getCurrentCtx()->count - offset - 2;	// Consider, that emitJump() returned offset #1. After that we processed a
+	if (jumpOver >= UINT16_MAX) {							// 'then' branch which produced 10 bytes of code. Now, the 'currCtx->count'
+		error("Too much code to jump over");				// equals 14 (keep in mind, that emitJump() incremented the 'count' variable by '3').
+	}														// The following arithmetic expression reveals, that we need to jump
+	getCurrentCtx()->code[offset] = (jumpOver >> 8) & 0xff;	// over ((14 - 1 - 2) = 11) bytes of code. Here '2' adjusts the jump offset itself.
+	getCurrentCtx()->code[offset + 1] = jumpOver    & 0xff;
+}
+
+static void
 emitReturn(void)
 {
 	emitByte(op_ret);
@@ -297,53 +336,79 @@ unary(bool canAssign)
 	}
 }
 
+/**
+ * When this function is called, the value of left-hand side expression is already on the stack.
+ * If that value is falsey, then it will be keeped on the stack.
+ */
+static void
+_and(bool canAssign)
+{
+	int32_t endJump = emitJump(op_jmp_false);	// Skip entire clause if preceding condition is falsey.
+	emitByte(op_pop);							// Otherwise: discard the l-hand side value and...
+	parsePrecedence(prec_and);					// ...evaluate the right operand.
+	patchJump(endJump);
+}
+
+static void
+_or(bool canAssign)
+{
+	int32_t elseJump = emitJump(op_jmp_false);
+	int32_t endJump = emitJump(op_jmp);
+
+	patchJump(elseJump);
+	emitByte(op_pop);
+
+	parsePrecedence(prec_or);
+	patchJump(endJump);
+}
+
 ParseRule rules[] = {
 	[tkn_lparen]   = {grouping, NULL, prec_none},
-	[tkn_rparen]   = {NULL,  NULL, prec_none},
-	[tkn_lbrace]   = {NULL,  NULL, prec_none},
-	[tkn_rbrace]   = {NULL,  NULL, prec_none},
-	[tkn_lbracket] = {NULL,  NULL, prec_none},
-	[tkn_rbracket] = {NULL,  NULL, prec_none},
-	[tkn_semicolon] = {NULL, NULL, prec_none},
-	[tkn_comma]    = {NULL,  NULL, prec_none},
-	[tkn_dot]      = {NULL,  NULL, prec_none},
-	[tkn_minus]    = {unary, binary, prec_term},
-	[tkn_plus]     = {NULL,  binary, prec_term},
-	[tkn_slash]    = {NULL,  binary, prec_factor},
-	[tkn_star]     = {NULL,  binary, prec_factor},
+	[tkn_rparen]   = {NULL,     NULL, prec_none},
+	[tkn_lbrace]   = {NULL,     NULL, prec_none},
+	[tkn_rbrace]   = {NULL,     NULL, prec_none},
+	[tkn_lbracket] = {NULL,     NULL, prec_none},
+	[tkn_rbracket] = {NULL,     NULL, prec_none},
+	[tkn_semicolon] = {NULL,    NULL, prec_none},
+	[tkn_comma]    = {NULL,     NULL, prec_none},
+	[tkn_dot]      = {NULL,     NULL, prec_none},
+	[tkn_minus]    = {unary,    binary, prec_term},
+	[tkn_plus]     = {NULL,     binary, prec_term},
+	[tkn_slash]    = {NULL,     binary, prec_factor},
+	[tkn_star]     = {NULL,     binary, prec_factor},
 	
-	[tkn_not]      = {unary, NULL, prec_none},
-	[tkn_neq]      = {NULL,  binary, prec_equality},
-	[tkn_eq]       = {NULL,  NULL, prec_none},
-	[tkn_2eq]      = {NULL,  binary, prec_equality},
-	[tkn_gt]       = {NULL,  binary, prec_comparison},
-	[tkn_gteq]     = {NULL,  binary, prec_comparison},
-	[tkn_lt]       = {NULL,  binary, prec_comparison},
-	[tkn_lteq]     = {NULL,  binary, prec_comparison},
-	[tkn_and]      = {NULL,  NULL, prec_none},
-	[tkn_or]       = {NULL,  NULL, prec_none},
+	[tkn_not]      = {unary,    NULL,   prec_none},
+	[tkn_neq]      = {NULL,     binary, prec_equality},
+	[tkn_eq]       = {NULL,     NULL,   prec_none},
+	[tkn_2eq]      = {NULL,     binary, prec_equality},
+	[tkn_gt]       = {NULL,     binary, prec_comparison},
+	[tkn_gteq]     = {NULL,     binary, prec_comparison},
+	[tkn_lt]       = {NULL,     binary, prec_comparison},
+	[tkn_lteq]     = {NULL,     binary, prec_comparison},
+	[tkn_and]      = {NULL,     _and,   prec_and},
+	[tkn_or]       = {NULL,     _or,    prec_or},
 	
 	[tkn_id]       = {variable, NULL, prec_none},
-	[tkn_str]      = {string, NULL, prec_none},
+	[tkn_str]      = {string,   NULL, prec_none},
 
-	[tkn_var]      = {number, NULL, prec_none},
-	[tkn_if]       = {NULL, NULL, prec_none},
-	[tkn_else]     = {NULL, NULL, prec_none},
-	[tkn_switch]   = {NULL, NULL, prec_none},
-	[tkn_break]    = {NULL, NULL, prec_none},
-	[tkn_while]    = {NULL, NULL, prec_none},
-	[tkn_for]      = {NULL, NULL, prec_none},
-	[tkn_continue] = {NULL, NULL, prec_none},
-	[tkn_class]    = {NULL, NULL, prec_none},
-	[tkn_super]    = {NULL, NULL, prec_none},
-	[tkn_this]     = {NULL, NULL, prec_none},
-	[tkn_fun]      = {NULL, NULL, prec_none},
-	[tkn_null]     = {literal, NULL, prec_none},
-	[tkn_ret]      = {NULL, NULL, prec_none},
-	[tkn_false]    = {literal, NULL, prec_none},
-	[tkn_true]     = {literal, NULL, prec_none},
-	[tkn_err]      = {NULL, NULL, prec_none},
-	[tkn_eof]      = {NULL, NULL, prec_none},
+	[tkn_var]      = {number,   NULL, prec_none},
+	[tkn_if]       = {NULL,     NULL, prec_none},
+	[tkn_else]     = {NULL,     NULL, prec_none},
+	[tkn_switch]   = {NULL,     NULL, prec_none},
+	[tkn_break]    = {NULL,     NULL, prec_none},
+	[tkn_while]    = {NULL,     NULL, prec_none},
+	[tkn_for]      = {NULL,     NULL, prec_none},
+	[tkn_continue] = {NULL,     NULL, prec_none},
+	[tkn_class]    = {NULL,     NULL, prec_none},
+	[tkn_super]    = {NULL,     NULL, prec_none},
+	[tkn_this]     = {NULL,     NULL, prec_none},
+	[tkn_fun]      = {NULL,     NULL, prec_none},
+	[tkn_null]     = {literal,  NULL, prec_none},
+	[tkn_ret]      = {NULL,     NULL, prec_none},
+	[tkn_false]    = {literal,  NULL, prec_none},
+	[tkn_true]     = {literal,  NULL, prec_none},
+	[tkn_err]      = {NULL,     NULL, prec_none},
+	[tkn_eof]      = {NULL,     NULL, prec_none},
 };
 
 
@@ -576,6 +641,132 @@ expressionStatement(void)
 }
 
 static void
+ifStatement(void)
+{
+	consume(tkn_lparen, "Expect '(' after 'if'.");
+	expression();									// expr within the if() statement
+	consume(tkn_rparen, "Expect ')' after 'if'.");
+
+	int32_t jmpOverThen = emitJump(op_jmp_false);	// Jump over the 'then' branch if expr in 'if()' stmt is falsey, e.g. proceed to 'else'.
+	emitByte(op_pop);								// Otherwise, if we're in 'if(){ }', then first of all pop out result of 'if('expr')' of the stack.
+	statement();									// Process the 'then branch'.
+													
+	int32_t jmpOverElse = emitJump(op_jmp);			// If exec flow entered the 'then' branch, then this instruction will force it to
+													// jump over the 'else' branch.
+	patchJump(jmpOverThen);
+	
+	// Pop expr at the beginning of the 'else' branch.
+	emitByte(op_pop);
+	if (match(tkn_else))
+		statement();
+
+	patchJump(jmpOverElse);	// count the actual number of bytes in 'else' branch we need to jump over.
+}
+
+static void
+printStatement(void)
+{
+	consume(tkn_lparen, "Expect '(' after 'print'.");
+	expression();
+	consume(tkn_rparen, "Expect ')' after 'print'.");
+	consume(tkn_semicolon, "Expect ';' after print().");
+	emitByte(op_print);
+}
+
+static void
+whileStatement(void)
+{
+	int32_t loopStart = getCurrentCtx()->count;
+
+	consume(tkn_lparen, "Expect '(' after 'while'");
+	expression();
+	consume(tkn_rparen, "Expect ')' after condition");
+
+	int32_t exitJump = emitJump(op_jmp_false);
+	emitByte(op_pop);
+	statement();
+
+	emitLoop(loopStart);
+
+	patchJump(exitJump);
+}
+
+static void
+forStatement(void)
+{
+	beginScope();
+	consume(tkn_lparen, "Expect '(' after 'for'.");
+
+	// empty initializer case.
+	if (check(tkn_semicolon)) {		// This clause is desugared intentionally: instead of using match(), which combines check() and advance(), 
+		advance();					// we call them separately to avoid leaving this clause empty. Empty clause might be optimized by compiler.
+	} else if (match(tkn_var)) {	// A user declares a new variable.
+		varDeclaration();
+	} else {						// All other cases go this clause.
+		expressionStatement();		// This function is used instead of expression() to detect 
+	}								// the mandatory semicolon and produce the op_pop bytecode.
+
+	int32_t loopStart = getCurrentCtx()->count;	// Loop starting point.
+	
+	int32_t exitJump = -1;			// negative value designates absence of condition clause.
+
+	// In case the condition expression clause isn't empty. 
+	if (!match(tkn_semicolon)) {	// If next token isn't of type semicolon,
+		expression();				// there must be a condition expression.
+		consume(tkn_semicolon, "Expect ';' after loop condition.");
+
+		// Jump out of the loop if condition is false.
+		exitJump = emitJump(op_jmp_false);	// condition expression leaves the value on top of the stack, and op_jmp_false leaves it untouched too.
+		emitByte(op_pop);					// thus, it must be poped off before executing the body.
+	}
+
+	// In case the increment clause isn't empty.
+	if (!match(tkn_rparen)) {
+
+		int32_t bodyJump = emitJump(op_jmp);				// 1. Hop over the increment clause for the first time.
+		int32_t incrementStart = getCurrentCtx()->count;
+		
+		expression();										// Execute increment expression and pop it off, because all that we need
+		emitByte(op_pop);									// is its side effect (e.g. a variable with changed value). 
+		consume(tkn_rparen, "Expect ')' after 'for' clauses.");
+
+		emitLoop(loopStart);								// Take us back to the top fo the for loop, right before the condition expression.
+		loopStart = incrementStart;							// Change the loopStart to point to the offset where the increment expression begins.
+		patchJump(bodyJump);
+	}
+
+	statement();
+	emitLoop(loopStart);
+	
+	if (exitJump != -1) {
+		patchJump(exitJump);
+		emitByte(op_pop);		// Likewise 'op_jmp_false' case, but must be poped off before leaving the 'for' statement.
+	}
+
+	endScope();
+}
+
+static void
+statement(void)
+{
+	if (match(tkn_print)) {
+		printStatement();
+	} else if (match(tkn_for)) {
+		forStatement();
+	}else if (match(tkn_if)) {
+		ifStatement();
+	} else if (match(tkn_while)) {
+		whileStatement();
+	} else if (match(tkn_lbrace)) {
+		beginScope();
+		block();
+		endScope();
+	} else {
+		expressionStatement();
+	}
+}
+
+static void
 synchronize(void)
 {
 	parser.panicMode = false;
@@ -590,7 +781,7 @@ synchronize(void)
 		
 		switch (parser.current.type) {
 			case tkn_class:		// These tokens mark the synchronization point,
-			case tkn_fun:		// i.e. they represent a starting point of new statements.
+			case tkn_fun:		// i.e. they represent a starting point of new a statements.
 			case tkn_var:		// We want to skip all tokens within erroneous expression, and jump over 
 			case tkn_for:		// to these ones so that the compiler proceeds to further statements and expression.
 			case tkn_if:		// Doing this way the compiler will process and reveal not only current
@@ -601,30 +792,6 @@ synchronize(void)
 			default: /* do nothing. */
 		}
 		advance();
-	}
-}
-
-static void
-printStatement(void)
-{
-	consume(tkn_lparen, "Expect '(' after 'print'.");
-	expression();
-	consume(tkn_rparen, "Expect ')' after 'print'.");
-	consume(tkn_semicolon, "Expect ';' after pirnt().");
-	emitByte(op_print);
-}
-
-static void
-statement(void)
-{
-	if (match(tkn_print)) {
-		printStatement();
-	} else if (match(tkn_lbrace)) {
-		beginScope();
-		block();
-		endScope();
-	} else {
-		expressionStatement();
 	}
 }
 

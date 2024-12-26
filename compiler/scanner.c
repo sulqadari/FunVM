@@ -161,7 +161,7 @@ static TokenType
 identifierType(void)
 {
 	switch (scanner.start[0]) {
-		
+		case 'a': return checkKeyword(1, 2, "nd", tkn_and);
 		case 'b': return checkKeyword(1, 4, "reak", tkn_break);
 		case 'c':
 			if ((scanner.current - scanner.start) > 1) {
@@ -183,6 +183,7 @@ identifierType(void)
 		break;
 		case 'i': return checkKeyword(1, 1, "f", tkn_if);
 		case 'n': return checkKeyword(1, 3, "ull", tkn_null);
+		case 'o': return checkKeyword(1, 1, "r", tkn_or);
 		case 'p': return checkKeyword(1, 4, "rint", tkn_print);
 		case 'r': return checkKeyword(1, 5, "eturn", tkn_ret);
 		case 'v': return checkKeyword(1, 2, "ar", tkn_var);

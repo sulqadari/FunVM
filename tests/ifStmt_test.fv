@@ -1,0 +1,64 @@
+{
+	var counter = 0;
+	// true AND true
+	if (1 + 1 == 2 and 1 - 1 == 0) {
+		counter = counter + 1;
+	} else {
+		print(0);
+	}
+
+	// false AND true
+	if (1 + 1 == 0 and 1 - 1 == 0) {
+		print(0);
+	} else {
+		counter = counter + 1;
+	}
+
+	// true AND false
+	if (1 - 1 == 0 and 1 + 1 == 0) {
+		print(0);
+	} else {
+		counter = counter + 1;
+	}
+
+	// false AND false
+	if (1 - 1 == 2 and 1 + 1 == 0) {
+		print(0);
+	} else {
+		counter = counter + 1;
+	}
+
+	// true OR true
+	if (1 + 1 == 2 or 1 - 1 == 0) {
+		counter = counter + 1;
+	} else {
+		print(0);
+	}
+
+	// false OR true
+	if (1 + 1 == 0 or 1 - 1 == 0) {
+		counter = counter + 1;
+	} else {
+		print(0);
+	}
+
+	// true OR false
+	if (1 - 1 == 0 or 1 + 1 == 0) {
+		counter = counter + 1;
+	} else {
+		print(0);
+	}
+
+	// false OR false
+	if (1 - 1 == 2 or 1 + 1 == 0) {
+		print(0);
+	} else {
+		counter = counter + 1;
+	}
+
+	if (counter == 8) {
+		print(counter);
+	} else {
+		print(0);
+	}
+}

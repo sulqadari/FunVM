@@ -10,7 +10,8 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
-				"${workspaceFolder}/tests/locals_test.fv"
+				"${workspaceFolder}/tests/",
+				"for_test.fv"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -21,7 +22,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/locals_test.fvb"
+				"${workspaceFolder}/tests/bin/for_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true

@@ -7,7 +7,7 @@
 #include "value.h"
 #include "hash_table.h"
 
-#define STACK_SIZE (512)
+#define STACK_SIZE (256)
 
 typedef struct {
 	ByteCode* bCode;
