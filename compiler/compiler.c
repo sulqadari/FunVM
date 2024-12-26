@@ -664,35 +664,6 @@ ifStatement(void)
 }
 
 static void
-synchronize(void)
-{
-	parser.panicMode = false;
-	
-
-	while (parser.current.type != tkn_eof) {
-		
-		// at the very first iteration, check that the previous token wasn't one,
-		// which designates the end of expression.
-		if (parser.previous.type == tkn_semicolon)
-			return;
-		
-		switch (parser.current.type) {
-			case tkn_class:		// These tokens mark the synchronization point,
-			case tkn_fun:		// i.e. they represent a starting point of new statements.
-			case tkn_var:		// We want to skip all tokens within erroneous expression, and jump over 
-			case tkn_for:		// to these ones so that the compiler proceeds to further statements and expression.
-			case tkn_if:		// Doing this way the compiler will process and reveal not only current
-			case tkn_while:		// error (which led us to this function) but all other ahead too (if any),
-			case tkn_print:		// yielding all errors in one message.
-			case tkn_ret:
-				return;
-			default: /* do nothing. */
-		}
-		advance();
-	}
-}
-
-static void
 printStatement(void)
 {
 	consume(tkn_lparen, "Expect '(' after 'print'.");
@@ -735,6 +706,35 @@ statement(void)
 		endScope();
 	} else {
 		expressionStatement();
+	}
+}
+
+static void
+synchronize(void)
+{
+	parser.panicMode = false;
+	
+
+	while (parser.current.type != tkn_eof) {
+		
+		// at the very first iteration, check that the previous token wasn't one,
+		// which designates the end of expression.
+		if (parser.previous.type == tkn_semicolon)
+			return;
+		
+		switch (parser.current.type) {
+			case tkn_class:		// These tokens mark the synchronization point,
+			case tkn_fun:		// i.e. they represent a starting point of new a statements.
+			case tkn_var:		// We want to skip all tokens within erroneous expression, and jump over 
+			case tkn_for:		// to these ones so that the compiler proceeds to further statements and expression.
+			case tkn_if:		// Doing this way the compiler will process and reveal not only current
+			case tkn_while:		// error (which led us to this function) but all other ahead too (if any),
+			case tkn_print:		// yielding all errors in one message.
+			case tkn_ret:
+				return;
+			default: /* do nothing. */
+		}
+		advance();
 	}
 }
 

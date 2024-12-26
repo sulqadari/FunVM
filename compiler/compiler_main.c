@@ -119,6 +119,7 @@ main(int argc, char* argv[])
 
 	char* source;
 	ByteCode bCode;
+	initByteCode(&bCode);
 	
 	source = readSourceFile(filePath, fileName);
 	bool res = compile(source, &bCode);
