@@ -669,7 +669,7 @@ printStatement(void)
 	consume(tkn_lparen, "Expect '(' after 'print'.");
 	expression();
 	consume(tkn_rparen, "Expect ')' after 'print'.");
-	consume(tkn_semicolon, "Expect ';' after pirnt().");
+	consume(tkn_semicolon, "Expect ';' after print().");
 	emitByte(op_print);
 }
 
@@ -692,11 +692,68 @@ whileStatement(void)
 }
 
 static void
+forStatement(void)
+{
+	beginScope();
+	consume(tkn_lparen, "Expect '(' after 'for'.");
+
+	// empty initializer case.
+	if (check(tkn_semicolon)) {		// This clause is desugared intentionally: instead of using match(), which combines check() and advance(), 
+		advance();					// we call them separately to avoid leaving this clause empty. Empty clause might be optimized by compiler.
+	} else if (match(tkn_var)) {	// A user declares a new variable.
+		varDeclaration();
+	} else {						// All other cases go this clause.
+		expressionStatement();		// This function is used instead of expression() to detect 
+	}								// the mandatory semicolon and produce the op_pop bytecode.
+
+	int32_t loopStart = getCurrentCtx()->count;	// Loop starting point.
+	
+	int32_t exitJump = -1;			// negative value designates absence of condition clause.
+
+	// In case the condition expression clause isn't empty. 
+	if (!match(tkn_semicolon)) {	// If next token isn't of type semicolon,
+		expression();				// there must be a condition expression.
+		consume(tkn_semicolon, "Expect ';' after loop condition.");
+
+		// Jump out of the loop if condition is false.
+		exitJump = emitJump(op_jmp_false);	// condition expression leaves the value on top of the stack, and op_jmp_false leaves it untouched too.
+		emitByte(op_pop);					// thus, it must be poped off before executing the body.
+	}
+
+	// In case the increment clause isn't empty.
+	if (!match(tkn_rparen)) {
+
+		int32_t bodyJump = emitJump(op_jmp);				// 1. Hop over the increment clause for the first time.
+		int32_t incrementStart = getCurrentCtx()->count;
+		
+		expression();										// Execute increment expression and pop it off, because all that we need
+		emitByte(op_pop);									// is its side effect (e.g. a variable with changed value). 
+		consume(tkn_rparen, "Expect ')' after 'for' clauses.");
+
+		emitLoop(loopStart);								// Take us back to the top fo the for loop, right before the condition expression.
+		loopStart = incrementStart;							// Change the loopStart to point to the offset where the increment expression begins.
+		patchJump(bodyJump);
+	}
+
+	statement();
+	emitLoop(loopStart);
+	
+	if (exitJump != -1) {
+		patchJump(exitJump);
+		emitByte(op_pop);		// Likewise 'op_jmp_false' case, but must be poped off before leaving the 'for' statement.
+	}
+
+	endScope();
+}
+
+static void
 statement(void)
 {
 	if (match(tkn_print)) {
 		printStatement();
-	} else if (match(tkn_if)) {
+	} else if (match(tkn_for)) {
+		forStatement();
+	}else if (match(tkn_if)) {
 		ifStatement();
 	} else if (match(tkn_while)) {
 		whileStatement();
