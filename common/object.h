@@ -3,14 +3,20 @@
 
 #include "common.h"
 #include "value.h"
+#include "bytecode.h"
 
 #define OBJ_TYPE(value)        (OBJ_UNPACK(value)->type)
+
+#define IS_FUNC(value)         isObjType(value, obj_func)
+#define FUNC_UNPACK(value)     ((ObjFunction*)OBJ_UNPACK(value))
+
 #define IS_STRING(value)       isObjType(value, obj_string)
 #define STRING_UNPACK(value)   ((ObjString*)OBJ_UNPACK(value))
 #define CSTRING_UNPACK(value)  (((ObjString*)OBJ_UNPACK(value))->chars)
 
 typedef enum {
-	obj_string
+	obj_string,
+	obj_func
 } ObjType;
 
 struct Obj {
@@ -25,6 +31,14 @@ struct ObjString {
 	const char* chars;
 };
 
+typedef struct {
+	Obj        obj;
+	int32_t    arity;
+	ByteCode   bCode;
+	ObjString* name;
+} ObjFunction;
+
+ObjFunction* newFunction(void);
 ObjString* takeString(const char* chars, uint32_t length);
 ObjString* copyString(const char* chars, uint32_t length);
 void printObject(Value value);

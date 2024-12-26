@@ -75,12 +75,31 @@ takeString(const char* chars, uint32_t length)
 	return allocateString(chars, length, hash);
 }
 
+ObjFunction*
+newFunction(void)
+{
+	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, obj_func);
+	function->arity = 0;
+	function->name = NULL;
+	initByteCode(&function->bCode);
+	return function;
+}
+
+static void
+printFunction(ObjFunction* function)
+{
+	printf("<fn %s>", function->name->chars);
+}
+
 void
 printObject(Value value)
 {
 	switch (OBJ_TYPE(value)) {
 		case obj_string:
 			printf("%s", CSTRING_UNPACK(value));
+		break;
+		case obj_func:
+			printFunction(FUNC_UNPACK(value));
 		break;
 	}
 }

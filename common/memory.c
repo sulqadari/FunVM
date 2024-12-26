@@ -30,6 +30,11 @@ freeObject(Obj* object)
 			FREE_ARRAY(char, (char*)str->chars, str->len + 1);
 			FREE(ObjString, object);
 		} break;
+		case obj_func: {
+			ObjFunction* function = (ObjFunction*)object;
+			freeByteCode(&function->bCode);
+			FREE(ObjFunction, object);
+		}break;
 	}
 }
 
