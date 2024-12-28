@@ -25,6 +25,11 @@ typedef enum {
 	prec_primary,
 } Precedence;
 
+typedef enum {
+	type_function,
+	type_script,
+} FuncType;
+
 typedef void (*ParseFn)(bool canAssign);
 
 typedef struct {
@@ -39,6 +44,8 @@ typedef struct {
 } Local;
 
 typedef struct {
+	FuncType type;
+	ObjFunction* function;
 	Local locals[STACK_SIZE];
 	int32_t localCount;
 	int32_t scopeDepth;
@@ -46,12 +53,11 @@ typedef struct {
 
 static Parser parser;
 static Compiler* currCplr = NULL;
-static ByteCode* currCtx;
 
 static ByteCode*
 getCurrentCtx(void)
 {
-	return currCtx;
+	return &currCplr->function->bCode;
 }
 
 static void
@@ -226,10 +232,12 @@ emitConstant(Value value)
 	}
 }
 
-static void
+static ObjFunction*
 commitCompilation(void)
 {
 	emitReturn();
+	ObjFunction* function = currCplr->function;
+	return function;
 }
 
 static void
@@ -700,7 +708,7 @@ forStatement(void)
 	// empty initializer case.
 	if (check(tkn_semicolon)) {		// This clause is desugared intentionally: instead of using match(), which combines check() and advance(), 
 		advance();					// we call them separately to avoid leaving this clause empty. Empty clause might be optimized by compiler.
-	} else if (match(tkn_var)) {	// A user declares a new variable.
+	} else if (match(tkn_var)) {
 		varDeclaration();
 	} else {						// All other cases go this clause.
 		expressionStatement();		// This function is used instead of expression() to detect 
@@ -809,29 +817,35 @@ declaration(void)
 }
 
 static void
-initCompiler(Compiler* compiler) {
+initCompiler(Compiler* compiler, FuncType type)
+{
+	compiler->type       = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
+	compiler->function   = newFunction();
 	currCplr = compiler;
+
+	Local* local = &currCplr->locals[currCplr->localCount++];	// Take the reference to the first stack slot
+	local->depth = 0;											// It will be used by the VM.
+	local->name.start = "";
+	local->name.length = 0;
 }
 
-bool
-compile(const char* source, ByteCode* bCode)
+ObjFunction*
+compile(const char* source)
 {
 	initScanner(source);
 	Compiler compiler;
-	initCompiler(&compiler);
+	initCompiler(&compiler, type_script);
 
-	currCtx = bCode;
-	parser.hadError = false;
+	parser.hadError  = false;
 	parser.panicMode = false;
 
 	advance();
-	// consume(tkn_eof, "Expect end of expression.");
 	while (!match(tkn_eof)) {
 		declaration();
 	}
 
-	commitCompilation();
-	return !parser.hadError;
+	ObjFunction* function = commitCompilation();
+	return parser.hadError ? NULL : function;
 }

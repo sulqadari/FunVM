@@ -79,8 +79,8 @@ ObjFunction*
 newFunction(void)
 {
 	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, obj_func);
-	function->arity = 0;
-	function->name = NULL;
+	function->arity = 0;			// All fields of the function will get filled in later
+	function->name = NULL;			// after the function is created.
 	initByteCode(&function->bCode);
 	return function;
 }
@@ -88,6 +88,11 @@ newFunction(void)
 static void
 printFunction(ObjFunction* function)
 {
+	if (function->name == NULL) {
+		printf("<script>");
+		return;
+	}
+
 	printf("<fn %s>", function->name->chars);
 }
 

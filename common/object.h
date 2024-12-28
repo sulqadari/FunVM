@@ -33,9 +33,9 @@ struct ObjString {
 
 typedef struct {
 	Obj        obj;
-	int32_t    arity;
-	ByteCode   bCode;
-	ObjString* name;
+	int32_t    arity;	/*<! Number of params. */
+	ByteCode   bCode;	/*<! function's bytecode. */
+	ObjString* name;	/*<! for debugging. */
 } ObjFunction;
 
 ObjFunction* newFunction(void);

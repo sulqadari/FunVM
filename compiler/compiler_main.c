@@ -119,17 +119,19 @@ main(int argc, char* argv[])
 
 	char* source;
 	ByteCode bCode;
+	ObjFunction* entryPoint;
 	initByteCode(&bCode);
-	
+
 	source = readSourceFile(filePath, fileName);
-	bool res = compile(source, &bCode);
-	if (!res) {
+	entryPoint = compile(source);
+	if (entryPoint == NULL) {
 		printf("Failed to compile...\n");
 		fvm_free(source);
 		exit(1);
 	}
 
-	serialize(filePath, fileName, &bCode);
-	freeByteCode(&bCode);
+	serialize(filePath, fileName, &entryPoint->bCode);
+	freeByteCode(&entryPoint->bCode);
+	freeObjects();
 	fvm_free(source);
 }
