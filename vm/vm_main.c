@@ -59,17 +59,16 @@ main(int argc, char* argv[])
 	if (argc != 2)
 		usage();
 	
-	ByteCode bCode;
+	ObjFunction topLevelFunction;
 #if defined(FUNVM_MEM_MANAGER)
 	heapInit();
 #endif
-	initByteCode(&bCode);
-	deserializeByteCode(argv[1], &bCode);
+	initByteCode(&topLevelFunction.bCode);
+	deserializeByteCode(argv[1], &topLevelFunction.bCode);
 
 	initVM();
-	interpret(&bCode);
-	
-	freeByteCode(&bCode);
+	interpret(&topLevelFunction);
+	freeByteCode(&topLevelFunction.bCode);
 	freeVM();
 	return (0);
 }

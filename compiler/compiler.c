@@ -44,8 +44,8 @@ typedef struct {
 } Local;
 
 typedef struct {
-	FuncType type;
 	ObjFunction* function;
+	FuncType type;				// Designates the top-level code vs the body of a function.
 	Local locals[STACK_SIZE];
 	int32_t localCount;
 	int32_t scopeDepth;
@@ -54,6 +54,9 @@ typedef struct {
 static Parser parser;
 static Compiler* currCplr = NULL;
 
+/**
+ * Returns a bytecode of a function we're in the middle of compiling.
+ */
 static ByteCode*
 getCurrentCtx(void)
 {

@@ -3,6 +3,8 @@
 #include "object.h"
 #include "globals.h"
 
+static CallFrame* frame;
+
 static void
 resetStack(void)
 {
@@ -103,7 +105,7 @@ concatenate(void)
 static inline uint8_t
 readByteCode(void)
 {
-	return *vm.ip++;
+	return *frame->ip++;
 }
 
 static inline uint16_t
@@ -123,7 +125,7 @@ readConst(OpCode ins)
 	else
 		idx = readShortCode();
 
-	return vm.bCode->constants.values[idx];
+	return frame->function->bCode.constants.values[idx];
 }
 
 static uint16_t
@@ -179,6 +181,7 @@ binaryOp(OpCode opType)
 static InterpretResult
 run(void)
 {
+	frame = &vm.frames[vm.frameCount - 1];
 	OpCode ins;
 	while (true) {
 		ins = readByteCode();
@@ -269,34 +272,34 @@ run(void)
 			case op_get_locvarw:
 			{
 				uint16_t slot = readLocalVarOffset(ins);
-				push(vm.stack[slot]);
+				push(frame->slots[slot]);
 			}
 			break;
 			case op_set_locvar:
 			case op_set_locvarw:
 			{
 				uint16_t slot = readLocalVarOffset(ins);
-				vm.stack[slot] = peek(0);
+				frame->slots[slot] = peek(0);
 			}
 			break;
 			case op_jmp_false:
 			{
 				uint16_t offset = readShortCode();
 				if (isFalsey(peek(0))) {
-					vm.ip += offset;
+					frame->ip += offset;
 				}
 			}
 			break;
 			case op_jmp:
 			{
 				uint16_t offset = readShortCode();
-				vm.ip += offset;
+				frame->ip += offset;
 			}
 			break;
 			case op_loop:
 			{
 				uint16_t offset = readShortCode();
-				vm.ip -= offset;
+				frame->ip -= offset;
 			}
 			break;
 			case op_ret:
@@ -308,10 +311,15 @@ run(void)
 }
 
 InterpretResult
-interpret(ByteCode* bCode)
+interpret(ObjFunction* topLevel)
 {
-	vm.bCode = bCode;
-	vm.ip = vm.bCode->code;
+	push(OBJ_PACK(topLevel));
+
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+	frame->function  = topLevel;
+	frame->ip        = topLevel->bCode.code;
+	frame->slots     = vm.stack;
+
 	InterpretResult result = run();
 	return result;
 }

@@ -118,9 +118,7 @@ main(int argc, char* argv[])
 #endif
 
 	char* source;
-	ByteCode bCode;
 	ObjFunction* entryPoint;
-	initByteCode(&bCode);
 
 	source = readSourceFile(filePath, fileName);
 	entryPoint = compile(source);
