@@ -38,6 +38,22 @@ runtimeError(const char* format, ...)
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fputs("\n", stderr);
+
+	for (int32_t i = vm.frameCount - 1; i >= 0; --i) {
+		
+		CallFrame* frame  = &vm.frames[i];
+		ObjFunction* func = frame->function;
+		size_t ins        = frame->ip - func->bCode.code - 1;
+		
+		fprintf(stderr, "[line %d] in ", 0);
+		if (func->name == NULL) {
+			fprintf(stderr, "script\n");
+		} else {
+			fprintf(stderr, "%s()\n", func->name->chars);
+		}
+	}
+
+	resetStack();
 }
 
 void
@@ -76,6 +92,45 @@ static Value
 peek(int distance)
 {
 	return vm.stackTop[-1 - distance];
+}
+
+
+static bool
+call(ObjFunction* function, uint8_t argCount)
+{
+	if (argCount != function->arity) {
+		runtimeError("Expected %d arguments but got %d.",
+					function->arity, argCount);
+		return false;
+	}
+
+	if (vm.frameCount == FRAMES_MAX) {
+		runtimeError("Exceeded the maximum depth of function calls.");
+		return false;
+	}
+
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+	frame->function  = function;
+	frame->ip        = function->bCode.code;
+	// points to the window of this frame into the stack.
+	frame->slots     = vm.stackTop - argCount - 1;
+	return true;
+}
+
+static bool
+callValue(Value callee, uint8_t argCount)
+{
+	if (IS_OBJ(callee)) {
+
+		switch (OBJ_TYPE(callee)) {
+			case obj_func: return call(FUNC_UNPACK(callee), argCount);
+
+			default:	// Non-callable object type
+			break;
+		}
+	}
+	runtimeError("Can only call functions and classes.");
+	return false;
 }
 
 static bool
@@ -302,10 +357,29 @@ run(void)
 				frame->ip -= offset;
 			}
 			break;
+			case op_call:
+			{
+				uint8_t argCount = readByteCode();
+
+				if (!callValue(peek(argCount), argCount)) {
+					return INTERPRET_RUNTIME_ERROR;
+				} else {
+					frame = &vm.frames[vm.frameCount - 1];	// Update the current frame
+				}
+			} break;
 			case op_ret:
 			{
-				return INTERPRET_OK;
-			}
+				Value result = pop();		// A value, returned by a function.
+				vm.frameCount--;			// Discard the call frame for the returning function.
+				if (vm.frameCount == 0) {	// Is this is the very last call frame?
+					pop();					// If so, pop the main script from the stack
+					return INTERPRET_OK;	// exit the interpreter.
+				}
+
+				vm.stackTop = frame->slots;
+				push(result);
+				frame = &vm.frames[vm.frameCount - 1];
+			} break;
 		}
 	}
 }
@@ -314,12 +388,6 @@ InterpretResult
 interpret(ObjFunction* topLevel)
 {
 	push(OBJ_PACK(topLevel));
-
-	CallFrame* frame = &vm.frames[vm.frameCount++];
-	frame->function  = topLevel;
-	frame->ip        = topLevel->bCode.code;
-	frame->slots     = vm.stack;
-
-	InterpretResult result = run();
-	return result;
+	call(topLevel, 0);			// Top level script has no arguments.
+	return run();
 }

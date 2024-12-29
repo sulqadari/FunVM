@@ -4,6 +4,7 @@
 #include "object.h"
 #include "vm.h"
 
+#define ARITY_MAX 16
 typedef struct {
 	Token current;
 	Token previous;
@@ -309,6 +310,30 @@ grouping(bool canAssign)
 	consume(tkn_rparen, "Expect ')' after expression.");
 }
 
+static uint8_t
+argumentList(void)
+{
+	uint8_t argCount = 0;
+	if (!check(tkn_rparen)) {
+		do {
+			expression();
+			if (argCount >= ARITY_MAX) {
+				error("Can't have more than 16 arguments.");
+			}
+			argCount++;
+		} while (match(tkn_comma));
+	}
+	consume(tkn_rparen, "Expect ')' after arguments.");
+	return argCount;
+}
+
+static void
+call(bool canAssign)
+{
+	uint8_t argCount = argumentList();
+	emitBytes(op_call, argCount);
+}
+
 static void
 number(bool canAssign)
 {
@@ -369,7 +394,7 @@ _or(bool canAssign)
 }
 
 ParseRule rules[] = {
-	[tkn_lparen]   = {grouping, NULL, prec_none},
+	[tkn_lparen]   = {grouping, call, prec_call},
 	[tkn_rparen]   = {NULL,     NULL, prec_none},
 	[tkn_lbrace]   = {NULL,     NULL, prec_none},
 	[tkn_rbrace]   = {NULL,     NULL, prec_none},
@@ -642,7 +667,7 @@ function(FuncType type)
 		do {
 			
 			currCplr->function->arity++;
-			if (currCplr->function->arity > 16) {
+			if (currCplr->function->arity > ARITY_MAX) {
 				errorAtCurrent("Can't have more than 16 params.");
 			}
 
@@ -887,7 +912,8 @@ initCompiler(Compiler* compiler, FuncType type)
 	compiler->function      = newFunction();
 	currCplr = compiler;
 	
-	// Grab the name of a function we're about to compile.
+	// Grab the name of a function we're about to compile. Note that the type_script
+	// can't has its own name, because we want to prevent user from referencing this global script.
 	if (type != type_script) {
 		currCplr->function->name = copyString(parser.previous.start, parser.previous.length);
 	}

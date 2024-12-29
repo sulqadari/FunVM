@@ -129,7 +129,6 @@ main(int argc, char* argv[])
 	}
 
 	serialize(filePath, fileName, &entryPoint->bCode);
-	freeByteCode(&entryPoint->bCode);
 	freeObjects();
 	fvm_free(source);
 }

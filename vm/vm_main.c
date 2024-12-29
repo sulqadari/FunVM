@@ -68,7 +68,6 @@ main(int argc, char* argv[])
 
 	initVM();
 	interpret(&topLevelFunction);
-	freeByteCode(&topLevelFunction.bCode);
 	freeVM();
 	return (0);
 }
