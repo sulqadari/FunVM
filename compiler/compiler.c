@@ -43,7 +43,8 @@ typedef struct {
 	int32_t depth;
 } Local;
 
-typedef struct {
+typedef struct Compiler {
+	struct Compiler* enclosingCplr;	/* Reference to enclosing function. */
 	ObjFunction* function;
 	FuncType type;				// Designates the top-level code vs the body of a function.
 	Local locals[STACK_SIZE];
@@ -235,14 +236,6 @@ emitConstant(Value value)
 	}
 }
 
-static ObjFunction*
-commitCompilation(void)
-{
-	emitReturn();
-	ObjFunction* function = currCplr->function;
-	return function;
-}
-
 static void
 beginScope(void)
 {
@@ -272,6 +265,8 @@ static void parsePrecedence(Precedence precedence);
 static void statement(void);
 static void declaration(void);
 static void namedVariable(Token name, bool canAssign);
+static ObjFunction* commitCompilation(void);
+static void initCompiler(Compiler* compiler, FuncType type);
 
 static void
 binary(bool canAssign)
@@ -588,6 +583,9 @@ parseVariable(const char* errorMessage)
 static void
 markInitialized(void)
 {
+	if (currCplr->scopeDepth == 0)	// Prevent global functions to be marked as initialized,
+		return;						// because this feature is for the inner-scoped entries only.
+
 	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
 }
 
@@ -625,7 +623,64 @@ block(void)
 		declaration();
 	}
 
-	consume(tkn_rbrace, "Expect '}' after block");
+	consume(tkn_rbrace, "Expect '}' after block.");
+}
+
+/**Creates a separate compiler for each function being compiled
+ * and compiles the function itself: its params and block body.
+ * The resulting ObjFunction object is leaved on top of the stack.
+ */
+static void
+function(FuncType type)
+{
+	Compiler compiler;
+	initCompiler(&compiler, type);	// Set this compiler as the current one.
+	beginScope();
+	consume(tkn_lparen, "Expect '(' after function declaration.");
+
+	if (!check(tkn_rparen)) {
+		do {
+			
+			currCplr->function->arity++;
+			if (currCplr->function->arity > 16) {
+				errorAtCurrent("Can't have more than 16 params.");
+			}
+
+			uint16_t constant = parseVariable("Expect parameter name.");
+			defineVariable(constant);
+
+		} while (check(tkn_comma));
+	}
+
+	consume(tkn_rparen, "Expect ')' after params.");
+	consume(tkn_lbrace, "Expect '{' before function body.");
+	block();						// The whole bytecode now will be written into this compiler's Bytecode.
+
+	ObjFunction* function = commitCompilation();
+
+	// The function of compiler which just commited its execution will be stored
+	// in the surrounding function's constant table.
+	uint16_t offset = makeConstant(OBJ_PACK(function));
+	if (offset <= UINT8_MAX) {
+		emitBytes(op_iconst, offset);
+	} else {
+		emitByte(op_iconstw);
+		emitShort(offset);
+	}
+}
+
+/**
+ * Creates and stores a function in a newly declared variable.
+ * At the top level will be bind to the global variable, and the within
+ * a scope to a local one.
+ */
+static void
+funDeclaration(void)
+{
+	uint16_t global = parseVariable("Expect function name.");
+	markInitialized();			// Early marking as initialized allow referencing a function when it's just
+	function(type_function);	// declared, but yet still not defined. Very userfull for recursive calls.
+	defineVariable(global);		// Stores created ObjFunction (which resides on top of the stack) into the variable.
 }
 
 static void
@@ -811,6 +866,8 @@ declaration(void)
 {
 	if (match(tkn_var)) {
 		varDeclaration();
+	} else if (match(tkn_fun)) {
+		funDeclaration();
 	} else {
 		statement();
 	}
@@ -819,19 +876,35 @@ declaration(void)
 		synchronize();
 }
 
+/** Sets the current compiler, i.e. a fuction which will go right now. */
 static void
 initCompiler(Compiler* compiler, FuncType type)
 {
-	compiler->type       = type;
-	compiler->localCount = 0;
-	compiler->scopeDepth = 0;
-	compiler->function   = newFunction();
+	compiler->enclosingCplr = currCplr;
+	compiler->type          = type;
+	compiler->localCount    = 0;
+	compiler->scopeDepth    = 0;
+	compiler->function      = newFunction();
 	currCplr = compiler;
-
+	
+	// Grab the name of a function we're about to compile.
+	if (type != type_script) {
+		currCplr->function->name = copyString(parser.previous.start, parser.previous.length);
+	}
+	
 	Local* local = &currCplr->locals[currCplr->localCount++];	// Take the reference to the first stack slot
 	local->depth = 0;											// It will be used by the VM.
 	local->name.start = "";
 	local->name.length = 0;
+}
+
+static ObjFunction*
+commitCompilation(void)
+{
+	emitReturn();
+	ObjFunction* function = currCplr->function;
+	currCplr = currCplr->enclosingCplr;			// Return to previous function.
+	return function;
 }
 
 ObjFunction*
