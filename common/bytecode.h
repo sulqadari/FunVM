@@ -35,6 +35,7 @@ typedef enum {
 	op_jmp_false,	/*<! Jump if false. */
 	op_jmp,
 	op_loop,
+	op_call,
 	op_ret,
 } OpCode;
 

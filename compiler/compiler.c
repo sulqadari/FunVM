@@ -4,6 +4,7 @@
 #include "object.h"
 #include "vm.h"
 
+#define ARITY_MAX 16
 typedef struct {
 	Token current;
 	Token previous;
@@ -25,6 +26,11 @@ typedef enum {
 	prec_primary,
 } Precedence;
 
+typedef enum {
+	type_function,
+	type_script,
+} FuncType;
+
 typedef void (*ParseFn)(bool canAssign);
 
 typedef struct {
@@ -38,7 +44,10 @@ typedef struct {
 	int32_t depth;
 } Local;
 
-typedef struct {
+typedef struct Compiler {
+	struct Compiler* enclosingCplr;	/* Reference to enclosing function. */
+	ObjFunction* function;
+	FuncType type;				// Designates the top-level code vs the body of a function.
 	Local locals[STACK_SIZE];
 	int32_t localCount;
 	int32_t scopeDepth;
@@ -46,12 +55,14 @@ typedef struct {
 
 static Parser parser;
 static Compiler* currCplr = NULL;
-static ByteCode* currCtx;
 
+/**
+ * Returns a bytecode of a function we're in the middle of compiling.
+ */
 static ByteCode*
 getCurrentCtx(void)
 {
-	return currCtx;
+	return &currCplr->function->bCode;
 }
 
 static void
@@ -196,12 +207,6 @@ patchJump(int32_t offset)
 	getCurrentCtx()->code[offset + 1] = jumpOver    & 0xff;
 }
 
-static void
-emitReturn(void)
-{
-	emitByte(op_ret);
-}
-
 static uint16_t
 makeConstant(Value value)
 {
@@ -224,12 +229,6 @@ emitConstant(Value value)
 		emitByte(op_iconstw);
 		emitShort(idx);
 	}
-}
-
-static void
-commitCompilation(void)
-{
-	emitReturn();
 }
 
 static void
@@ -261,6 +260,8 @@ static void parsePrecedence(Precedence precedence);
 static void statement(void);
 static void declaration(void);
 static void namedVariable(Token name, bool canAssign);
+static ObjFunction* commitCompilation(void);
+static void initCompiler(Compiler* compiler, FuncType type);
 
 static void
 binary(bool canAssign)
@@ -303,10 +304,34 @@ grouping(bool canAssign)
 	consume(tkn_rparen, "Expect ')' after expression.");
 }
 
+static uint8_t
+argumentList(void)
+{
+	uint8_t argCount = 0;
+	if (!check(tkn_rparen)) {
+		do {
+			expression();
+			if (argCount >= ARITY_MAX) {
+				error("Can't have more than 16 arguments.");
+			}
+			argCount++;
+		} while (match(tkn_comma));
+	}
+	consume(tkn_rparen, "Expect ')' after arguments.");
+	return argCount;
+}
+
+static void
+call(bool canAssign)
+{
+	uint8_t argCount = argumentList();
+	emitBytes(op_call, argCount);
+}
+
 static void
 number(bool canAssign)
 {
-	int32_t value = strtol(parser.previous.start, NULL, 10);
+	float value = strtod(parser.previous.start, NULL);
 	emitConstant(NUM_PACK(value));
 }
 
@@ -363,7 +388,7 @@ _or(bool canAssign)
 }
 
 ParseRule rules[] = {
-	[tkn_lparen]   = {grouping, NULL, prec_none},
+	[tkn_lparen]   = {grouping, call, prec_call},
 	[tkn_rparen]   = {NULL,     NULL, prec_none},
 	[tkn_lbrace]   = {NULL,     NULL, prec_none},
 	[tkn_rbrace]   = {NULL,     NULL, prec_none},
@@ -390,8 +415,9 @@ ParseRule rules[] = {
 	
 	[tkn_id]       = {variable, NULL, prec_none},
 	[tkn_str]      = {string,   NULL, prec_none},
-
-	[tkn_var]      = {number,   NULL, prec_none},
+	[tkn_num]      = {number,   NULL, prec_none},
+	
+	[tkn_var]      = {NULL,     NULL, prec_none},
 	[tkn_if]       = {NULL,     NULL, prec_none},
 	[tkn_else]     = {NULL,     NULL, prec_none},
 	[tkn_switch]   = {NULL,     NULL, prec_none},
@@ -577,6 +603,9 @@ parseVariable(const char* errorMessage)
 static void
 markInitialized(void)
 {
+	if (currCplr->scopeDepth == 0)	// Prevent global functions to be marked as initialized,
+		return;						// because this feature is for the inner-scoped entries only.
+
 	currCplr->locals[currCplr->localCount - 1].depth = currCplr->scopeDepth;
 }
 
@@ -614,7 +643,64 @@ block(void)
 		declaration();
 	}
 
-	consume(tkn_rbrace, "Expect '}' after block");
+	consume(tkn_rbrace, "Expect '}' after block.");
+}
+
+/**Creates a separate compiler for each function being compiled
+ * and compiles the function itself: its params and block body.
+ * The resulting ObjFunction object is leaved on top of the stack.
+ */
+static void
+function(FuncType type)
+{
+	Compiler compiler;
+	initCompiler(&compiler, type);	// Set this compiler as the current one.
+	beginScope();
+	consume(tkn_lparen, "Expect '(' after function declaration.");
+
+	if (!check(tkn_rparen)) {
+		do {
+			
+			currCplr->function->arity++;
+			if (currCplr->function->arity > ARITY_MAX) {
+				errorAtCurrent("Can't have more than 16 params.");
+			}
+
+			uint16_t constant = parseVariable("Expect parameter name.");
+			defineVariable(constant);
+
+		} while (check(tkn_comma));
+	}
+
+	consume(tkn_rparen, "Expect ')' after params.");
+	consume(tkn_lbrace, "Expect '{' before function body.");
+	block();						// The whole bytecode now will be written into this compiler's Bytecode.
+
+	ObjFunction* function = commitCompilation();
+
+	// The function of compiler which just commited its execution will be stored
+	// in the surrounding function's constant table.
+	uint16_t offset = makeConstant(OBJ_PACK(function));
+	if (offset <= UINT8_MAX) {
+		emitBytes(op_iconst, offset);
+	} else {
+		emitByte(op_iconstw);
+		emitShort(offset);
+	}
+}
+
+/**
+ * Creates and stores a function in a newly declared variable.
+ * At the top level will be bind to the global variable, and the within
+ * a scope to a local one.
+ */
+static void
+funDeclaration(void)
+{
+	uint16_t global = parseVariable("Expect function name.");
+	markInitialized();			// Early marking as initialized allow referencing a function when it's just
+	function(type_function);	// declared, but yet still not defined. Very userfull for recursive calls.
+	defineVariable(global);		// Stores created ObjFunction (which resides on top of the stack) into the variable.
 }
 
 static void
@@ -700,7 +786,7 @@ forStatement(void)
 	// empty initializer case.
 	if (check(tkn_semicolon)) {		// This clause is desugared intentionally: instead of using match(), which combines check() and advance(), 
 		advance();					// we call them separately to avoid leaving this clause empty. Empty clause might be optimized by compiler.
-	} else if (match(tkn_var)) {	// A user declares a new variable.
+	} else if (match(tkn_var)) {
 		varDeclaration();
 	} else {						// All other cases go this clause.
 		expressionStatement();		// This function is used instead of expression() to detect 
@@ -747,6 +833,29 @@ forStatement(void)
 }
 
 static void
+emitReturn(void)
+{
+	emitByte(op_null);
+	emitByte(op_ret);
+}
+
+static void
+returnStatement(void)
+{
+	if (currCplr->type == type_script) {
+		error("Can't return from top-level code.");
+	}
+
+	if (match(tkn_semicolon)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(tkn_semicolon, "Expect ';' after return value.");
+		emitByte(op_ret);
+	}
+}
+
+static void
 statement(void)
 {
 	if (match(tkn_print)) {
@@ -757,6 +866,8 @@ statement(void)
 		ifStatement();
 	} else if (match(tkn_while)) {
 		whileStatement();
+	} else if (match(tkn_ret)) {
+		returnStatement();
 	} else if (match(tkn_lbrace)) {
 		beginScope();
 		block();
@@ -800,6 +911,8 @@ declaration(void)
 {
 	if (match(tkn_var)) {
 		varDeclaration();
+	} else if (match(tkn_fun)) {
+		funDeclaration();
 	} else {
 		statement();
 	}
@@ -808,30 +921,53 @@ declaration(void)
 		synchronize();
 }
 
+/** Sets the current compiler, i.e. a fuction which will go right now. */
 static void
-initCompiler(Compiler* compiler) {
-	compiler->localCount = 0;
-	compiler->scopeDepth = 0;
+initCompiler(Compiler* compiler, FuncType type)
+{
+	compiler->enclosingCplr = currCplr;
+	compiler->type          = type;
+	compiler->localCount    = 0;
+	compiler->scopeDepth    = 0;
+	compiler->function      = newFunction();
 	currCplr = compiler;
+	
+	// Grab the name of a function we're about to compile. Note that the type_script
+	// can't has its own name, because we want to prevent user from referencing this global script.
+	if (type != type_script) {
+		currCplr->function->name = copyString(parser.previous.start, parser.previous.length);
+	}
+	
+	Local* local = &currCplr->locals[currCplr->localCount++];	// Take the reference to the first stack slot
+	local->depth = 0;											// It will be used by the VM.
+	local->name.start = "";
+	local->name.length = 0;
 }
 
-bool
-compile(const char* source, ByteCode* bCode)
+static ObjFunction*
+commitCompilation(void)
+{
+	emitReturn();
+	ObjFunction* function = currCplr->function;
+	currCplr = currCplr->enclosingCplr;			// Return to previous function.
+	return function;
+}
+
+ObjFunction*
+compile(const char* source)
 {
 	initScanner(source);
 	Compiler compiler;
-	initCompiler(&compiler);
+	initCompiler(&compiler, type_script);
 
-	currCtx = bCode;
-	parser.hadError = false;
+	parser.hadError  = false;
 	parser.panicMode = false;
 
 	advance();
-	// consume(tkn_eof, "Expect end of expression.");
 	while (!match(tkn_eof)) {
 		declaration();
 	}
 
-	commitCompilation();
-	return !parser.hadError;
+	ObjFunction* function = commitCompilation();
+	return parser.hadError ? NULL : function;
 }

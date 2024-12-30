@@ -1,7 +1,27 @@
 #include <stdarg.h>
+#include <time.h>
 #include "vm.h"
 #include "object.h"
 #include "globals.h"
+
+static CallFrame* frame;
+
+
+static void
+defineNative(const char* name, NativeFn function)
+{
+	push(OBJ_PACK(copyString(name, (int32_t)strlen(name))));
+	push(OBJ_PACK(newNative(function)));
+	tableSet(&vm.globals, STRING_UNPACK(vm.stack[0]), vm.stack[1]);
+	pop();
+	pop();
+}
+
+static Value
+clockNative(int32_t argCount, Value* args)
+{
+	return NUM_PACK((float)clock() / CLOCKS_PER_SEC);
+}
 
 static void
 resetStack(void)
@@ -18,6 +38,7 @@ initVM(void)
 	vm.objects = NULL;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
+	defineNative("clock", clockNative);
 }
 
 void
@@ -36,6 +57,22 @@ runtimeError(const char* format, ...)
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fputs("\n", stderr);
+
+	for (int32_t i = vm.frameCount - 1; i >= 0; --i) {
+		
+		CallFrame* frame  = &vm.frames[i];
+		ObjFunction* func = frame->function;
+		// size_t ins        = frame->ip - func->bCode.code - 1;
+		
+		fprintf(stderr, "[line %d] in ", 0);
+		if (func->name == NULL) {
+			fprintf(stderr, "script\n");
+		} else {
+			fprintf(stderr, "%s()\n", func->name->chars);
+		}
+	}
+
+	resetStack();
 }
 
 void
@@ -76,6 +113,56 @@ peek(int distance)
 	return vm.stackTop[-1 - distance];
 }
 
+
+static bool
+call(ObjFunction* function, uint8_t argCount)
+{
+	if (argCount != function->arity) {
+		runtimeError("Expected %d arguments but got %d.",
+					function->arity, argCount);
+		return false;
+	}
+
+	if (vm.frameCount == FRAMES_MAX) {
+		runtimeError("Exceeded the maximum depth of function calls.");
+		return false;
+	}
+
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+	frame->function  = function;
+	frame->ip        = function->bCode.code;
+	// points to the window of this frame into the stack.
+	frame->slots     = vm.stackTop - argCount - 1;
+	return true;
+}
+
+static bool
+callValue(Value callee, uint8_t argCount)
+{
+	if (IS_OBJ(callee)) {
+
+		switch (OBJ_TYPE(callee)) {
+			case obj_func: {
+				bool result = call(FUNC_UNPACK(callee), argCount);
+				return result;
+			}
+			case obj_native: {
+				NativeFn native = NATIVE_UNPACK(callee);
+				Value result    = native(argCount, vm.stackTop - argCount);
+				vm.stackTop    -= argCount + 1;
+				
+				push(result);
+				return true;
+			}
+
+			default:	// Non-callable object type
+			break;
+		}
+	}
+	runtimeError("Can only call functions and classes.");
+	return false;
+}
+
 static bool
 isFalsey(Value value)
 {
@@ -103,7 +190,7 @@ concatenate(void)
 static inline uint8_t
 readByteCode(void)
 {
-	return *vm.ip++;
+	return *frame->ip++;
 }
 
 static inline uint16_t
@@ -123,7 +210,7 @@ readConst(OpCode ins)
 	else
 		idx = readShortCode();
 
-	return vm.bCode->constants.values[idx];
+	return frame->function->bCode.constants.values[idx];
 }
 
 static uint16_t
@@ -160,9 +247,8 @@ binaryOp(OpCode opType)
 	}
 
 
-	int32_t b = NUM_UNPACK(pop());
-	int32_t a = NUM_UNPACK(pop());
-
+	float b = NUM_UNPACK(pop());
+	float a = NUM_UNPACK(pop());
 
 	switch (opType) {
 		case op_gt:  push(BOOL_PACK(a > b)); break;
@@ -179,6 +265,7 @@ binaryOp(OpCode opType)
 static InterpretResult
 run(void)
 {
+	frame = &vm.frames[vm.frameCount - 1];
 	OpCode ins;
 	while (true) {
 		ins = readByteCode();
@@ -269,49 +356,68 @@ run(void)
 			case op_get_locvarw:
 			{
 				uint16_t slot = readLocalVarOffset(ins);
-				push(vm.stack[slot]);
+				push(frame->slots[slot]);
 			}
 			break;
 			case op_set_locvar:
 			case op_set_locvarw:
 			{
 				uint16_t slot = readLocalVarOffset(ins);
-				vm.stack[slot] = peek(0);
+				frame->slots[slot] = peek(0);
 			}
 			break;
 			case op_jmp_false:
 			{
 				uint16_t offset = readShortCode();
 				if (isFalsey(peek(0))) {
-					vm.ip += offset;
+					frame->ip += offset;
 				}
 			}
 			break;
 			case op_jmp:
 			{
 				uint16_t offset = readShortCode();
-				vm.ip += offset;
+				frame->ip += offset;
 			}
 			break;
 			case op_loop:
 			{
 				uint16_t offset = readShortCode();
-				vm.ip -= offset;
+				frame->ip -= offset;
 			}
 			break;
+			case op_call:
+			{
+				uint8_t argCount = readByteCode();
+
+				if (!callValue(peek(argCount), argCount)) {
+					return INTERPRET_RUNTIME_ERROR;
+				} else {
+					frame = &vm.frames[vm.frameCount - 1];	// Update the current frame
+				}
+			} break;
 			case op_ret:
 			{
-				return INTERPRET_OK;
-			}
+				Value retVal = pop();		// A value, returned by a function.
+				vm.frameCount--;			// Discard the call frame for the returning function.
+				if (vm.frameCount == 0) {	// Is this is the very last call frame?
+					pop();					// If so, pop the main script from the stack
+					return INTERPRET_OK;	// exit the interpreter.
+				}
+
+				vm.stackTop = frame->slots;	// Otherwise, discard callee's call frame by means of setting VM's
+											// stack top at the beginning of the returning function's stack window.
+				push(retVal);
+				frame = &vm.frames[vm.frameCount - 1];	// Update current frame
+			} break;
 		}
 	}
 }
 
 InterpretResult
-interpret(ByteCode* bCode)
+interpret(ObjFunction* topLevel)
 {
-	vm.bCode = bCode;
-	vm.ip = vm.bCode->code;
-	InterpretResult result = run();
-	return result;
+	push(OBJ_PACK(topLevel));
+	call(topLevel, 0);			// Top level script has no arguments.
+	return run();
 }

@@ -75,12 +75,47 @@ takeString(const char* chars, uint32_t length)
 	return allocateString(chars, length, hash);
 }
 
+ObjFunction*
+newFunction(void)
+{
+	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, obj_func);
+	function->arity = 0;			// All fields of the function will get filled in later
+	function->name = NULL;			// after the function is created.
+	initByteCode(&function->bCode);
+	return function;
+}
+
+ObjNative*
+newNative(NativeFn function)
+{
+	ObjNative* native = ALLOCATE_OBJ(ObjNative, obj_native);
+	native->function = function;
+	return native;
+}
+
+static void
+printFunction(ObjFunction* function)
+{
+	if (function->name == NULL) {
+		printf("<script>");
+		return;
+	}
+
+	printf("<fn %s>", function->name->chars);
+}
+
 void
 printObject(Value value)
 {
 	switch (OBJ_TYPE(value)) {
 		case obj_string:
 			printf("%s", CSTRING_UNPACK(value));
+		break;
+		case obj_func:
+			printFunction(FUNC_UNPACK(value));
+		break;
+		case obj_native:
+			printf("<native fn>");
 		break;
 	}
 }

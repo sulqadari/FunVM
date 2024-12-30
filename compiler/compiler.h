@@ -3,7 +3,8 @@
 
 #include "common.h"
 #include "bytecode.h"
+#include "object.h"
 
-bool compile(const char* source, ByteCode* bCode);
+ObjFunction* compile(const char* source);
 
 #endif /* FUNVM_COMPILER_H */
