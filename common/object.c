@@ -85,6 +85,14 @@ newFunction(void)
 	return function;
 }
 
+ObjNative*
+newNative(NativeFn function)
+{
+	ObjNative* native = ALLOCATE_OBJ(ObjNative, obj_native);
+	native->function = function;
+	return native;
+}
+
 static void
 printFunction(ObjFunction* function)
 {
@@ -105,6 +113,9 @@ printObject(Value value)
 		break;
 		case obj_func:
 			printFunction(FUNC_UNPACK(value));
+		break;
+		case obj_native:
+			printf("<native fn>");
 		break;
 	}
 }

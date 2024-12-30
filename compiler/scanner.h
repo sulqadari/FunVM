@@ -32,6 +32,7 @@ typedef enum {
 	// Literals.
 	tkn_id,
 	tkn_str,
+	tkn_num,
 	// Keywords.
 	tkn_var,
 	tkn_if,

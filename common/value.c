@@ -29,7 +29,7 @@ printValue(Value value)
 			printf(BOOL_UNPACK(value) ? "true" : "false");
 		break;
 		case val_num:
-			printf("%d", NUM_UNPACK(value));
+			printf("%g", NUM_UNPACK(value));
 		break;
 		case val_obj:
 			printObject(value);

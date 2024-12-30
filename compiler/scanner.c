@@ -223,7 +223,14 @@ number(void)
 	while (isDigit(peek()))
 		advance();
 	
-	return makeToken(tkn_var);
+	if (peek() == '.' && isDigit(peekNext())) {
+		advance();
+		
+		while (isDigit(peek()))
+			advance();
+	}
+
+	return makeToken(tkn_num);
 }
 
 static Token

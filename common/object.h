@@ -14,9 +14,15 @@
 #define STRING_UNPACK(value)   ((ObjString*)OBJ_UNPACK(value))
 #define CSTRING_UNPACK(value)  (((ObjString*)OBJ_UNPACK(value))->chars)
 
+#define IS_NATIVE(value)       isObjType(value, obj_native)
+#define NATIVE_UNPACK(value)   (((ObjNative*)OBJ_UNPACK(value))->function)
+
+typedef Value (*NativeFn)(int32_t argCount, Value* args);
+
 typedef enum {
 	obj_string,
-	obj_func
+	obj_func,
+	obj_native
 } ObjType;
 
 struct Obj {
@@ -38,7 +44,13 @@ typedef struct {
 	ObjString* name;	/*<! for debugging. */
 } ObjFunction;
 
+typedef struct {
+	Obj obj;
+	NativeFn function;
+} ObjNative;
+
 ObjFunction* newFunction(void);
+ObjNative* newNative(NativeFn function);
 ObjString* takeString(const char* chars, uint32_t length);
 ObjString* copyString(const char* chars, uint32_t length);
 void printObject(Value value);

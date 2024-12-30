@@ -35,6 +35,9 @@ freeObject(Obj* object)
 			freeByteCode(&function->bCode);
 			FREE(ObjFunction, object);
 		}break;
+		case obj_native: {
+			FREE(ObjNative, object);
+		}break;
 	}
 }
 

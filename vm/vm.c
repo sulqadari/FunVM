@@ -1,9 +1,27 @@
 #include <stdarg.h>
+#include <time.h>
 #include "vm.h"
 #include "object.h"
 #include "globals.h"
 
 static CallFrame* frame;
+
+
+static void
+defineNative(const char* name, NativeFn function)
+{
+	push(OBJ_PACK(copyString(name, (int32_t)strlen(name))));
+	push(OBJ_PACK(newNative(function)));
+	tableSet(&vm.globals, STRING_UNPACK(vm.stack[0]), vm.stack[1]);
+	pop();
+	pop();
+}
+
+static Value
+clockNative(int32_t argCount, Value* args)
+{
+	return NUM_PACK((float)clock() / CLOCKS_PER_SEC);
+}
 
 static void
 resetStack(void)
@@ -20,6 +38,7 @@ initVM(void)
 	vm.objects = NULL;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
+	defineNative("clock", clockNative);
 }
 
 void
@@ -43,7 +62,7 @@ runtimeError(const char* format, ...)
 		
 		CallFrame* frame  = &vm.frames[i];
 		ObjFunction* func = frame->function;
-		size_t ins        = frame->ip - func->bCode.code - 1;
+		// size_t ins        = frame->ip - func->bCode.code - 1;
 		
 		fprintf(stderr, "[line %d] in ", 0);
 		if (func->name == NULL) {
@@ -123,7 +142,18 @@ callValue(Value callee, uint8_t argCount)
 	if (IS_OBJ(callee)) {
 
 		switch (OBJ_TYPE(callee)) {
-			case obj_func: return call(FUNC_UNPACK(callee), argCount);
+			case obj_func: {
+				bool result = call(FUNC_UNPACK(callee), argCount);
+				return result;
+			}
+			case obj_native: {
+				NativeFn native = NATIVE_UNPACK(callee);
+				Value result    = native(argCount, vm.stackTop - argCount);
+				vm.stackTop    -= argCount + 1;
+				
+				push(result);
+				return true;
+			}
 
 			default:	// Non-callable object type
 			break;
@@ -217,9 +247,8 @@ binaryOp(OpCode opType)
 	}
 
 
-	int32_t b = NUM_UNPACK(pop());
-	int32_t a = NUM_UNPACK(pop());
-
+	float b = NUM_UNPACK(pop());
+	float a = NUM_UNPACK(pop());
 
 	switch (opType) {
 		case op_gt:  push(BOOL_PACK(a > b)); break;
@@ -369,16 +398,17 @@ run(void)
 			} break;
 			case op_ret:
 			{
-				Value result = pop();		// A value, returned by a function.
+				Value retVal = pop();		// A value, returned by a function.
 				vm.frameCount--;			// Discard the call frame for the returning function.
 				if (vm.frameCount == 0) {	// Is this is the very last call frame?
 					pop();					// If so, pop the main script from the stack
 					return INTERPRET_OK;	// exit the interpreter.
 				}
 
-				vm.stackTop = frame->slots;
-				push(result);
-				frame = &vm.frames[vm.frameCount - 1];
+				vm.stackTop = frame->slots;	// Otherwise, discard callee's call frame by means of setting VM's
+											// stack top at the beginning of the returning function's stack window.
+				push(retVal);
+				frame = &vm.frames[vm.frameCount - 1];	// Update current frame
 			} break;
 		}
 	}

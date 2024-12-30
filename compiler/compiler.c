@@ -207,12 +207,6 @@ patchJump(int32_t offset)
 	getCurrentCtx()->code[offset + 1] = jumpOver    & 0xff;
 }
 
-static void
-emitReturn(void)
-{
-	emitByte(op_ret);
-}
-
 static uint16_t
 makeConstant(Value value)
 {
@@ -337,7 +331,7 @@ call(bool canAssign)
 static void
 number(bool canAssign)
 {
-	int32_t value = strtol(parser.previous.start, NULL, 10);
+	float value = strtod(parser.previous.start, NULL);
 	emitConstant(NUM_PACK(value));
 }
 
@@ -421,8 +415,9 @@ ParseRule rules[] = {
 	
 	[tkn_id]       = {variable, NULL, prec_none},
 	[tkn_str]      = {string,   NULL, prec_none},
-
-	[tkn_var]      = {number,   NULL, prec_none},
+	[tkn_num]      = {number,   NULL, prec_none},
+	
+	[tkn_var]      = {NULL,     NULL, prec_none},
 	[tkn_if]       = {NULL,     NULL, prec_none},
 	[tkn_else]     = {NULL,     NULL, prec_none},
 	[tkn_switch]   = {NULL,     NULL, prec_none},
@@ -838,6 +833,29 @@ forStatement(void)
 }
 
 static void
+emitReturn(void)
+{
+	emitByte(op_null);
+	emitByte(op_ret);
+}
+
+static void
+returnStatement(void)
+{
+	if (currCplr->type == type_script) {
+		error("Can't return from top-level code.");
+	}
+
+	if (match(tkn_semicolon)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(tkn_semicolon, "Expect ';' after return value.");
+		emitByte(op_ret);
+	}
+}
+
+static void
 statement(void)
 {
 	if (match(tkn_print)) {
@@ -848,6 +866,8 @@ statement(void)
 		ifStatement();
 	} else if (match(tkn_while)) {
 		whileStatement();
+	} else if (match(tkn_ret)) {
+		returnStatement();
 	} else if (match(tkn_lbrace)) {
 		beginScope();
 		block();
