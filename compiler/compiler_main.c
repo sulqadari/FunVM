@@ -93,11 +93,11 @@ serialize(const char* path, const char* name, ByteCode* bCode)
 	fwrite(&cPool->count,    sizeof(uint32_t), 1, file);
 	fwrite(&cPool->capacity, sizeof(uint32_t), 1, file);
 	
-	fwrite(&objPool.count,    sizeof(uint32_t), 1, file);
+	fwrite(&objPool.count, sizeof(uint32_t), 1, file);
 
-	fwrite(bCode->code,      sizeof(uint8_t), bCode->capacity, file);
-	fwrite(cPool->values,    sizeof(Value),   cPool->capacity, file);
-	fwrite(objPool.values,    sizeof(char),    objPool.count,    file);
+	fwrite(bCode->code,    sizeof(uint8_t), bCode->capacity, file);
+	fwrite(cPool->values,  sizeof(Value),   cPool->capacity, file);
+	fwrite(objPool.values, sizeof(char),    objPool.count,   file);
 
 	fclose(file);
 	
@@ -134,8 +134,8 @@ main(int argc, char* argv[])
 		exit(1);
 	}
 
-	serialize(filePath, fileName, &entryPoint->bCode);
 	freeObjects();
+	serialize(filePath, fileName, &entryPoint->bCode);
 	freeObjPool();
 	fvm_free(source);
 }

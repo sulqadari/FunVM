@@ -1,6 +1,8 @@
 #include "memory.h"
 #include "object.h"
 #include "globals.h"
+#include "object_pool.h"
+
 void*
 reallocate(void* ptr, size_t oldSize, size_t newSize)
 {
@@ -27,6 +29,8 @@ freeObject(Obj* object)
 	switch(object->type) {
 		case obj_string: {
 			ObjString* str = (ObjString*)object;
+			writeObjString(str);
+
 			FREE_ARRAY(char, (char*)str->chars, str->len + 1);
 			FREE(ObjString, object);
 		} break;

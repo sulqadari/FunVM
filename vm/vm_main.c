@@ -45,7 +45,7 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 
 	bCode->code    = ALLOCATE(uint8_t, bCode->capacity);
 	cPool->values  = ALLOCATE(Value, cPool->capacity);
-	objPool.values = ALLOCATE(char, objPool.count);
+	objPool.values = ALLOCATE(uint8_t, objPool.count);
 
 	memcpy(bCode->code,    pBuf += 4, bCode->capacity);
 	memcpy(cPool->values,  pBuf += bCode->capacity, cPool->capacity * sizeof(Value));

@@ -2,6 +2,7 @@
 #define FUNVM_STRING_POOL_H
 
 #include <stdint.h>
+#include "object.h"
 
 typedef struct {
 	uint32_t count;
@@ -10,6 +11,6 @@ typedef struct {
 
 void initObjPool(void);
 void freeObjPool(void);
-uint32_t writeObjPool(uint8_t* data, uint32_t length);
+uint32_t writeObjString(ObjString* string);
 
 #endif /* FUNVM_STRING_POOL_H */

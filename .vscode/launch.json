@@ -11,7 +11,7 @@
 			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
 				"${workspaceFolder}/tests/",
-				"string_test.fv"
+				"globals_test.fv"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -22,7 +22,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/bin/string_test.fvb"
+				"${workspaceFolder}/tests/bin/globals_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
