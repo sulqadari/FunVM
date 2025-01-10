@@ -1,5 +1,4 @@
-#include "common.h"
-#include "vm.h"
+#include "globals.h"
 
 static void
 usage(void)
@@ -42,12 +41,15 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	memcpy(&bCode->capacity, pBuf += 4, 4);
 	memcpy(&cPool->count,    pBuf += 4, 4);
 	memcpy(&cPool->capacity, pBuf += 4, 4);
+	memcpy(&objPool.count,   pBuf += 4, 4);
 
-	bCode->code   = ALLOCATE(uint8_t, bCode->capacity);
-	cPool->values = ALLOCATE(Value, cPool->capacity);
-	
-	memcpy(bCode->code,     pBuf += 4, bCode->capacity);
-	memcpy(cPool->values,   pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
+	bCode->code    = ALLOCATE(uint8_t, bCode->capacity);
+	cPool->values  = ALLOCATE(Value, cPool->capacity);
+	objPool.values = ALLOCATE(char, objPool.count);
+
+	memcpy(bCode->code,    pBuf += 4, bCode->capacity);
+	memcpy(cPool->values,  pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
+	memcpy(objPool.values, pBuf += cPool->capacity * sizeof(Value), objPool.count);
 
 	FREE(uint8_t, buffer);
 	fclose(file);
@@ -63,11 +65,13 @@ main(int argc, char* argv[])
 #if defined(FUNVM_MEM_MANAGER)
 	heapInit();
 #endif
+	initObjPool();
 	initByteCode(&topLevelFunction.bCode);
 	deserializeByteCode(argv[1], &topLevelFunction.bCode);
 
 	initVM();
 	interpret(&topLevelFunction);
 	freeVM();
+	freeObjPool();
 	return (0);
 }

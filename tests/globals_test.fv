@@ -1,3 +1,1 @@
-var projName = "FunVM";
-
-print(projName);
+var projName = 55;

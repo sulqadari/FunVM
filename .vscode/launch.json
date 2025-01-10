@@ -11,7 +11,7 @@
 			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
 				"${workspaceFolder}/tests/",
-				"nativeFun_test.fv"
+				"string_test.fv"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -22,7 +22,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/bin/nativeFun_test.fvb"
+				"${workspaceFolder}/tests/bin/string_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true

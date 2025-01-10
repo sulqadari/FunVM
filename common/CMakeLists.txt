@@ -7,6 +7,7 @@ add_library(${FUNVM_COMMON}
 	hash_table.c
 	globals.c
 	heap.c
+	object_pool.c
 )
 
 target_include_directories(${FUNVM_COMMON}

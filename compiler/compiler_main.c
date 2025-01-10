@@ -1,6 +1,8 @@
 #include "common.h"
 #include "compiler.h"
 #include "memory.h"
+#include "globals.h"
+
 
 static void
 usage(void)
@@ -90,10 +92,13 @@ serialize(const char* path, const char* name, ByteCode* bCode)
 	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
 	fwrite(&cPool->count,    sizeof(uint32_t), 1, file);
 	fwrite(&cPool->capacity, sizeof(uint32_t), 1, file);
-
-	fwrite(bCode->code,      sizeof(uint8_t),  bCode->capacity, file);
-	fwrite(cPool->values,    sizeof(uint64_t), cPool->capacity, file);
 	
+	fwrite(&objPool.count,    sizeof(uint32_t), 1, file);
+
+	fwrite(bCode->code,      sizeof(uint8_t), bCode->capacity, file);
+	fwrite(cPool->values,    sizeof(Value),   cPool->capacity, file);
+	fwrite(objPool.values,    sizeof(char),    objPool.count,    file);
+
 	fclose(file);
 	
 }
@@ -121,6 +126,7 @@ main(int argc, char* argv[])
 	ObjFunction* entryPoint;
 
 	source = readSourceFile(filePath, fileName);
+	initObjPool();
 	entryPoint = compile(source);
 	if (entryPoint == NULL) {
 		printf("Failed to compile...\n");
@@ -130,5 +136,6 @@ main(int argc, char* argv[])
 
 	serialize(filePath, fileName, &entryPoint->bCode);
 	freeObjects();
+	freeObjPool();
 	fvm_free(source);
 }
