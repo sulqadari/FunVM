@@ -3,14 +3,12 @@
 #include "memory.h"
 #include "globals.h"
 
-
 static void
 usage(void)
 {
 	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
 	exit(1);
 }
-
 
 static char*
 concatenate(const char* path, const char* name)
@@ -71,10 +69,9 @@ readSourceFile(const char* path, const char* name)
 }
 
 static void
-serialize(const char* path, const char* name, ByteCode* bCode)
+serialize(const char* path, const char* name)
 {
 	FILE* file;
-	ConstPool* cPool = &bCode->constants;
 	char binFileName[256];
 
 	if (path == NULL)
@@ -88,19 +85,8 @@ serialize(const char* path, const char* name, ByteCode* bCode)
 		exit(74);
 	}
 
-	fwrite(&bCode->count,    sizeof(uint32_t), 1, file);
-	fwrite(&bCode->capacity, sizeof(uint32_t), 1, file);
-	fwrite(&cPool->count,    sizeof(uint32_t), 1, file);
-	fwrite(&cPool->capacity, sizeof(uint32_t), 1, file);
-	
-	fwrite(&objPool.count, sizeof(uint32_t), 1, file);
-
-	fwrite(bCode->code,    sizeof(uint8_t), bCode->capacity, file);
-	fwrite(cPool->values,  sizeof(Value),   cPool->capacity, file);
-	fwrite(objPool.values, sizeof(char),    objPool.count,   file);
-
+	fwrite(objPool.values, sizeof(uint8_t), 1, file);
 	fclose(file);
-	
 }
 
 int
@@ -123,19 +109,19 @@ main(int argc, char* argv[])
 #endif
 
 	char* source;
-	ObjFunction* entryPoint;
+	ObjFunction* function;
 
 	source = readSourceFile(filePath, fileName);
 	initObjPool();
-	entryPoint = compile(source);
-	if (entryPoint == NULL) {
+	function = compile(source);
+	if (function == NULL) {
 		printf("Failed to compile...\n");
 		fvm_free(source);
 		exit(1);
 	}
 
 	freeObjects();
-	serialize(filePath, fileName, &entryPoint->bCode);
+	serialize(filePath, fileName);
 	freeObjPool();
 	fvm_free(source);
 }

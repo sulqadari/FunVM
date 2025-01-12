@@ -12,5 +12,6 @@ typedef struct {
 void initObjPool(void);
 void freeObjPool(void);
 uint32_t writeObjString(ObjString* string);
+uint32_t writeObjFunction(ObjFunction* function);
 
 #endif /* FUNVM_STRING_POOL_H */

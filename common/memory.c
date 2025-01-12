@@ -36,6 +36,7 @@ freeObject(Obj* object)
 		} break;
 		case obj_func: {
 			ObjFunction* function = (ObjFunction*)object;
+			writeObjFunction(function);
 			freeByteCode(&function->bCode);
 			FREE(ObjFunction, object);
 		}break;
