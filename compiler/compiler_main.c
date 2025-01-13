@@ -85,7 +85,7 @@ serialize(const char* path, const char* name)
 		exit(74);
 	}
 
-	fwrite(objPool.values, sizeof(uint8_t), 1, file);
+	fwrite(objPool.values, sizeof(uint8_t), objPool.count, file);
 	fclose(file);
 }
 

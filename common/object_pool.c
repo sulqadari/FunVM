@@ -43,7 +43,7 @@ writeObjFunction(ObjFunction* function)
 
 	objPool.count  += sizeof(ObjFunction)
 					+ sizeof(ByteCode)  + function->bCode.count
-					+ sizeof(ConstPool) + function->bCode.constants.count;
+					+ sizeof(ConstPool) + function->bCode.constants.count * sizeof(Value);
 
 	// Corner case: the main function hasn't name field.
 	if (function->name != NULL) {
