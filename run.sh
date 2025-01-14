@@ -8,19 +8,18 @@ if [ -z "$1" ]; then
 fi
 
 script_name=$1
-script_path=$(pwd)/tests/
-output_path=$(pwd)/tests/bin/
 
-binary_path=$(pwd)/tests/bin/$script_name"b"
+source_path=$(pwd)/tests/
+output_path=$(pwd)/tests/bin/
 compiler_path=$(pwd)/build/bin/FVMCexe
 vm_path=$(pwd)/build/bin/FVMexe
 
 echo "********************************"
 echo "*       FunVM compiler         *"
 echo "********************************"
-$compiler_path  $script_path $script_name
+$compiler_path  $script_name $source_path $output_path
 
 echo "********************************"
 echo "*      FunVM interpreter       *"
 echo "********************************"
-$vm_path $binary_path
+$vm_path $output_path$script_name"b"

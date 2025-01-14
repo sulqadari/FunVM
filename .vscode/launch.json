@@ -10,8 +10,9 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
-				"${workspaceFolder}/tests/",
-				"ifStmt_test.fv"
+				"expr_test.fv",
+				"./tests/",
+				"./tests/bin/"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
@@ -22,7 +23,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/bin/ifStmt_test.fvb"
+				"${workspaceFolder}/tests/bin/expr_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true

@@ -6,10 +6,11 @@
 static void
 usage(void)
 {
-	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
+	printf("Usage: funvmc <source_file.fv> <path/to/source/dir> <path/to/output/dir>\n");
 	exit(1);
 }
 
+#if(0)
 static char*
 concatenate(const char* path, const char* name)
 {
@@ -33,19 +34,21 @@ concatenate(const char* path, const char* name)
 	
 	return absPath;
 }
+#endif
 
 static char*
-readSourceFile(const char* path, const char* name)
+readSourceFile(char* sourcePath, char* name)
 {
 	size_t fileSize;
 	FILE* file;
 	char* buffer;
 	size_t bytesRead;
-	char* sourceFile = concatenate(path, name);
+	char pathAndName[256];
+	sprintf(pathAndName, "%s%s", sourcePath, name);
 
-	file = fopen(sourceFile, "rb");
+	file = fopen(pathAndName, "rb");
 	if (NULL == file) {
-		fprintf(stderr, "Couldn't open source file '%s'.\n", path);
+		fprintf(stderr, "Couldn't open source file '%s'.\n", pathAndName);
 		exit(74);
 	}
 
@@ -57,27 +60,28 @@ readSourceFile(const char* path, const char* name)
 
 	bytesRead = fread(buffer, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
-		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
+		fprintf(stderr, "Error: the source file '%s' have been read partially.\n", pathAndName);
 		exit(74);
 	}
 
 	buffer[fileSize] = '\0';
 	fclose(file);
-	FREE(char, sourceFile);
 
 	return buffer;
 }
 
 static void
-serialize(const char* path, const char* name)
+serialize(char* outputPath, char* outputName)
 {
 	FILE* file;
 	char binFileName[256];
 
-	if (path == NULL)
-		path = "";
+	if (outputPath == NULL || outputName == NULL) {
+		fprintf(stderr, "Failed to serialize file because it's null.\n");
+		exit(74);
+	}
 	
-	sprintf(binFileName, "%sbin/%sb", path, name);
+	sprintf(binFileName, "%s%sb", outputPath, outputName);
 
 	file = fopen(binFileName, "wb");
 	if (NULL == file) {
@@ -92,14 +96,14 @@ serialize(const char* path, const char* name)
 int
 main(int argc, char* argv[])
 {
-	char* filePath = NULL;
-	char* fileName = NULL;
+	char* name = NULL;
+	char* sourcePath = NULL;
+	char* outputPath = NULL;
 
-	if (argc == 2) {
-		fileName = argv[1];
-	} else if (argc == 3) {
-		filePath = argv[1];
-		fileName = argv[2];
+	if (argc == 4) {
+		name = argv[1];
+		sourcePath = argv[2];
+		outputPath = argv[3];
 	} else {
 		usage();
 	}
@@ -109,19 +113,19 @@ main(int argc, char* argv[])
 #endif
 
 	char* source;
-	ObjFunction* function;
+	ObjFunction* mainFunction;
 
-	source = readSourceFile(filePath, fileName);
+	source = readSourceFile(sourcePath, name);
 	initObjPool();
-	function = compile(source);
-	if (function == NULL) {
+	mainFunction = compile(source);
+	if (mainFunction == NULL) {
 		printf("Failed to compile...\n");
 		fvm_free(source);
 		exit(1);
 	}
 
 	freeObjects();
-	serialize(filePath, fileName);
+	serialize(outputPath, name);
 	freeObjPool();
 	fvm_free(source);
 }
