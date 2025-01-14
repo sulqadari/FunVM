@@ -11,11 +11,11 @@
 static Obj*
 allocateObject(size_t size, ObjType objType)
 {
-	Obj* object  = (Obj*)reallocate(NULL, 0 , size);
-	object->type = objType;
-	object->next = vm.objects;
-	vm.objects   = object;
-	
+	Obj* object     = (Obj*)reallocate(NULL, 0 , size);
+	object->type    = objType;
+	object->next    = objPool.objects;
+	objPool.objects = object;
+
 	return object;
 }
 

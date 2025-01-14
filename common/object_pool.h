@@ -7,6 +7,7 @@
 typedef struct {
 	uint32_t count;
 	uint8_t* values;
+	Obj*     objects;
 } ObjectPool;
 
 void initObjPool(void);

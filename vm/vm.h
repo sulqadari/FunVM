@@ -29,7 +29,6 @@ typedef struct {
 	Value*    stackEnd;
 	Table     globals;
 	Table     strings;
-	Obj*      objects;
 } VM;
 
 typedef enum {

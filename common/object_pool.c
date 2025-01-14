@@ -7,6 +7,7 @@ initObjPool(void)
 {
 	objPool.count = 0;
 	objPool.values = NULL;
+	objPool.objects = NULL;
 }
 
 void

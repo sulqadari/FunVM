@@ -35,7 +35,6 @@ void
 initVM(void)
 {
 	resetStack();
-	vm.objects = NULL;
 	initTable(&vm.strings);
 	initTable(&vm.globals);
 	defineNative("clock", clockNative);
