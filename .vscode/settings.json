@@ -41,6 +41,18 @@
 		"vm.h": "c",
 		"object.h": "c",
 		"hash_table.h": "c",
-		"value.h": "c"
+		"value.h": "c",
+		"map": "c",
+		"set": "c",
+		"unordered_map": "c",
+		"common.h": "c",
+		"string_view": "c",
+		"initializer_list": "c",
+		"span": "c",
+		"__hash_table": "c",
+		"__split_buffer": "c",
+		"__tree": "c",
+		"queue": "c",
+		"string": "c"
 	},
 }

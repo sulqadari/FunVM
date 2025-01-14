@@ -5,7 +5,9 @@
 #include "object.h"
 
 typedef struct {
-	uint32_t count;
+	uint32_t idx;
+	uint32_t indexes[256];
+	uint32_t valuesSize;
 	uint8_t* values;
 	Obj*     objects;
 } ObjectPool;

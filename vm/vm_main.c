@@ -34,22 +34,23 @@ deserializeByteCode(const char* path, ByteCode* bCode)
 	bytesRead = fread(pBuf, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
 		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
+		fclose(file);
 		exit(76);
 	}
 
-	memcpy(&bCode->count,    pBuf += 0, 4);
-	memcpy(&bCode->capacity, pBuf += 4, 4);
-	memcpy(&cPool->count,    pBuf += 4, 4);
-	memcpy(&cPool->capacity, pBuf += 4, 4);
-	memcpy(&objPool.count,   pBuf += 4, 4);
+	memcpy(&bCode->count,       pBuf += 0, 4);
+	memcpy(&bCode->capacity,    pBuf += 4, 4);
+	memcpy(&cPool->count,       pBuf += 4, 4);
+	memcpy(&cPool->capacity,    pBuf += 4, 4);
+	memcpy(&objPool.valuesSize, pBuf += 4, 4);
 
 	bCode->code    = ALLOCATE(uint8_t, bCode->capacity);
 	cPool->values  = ALLOCATE(Value, cPool->capacity);
-	objPool.values = ALLOCATE(uint8_t, objPool.count);
+	objPool.values = ALLOCATE(uint8_t, objPool.valuesSize);
 
 	memcpy(bCode->code,    pBuf += 4, bCode->capacity);
 	memcpy(cPool->values,  pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
-	memcpy(objPool.values, pBuf += cPool->capacity * sizeof(Value), objPool.count);
+	memcpy(objPool.values, pBuf += cPool->capacity * sizeof(Value), objPool.valuesSize);
 
 	FREE(uint8_t, buffer);
 	fclose(file);

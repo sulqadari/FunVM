@@ -5,7 +5,8 @@
 void
 initObjPool(void)
 {
-	objPool.count = 0;
+	objPool.idx = 0;
+	objPool.valuesSize = 0;
 	objPool.values = NULL;
 	objPool.objects = NULL;
 }
@@ -13,18 +14,18 @@ initObjPool(void)
 void
 freeObjPool(void)
 {
-	FREE_ARRAY(uint8_t, objPool.values, objPool.count);
+	FREE_ARRAY(uint8_t, objPool.values, objPool.valuesSize);
 	initObjPool();
 }
 
 uint32_t
 writeObjString(ObjString* string)
 {
-	uint32_t index = objPool.count;
+	uint32_t index = objPool.valuesSize;
 	uint32_t offset = index;
-	objPool.count  += sizeof(ObjString) + string->len + 1;
+	objPool.valuesSize  += sizeof(ObjString) + string->len + 1;
 
-	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.count);
+	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesSize);
 
 	memcpy(objPool.values + offset, (uint8_t*)string, sizeof(ObjString));
 	offset += sizeof(ObjString);
@@ -33,25 +34,26 @@ writeObjString(ObjString* string)
 	offset += string->len;
 	objPool.values[offset - 1] = '\0';
 	
+	objPool.indexes[objPool.valuesSize++] = index;
 	return index;
 }
 
 uint32_t
 writeObjFunction(ObjFunction* function)
 {
-	uint32_t index = objPool.count;
+	uint32_t index = objPool.valuesSize;
 	uint32_t offset = index;
 
-	objPool.count  += sizeof(ObjFunction)
+	objPool.valuesSize  += sizeof(ObjFunction)
 					+ sizeof(ByteCode)  + function->bCode.count
 					+ sizeof(ConstPool) + function->bCode.constants.count * sizeof(Value);
 
 	// Corner case: the main function hasn't name field.
 	if (function->name != NULL) {
-		objPool.count  += sizeof(ObjString) + function->name->len + 1;
+		objPool.valuesSize  += sizeof(ObjString) + function->name->len + 1;
 	}
 
-	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.count);
+	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesSize);
 	
 	memcpy(objPool.values + offset, (uint8_t*)function, sizeof(ObjFunction));
 	offset += sizeof(ObjFunction);
@@ -77,5 +79,6 @@ writeObjFunction(ObjFunction* function)
 		objPool.values[offset - 1] = '\0';
 	}
 	
+	objPool.indexes[objPool.idx++] = index;
 	return index;
 }

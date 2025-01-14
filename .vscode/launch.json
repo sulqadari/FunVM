@@ -47,6 +47,28 @@
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
+		},
+		{
+			"name": "FunVM portable serialize",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/bin/portable_serialize_test",
+			"args": [
+				"./tests/bin/"
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
+		},
+		{
+			"name": "FunVM portable deserialize",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/bin/portable_deserialize_test",
+			"args": [
+				"./tests/bin/portable_create_test.bin"
+			],
+			"cwd": "${workspaceFolder}",
+			"stopAtEntry": true
 		}
 		
 	]

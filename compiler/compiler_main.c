@@ -89,7 +89,7 @@ serialize(char* outputPath, char* outputName)
 		exit(74);
 	}
 
-	fwrite(objPool.values, sizeof(uint8_t), objPool.count, file);
+	fwrite(objPool.values, sizeof(uint8_t), objPool.valuesSize, file);
 	fclose(file);
 }
 
