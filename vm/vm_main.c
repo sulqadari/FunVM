@@ -3,57 +3,69 @@
 static void
 usage(void)
 {
-	printf("Usage:\n\tfunvmc <source.fn>\n\tfunvm source.fnb\n");
+	printf("Usage: \tfunvm source.fnb\n");
 	exit(1);
 }
 
-static void
-deserializeByteCode(const char* path, ByteCode* bCode)
+static size_t
+openBinary(FILE** file, const char* path)
 {
 	size_t fileSize;
-	FILE* file;
-
-	uint8_t* buffer;
-	uint8_t* pBuf; 
-	size_t bytesRead;
-	ConstPool* cPool = &bCode->constants;
-
-	file = fopen(path, "rb");
+	*file = fopen(path, "rb");
 	if (NULL == file) {
 		fprintf(stderr, "Couldn't open source file '%s'.\n", path);
 		exit(74);
 	}
 
-	fseek(file, 0L, SEEK_END);	/* Move file prt to EOF. */
-	fileSize = ftell(file);		/* How far we are from the start of file? */
-	rewind(file);				/* Rewind file ptr back to the beginning. */
+	fseek(*file, 0L, SEEK_END);	/* Move file prt to EOF. */
+	fileSize = ftell(*file);	/* How far we are from the start of file? */
+	rewind(*file);				/* Rewind file ptr back to the beginning. */
+	return fileSize;
+}
 
-	buffer = ALLOCATE(uint8_t, fileSize);
-	pBuf = buffer;
+static ObjString*
+parseObjString(ObjString* objString)
+{
+	objString->chars        = (char*)((uint8_t*)objString + sizeof(ObjString));
+	((Obj*)objString)->next = objPool.objects;
+	objPool.objects         = (Obj*)objString;
+	return objString;
+}
 
-	bytesRead = fread(pBuf, sizeof(char), fileSize, file);
-	if (bytesRead < fileSize) {
-		fprintf(stderr, "Couldn't read source file '%s'.\n", path);
-		fclose(file);
-		exit(76);
-	}
+static ObjFunction*
+parseObjFunction(ObjFunction* objFunction)
+{
+	return objFunction;
+}
 
-	memcpy(&bCode->count,       pBuf += 0, 4);
-	memcpy(&bCode->capacity,    pBuf += 4, 4);
-	memcpy(&cPool->count,       pBuf += 4, 4);
-	memcpy(&cPool->capacity,    pBuf += 4, 4);
-	memcpy(&objPool.valuesSize, pBuf += 4, 4);
+static void
+deserializeByteCode(const char* path)
+{
+	size_t fileSize;
+	FILE* file;
 
-	bCode->code    = ALLOCATE(uint8_t, bCode->capacity);
-	cPool->values  = ALLOCATE(Value, cPool->capacity);
-	objPool.values = ALLOCATE(uint8_t, objPool.valuesSize);
+	fileSize = openBinary(&file, path);
 
-	memcpy(bCode->code,    pBuf += 4, bCode->capacity);
-	memcpy(cPool->values,  pBuf += bCode->capacity, cPool->capacity * sizeof(Value));
-	memcpy(objPool.values, pBuf += cPool->capacity * sizeof(Value), objPool.valuesSize);
+	fread(&objPool, sizeof(ObjectPool), 1, file);
+	objPool.values = ALLOCATE(uint8_t, (fileSize - sizeof(ObjectPool)));
 
-	FREE(uint8_t, buffer);
+	fread(objPool.values, sizeof(uint8_t), objPool.valuesLen, file);
 	fclose(file);
+
+	for (int32_t i = objPool.idxCount - 1; i >= 0; --i) {
+		uint32_t idx = objPool.indexes[i];
+		ObjType type = ((Obj*)&objPool.values[idx])->type;
+
+		if (obj_string == type) {
+			parseObjString((ObjString*)&objPool.values[idx]);
+		} else if (obj_func == type) {
+			parseObjFunction((ObjFunction*)&objPool.values[idx]);
+		} else {
+			fprintf(stderr, "Error: unknown object type encountered while parsing '%s' binary file.\n", path);
+			FREE(uint8_t, objPool.values);
+			exit(74);
+		}
+	}
 }
 
 int
@@ -68,7 +80,7 @@ main(int argc, char* argv[])
 #endif
 	initObjPool();
 	initByteCode(&mainFunction.bCode);
-	deserializeByteCode(argv[1], &mainFunction.bCode);
+	deserializeByteCode(argv[1]);
 
 	initVM();
 	interpret(&mainFunction);

@@ -5,8 +5,8 @@
 void
 initObjPool(void)
 {
-	objPool.idx = 0;
-	objPool.valuesSize = 0;
+	objPool.idxCount = 0;
+	objPool.valuesLen = 0;
 	objPool.values = NULL;
 	objPool.objects = NULL;
 }
@@ -14,18 +14,18 @@ initObjPool(void)
 void
 freeObjPool(void)
 {
-	FREE_ARRAY(uint8_t, objPool.values, objPool.valuesSize);
+	FREE_ARRAY(uint8_t, objPool.values, objPool.valuesLen);
 	initObjPool();
 }
 
 uint32_t
 writeObjString(ObjString* string)
 {
-	uint32_t index = objPool.valuesSize;
+	uint32_t index = objPool.valuesLen;
 	uint32_t offset = index;
-	objPool.valuesSize  += sizeof(ObjString) + string->len + 1;
+	objPool.valuesLen  += sizeof(ObjString) + string->len + 1;
 
-	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesSize);
+	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesLen);
 
 	memcpy(objPool.values + offset, (uint8_t*)string, sizeof(ObjString));
 	offset += sizeof(ObjString);
@@ -34,26 +34,26 @@ writeObjString(ObjString* string)
 	offset += string->len;
 	objPool.values[offset] = '\0';
 	
-	objPool.indexes[objPool.valuesSize++] = index;
+	objPool.indexes[objPool.idxCount++] = index;
 	return index;
 }
 
 uint32_t
 writeObjFunction(ObjFunction* function)
 {
-	uint32_t index = objPool.valuesSize;
+	uint32_t index = objPool.valuesLen;
 	uint32_t offset = index;
 
-	objPool.valuesSize  += sizeof(ObjFunction)
+	objPool.valuesLen  += sizeof(ObjFunction)
 					+ sizeof(ByteCode)  + function->bCode.count
 					+ sizeof(ConstPool) + function->bCode.constants.count * sizeof(Value);
 
 	// Corner case: the main function hasn't name field.
 	if (function->name != NULL) {
-		objPool.valuesSize  += sizeof(ObjString) + function->name->len + 1;
+		objPool.valuesLen  += sizeof(ObjString) + function->name->len + 1;
 	}
 
-	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesSize);
+	objPool.values = GROW_ARRAY(uint8_t, objPool.values, index, objPool.valuesLen);
 	
 	memcpy(objPool.values + offset, (uint8_t*)function, sizeof(ObjFunction));
 	offset += sizeof(ObjFunction);
@@ -79,6 +79,6 @@ writeObjFunction(ObjFunction* function)
 		objPool.values[offset - 1] = '\0';
 	}
 	
-	objPool.indexes[objPool.idx++] = index;
+	objPool.indexes[objPool.idxCount++] = index;
 	return index;
 }

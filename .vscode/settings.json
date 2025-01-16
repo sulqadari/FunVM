@@ -53,6 +53,7 @@
 		"__split_buffer": "c",
 		"__tree": "c",
 		"queue": "c",
-		"string": "c"
+		"string": "c",
+		"iosfwd": "c"
 	},
 }

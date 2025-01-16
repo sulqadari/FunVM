@@ -10,32 +10,6 @@ usage(void)
 	exit(1);
 }
 
-#if(0)
-static char*
-concatenate(const char* path, const char* name)
-{
-	uint32_t pathLen = 0;
-	uint32_t nameLen = 0;
-	uint32_t len = 0;
-
-	if (path != NULL)
-		pathLen = strlen(path);
-	else
-		path = "";
-	
-	nameLen = strlen(name);
-
-	len = pathLen + nameLen;
-	char* absPath = ALLOCATE(char, len + 1);
-
-	memcpy(absPath, path, pathLen);
-	memcpy(absPath + pathLen, name, nameLen);
-	absPath[len] = '\0';
-	
-	return absPath;
-}
-#endif
-
 static char*
 readSourceFile(char* sourcePath, char* name)
 {
@@ -61,6 +35,7 @@ readSourceFile(char* sourcePath, char* name)
 	bytesRead = fread(buffer, sizeof(char), fileSize, file);
 	if (bytesRead < fileSize) {
 		fprintf(stderr, "Error: the source file '%s' have been read partially.\n", pathAndName);
+		FREE(char, buffer);
 		exit(74);
 	}
 
@@ -89,7 +64,8 @@ serialize(char* outputPath, char* outputName)
 		exit(74);
 	}
 
-	fwrite(objPool.values, sizeof(uint8_t), objPool.valuesSize, file);
+	fwrite(&objPool, sizeof(ObjectPool), 1, file);
+	fwrite(objPool.values, sizeof(uint8_t), objPool.valuesLen, file);
 	fclose(file);
 }
 
@@ -127,5 +103,7 @@ main(int argc, char* argv[])
 	freeObjects();
 	serialize(outputPath, name);
 	freeObjPool();
+	freeTable(&vm.strings);
+	freeTable(&vm.globals);
 	fvm_free(source);
 }

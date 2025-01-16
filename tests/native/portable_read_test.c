@@ -25,11 +25,12 @@ deserialize(char* binary)
 	fileSize = ftell(file);		/* How far we are from the start of file? */
 	rewind(file);				/* Rewind file ptr back to the beginning. */
 
-	string = (uint8_t*)reallocate(NULL, 0 , fileSize);
+	string = ALLOCATE(uint8_t, fileSize);
 	bytesRead = fread(string, sizeof(uint8_t), fileSize, file);
 	if (bytesRead < fileSize) {
 		fprintf(stderr, "Couldn't read source file '%s'.\n", binary);
 		fclose(file);
+		FREE(uint8_t, string);
 		exit(76);
 	}
 	uint32_t offset = sizeof(ObjString);
