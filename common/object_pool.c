@@ -30,9 +30,9 @@ writeObjString(ObjString* string)
 	memcpy(objPool.values + offset, (uint8_t*)string, sizeof(ObjString));
 	offset += sizeof(ObjString);
 
-	memcpy(objPool.values + offset, string->chars, string->len - 1);
+	memcpy(objPool.values + offset, string->chars, string->len);
 	offset += string->len;
-	objPool.values[offset - 1] = '\0';
+	objPool.values[offset] = '\0';
 	
 	objPool.indexes[objPool.valuesSize++] = index;
 	return index;

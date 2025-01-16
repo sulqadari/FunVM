@@ -36,7 +36,7 @@ main(int argc, char* argv[])
 	heapInit();
 	initObjPool();
 
-	ObjString* string = copyString("12345678912", 11);
+	ObjString* string = copyString("123", 3);
 
 	freeObjects();
 	serialize(argv[1]);
