@@ -63,9 +63,9 @@ deserializeByteCode(const char* path)
 
 	objPool = (ObjectPool*)buffer;
 
-	uint32_t cplrAddrSpace = (uint32_t)buffer;
-	uint32_t vmAddrSpace   = heapStartAddress();
-	uint32_t diff;
+	// uint32_t cplrAddrSpace = (uint32_t)buffer;
+	// uint32_t vmAddrSpace   = heapStartAddress();
+	// uint32_t diff;
 
 	return buffer;
 }

@@ -64,7 +64,6 @@ serialize(char* outputPath, char* outputName)
 		exit(74);
 	}
 
-	fwrite(&objPool, sizeof(ObjectPool), 1, file);
 	fwrite(objPool->values, sizeof(uint8_t), objPool->valuesLen, file);
 	fclose(file);
 }
