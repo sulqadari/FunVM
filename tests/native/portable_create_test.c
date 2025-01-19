@@ -37,6 +37,7 @@ main(int argc, char* argv[])
 	initObjPool();
 
 	ObjString* string = copyString("123", 3);
+	(void)string;
 
 	freeObjects();
 	serialize(argv[1]);

@@ -13,7 +13,7 @@ static uint8_t heap[HEAP_STATIC_SIZE] __attribute__ ((aligned (4)));
 static uint32_t heapBound;
 
 uint32_t
-heapStartAddress(void)
+getHeapStartAddress(void)
 {
 	return (uint32_t)heap;
 }

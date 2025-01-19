@@ -23,51 +23,45 @@ openBinary(FILE** file, const char* path)
 	return fileSize;
 }
 
-// static ObjString*
-// parseObjString(ObjString* objString)
-// {
-// 	objString->chars        = (char*)((uint8_t*)objString + sizeof(ObjString));
-// 	((Obj*)objString)->next = objPool->objList;
-// 	objPool->objList         = (Obj*)objString;
-// 	return objString;
-// }
+static void
+resolveAddresses(ObjFunction* mainFunction, uint32_t cplrAddr)
+{
+	uint32_t vmAddr = getHeapStartAddress();
+	uint32_t diff = 0;
 
-// static ObjFunction*
-// parseObjFunction(ObjFunction* objFunction)
-// {
-// 	uint32_t offset = sizeof(ObjFunction) + sizeof(ByteCode);
-// 	objFunction->bCode.code = (uint8_t*)objFunction + offset;
+	uint8_t* bytecode = mainFunction->bCode.code;
+	uint8_t* values = (uint8_t*)mainFunction->bCode.constants.values;
 
-// 	offset += sizeof(ConstPool) + objFunction->bCode.count;
-// 	objFunction->bCode.constants.values = (Value*)((uint8_t*)objFunction + offset);
+	if (cplrAddr < vmAddr) {
+		diff = vmAddr - cplrAddr;
+		mainFunction->bCode.code = (uint8_t*)((uint32_t)bytecode + diff);
+		mainFunction->bCode.constants.values = (Value*)((uint32_t)values + diff);
+	} else {
+		diff = cplrAddr - vmAddr;
+		mainFunction->bCode.code = (uint8_t*)((uint32_t)bytecode - diff);
+		mainFunction->bCode.constants.values = (Value*)((uint32_t)values - diff);
+	}
 
-// 	if (objFunction->name != NULL) {
-// 		offset += objFunction->bCode.constants.count;
-// 		objFunction->name->chars = (char*)objFunction + offset;
-// 	}
 
-// 	return objFunction;
-// }
+	
+}
 
-static uint8_t*
+static ObjFunction*
 deserializeByteCode(const char* path)
 {
 	size_t fileSize;
+	uint32_t cplrAddr = 0x5655efd0;		// must be variable.
 	FILE*  file;
-	uint8_t* buffer;
+	uint8_t* mainFunction;
 
-	fileSize = openBinary(&file, path);
-	buffer   = ALLOCATE(uint8_t, fileSize);
-	fread(buffer, sizeof(uint8_t), fileSize, file);
+	fileSize     = openBinary(&file, path);
+	mainFunction = ALLOCATE(uint8_t, fileSize);
+
+	fread(mainFunction, sizeof(uint8_t), fileSize, file);
 	fclose(file);
 
-	objPool = (ObjectPool*)buffer;
-
-	// uint32_t cplrAddrSpace = (uint32_t)buffer;
-	// uint32_t vmAddrSpace   = heapStartAddress();
-	// uint32_t diff;
-
-	return buffer;
+	resolveAddresses((ObjFunction*)mainFunction, cplrAddr);
+	return (ObjFunction*)mainFunction;
 }
 
 int
@@ -76,19 +70,19 @@ main(int argc, char* argv[])
 	if (argc != 2)
 		usage();
 	
-	ObjFunction mainFunction;
-	uint8_t* binary;
+	ObjFunction* mainFunction = NULL;
+
 #if defined(FUNVM_MEM_MANAGER)
 	heapInit();
 #endif
 
-	binary = deserializeByteCode(argv[1]);
-
+	mainFunction = deserializeByteCode(argv[1]);
+	initObjPool();
 	initVM();
-	interpret(&mainFunction);
+	interpret(mainFunction);
 	
 	freeVM();
-	FREE(uint8_t, binary);
+	FREE(uint8_t, mainFunction);
 
 	return (0);
 }

@@ -55,6 +55,7 @@
 		"queue": "c",
 		"string": "c",
 		"iosfwd": "c",
-		"heap.h": "c"
+		"heap.h": "c",
+		"ios": "c"
 	},
 }

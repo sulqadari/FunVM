@@ -16,7 +16,7 @@ struct block_t {
 	block_t* next;
 };
 
-uint32_t heapStartAddress(void);
+uint32_t getHeapStartAddress(void);
 void  heapInit(void);
 void* heapAlloc(uint32_t size);
 void  heapFree(void* ptr);
