@@ -6,11 +6,13 @@
 
 typedef struct {
 	uint32_t idxCount;
-	uint32_t indexes[256];
+	uint32_t indexes[10];
 	uint32_t valuesLen;
 	uint8_t* values;
-	Obj*     objects;
+	Obj*     objList;
 } ObjectPool;
+
+#define UPDATE_PTR(ptr, value)
 
 void initObjPool(void);
 void freeObjPool(void);

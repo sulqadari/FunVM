@@ -49,7 +49,7 @@ freeObject(Obj* object)
 void
 freeObjects(void)
 {
-	Obj* object = objPool.objects;
+	Obj* object = objPool->objList;
 	while (object != NULL) {
 		Obj* next = object->next;
 		freeObject(object);

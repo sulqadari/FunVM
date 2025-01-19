@@ -23,49 +23,51 @@ openBinary(FILE** file, const char* path)
 	return fileSize;
 }
 
-static ObjString*
-parseObjString(ObjString* objString)
-{
-	objString->chars        = (char*)((uint8_t*)objString + sizeof(ObjString));
-	((Obj*)objString)->next = objPool.objects;
-	objPool.objects         = (Obj*)objString;
-	return objString;
-}
+// static ObjString*
+// parseObjString(ObjString* objString)
+// {
+// 	objString->chars        = (char*)((uint8_t*)objString + sizeof(ObjString));
+// 	((Obj*)objString)->next = objPool->objList;
+// 	objPool->objList         = (Obj*)objString;
+// 	return objString;
+// }
 
-static ObjFunction*
-parseObjFunction(ObjFunction* objFunction)
-{
-	return objFunction;
-}
+// static ObjFunction*
+// parseObjFunction(ObjFunction* objFunction)
+// {
+// 	uint32_t offset = sizeof(ObjFunction) + sizeof(ByteCode);
+// 	objFunction->bCode.code = (uint8_t*)objFunction + offset;
 
-static void
+// 	offset += sizeof(ConstPool) + objFunction->bCode.count;
+// 	objFunction->bCode.constants.values = (Value*)((uint8_t*)objFunction + offset);
+
+// 	if (objFunction->name != NULL) {
+// 		offset += objFunction->bCode.constants.count;
+// 		objFunction->name->chars = (char*)objFunction + offset;
+// 	}
+
+// 	return objFunction;
+// }
+
+static uint8_t*
 deserializeByteCode(const char* path)
 {
 	size_t fileSize;
-	FILE* file;
+	FILE*  file;
+	uint8_t* buffer;
 
 	fileSize = openBinary(&file, path);
-
-	fread(&objPool, sizeof(ObjectPool), 1, file);
-	objPool.values = ALLOCATE(uint8_t, (fileSize - sizeof(ObjectPool)));
-
-	fread(objPool.values, sizeof(uint8_t), objPool.valuesLen, file);
+	buffer   = ALLOCATE(uint8_t, fileSize);
+	fread(buffer, sizeof(uint8_t), fileSize, file);
 	fclose(file);
 
-	for (int32_t i = objPool.idxCount - 1; i >= 0; --i) {
-		uint32_t idx = objPool.indexes[i];
-		ObjType type = ((Obj*)&objPool.values[idx])->type;
+	objPool = (ObjectPool*)buffer;
 
-		if (obj_string == type) {
-			parseObjString((ObjString*)&objPool.values[idx]);
-		} else if (obj_func == type) {
-			parseObjFunction((ObjFunction*)&objPool.values[idx]);
-		} else {
-			fprintf(stderr, "Error: unknown object type encountered while parsing '%s' binary file.\n", path);
-			FREE(uint8_t, objPool.values);
-			exit(74);
-		}
-	}
+	uint32_t cplrAddrSpace = (uint32_t)buffer;
+	uint32_t vmAddrSpace   = heapStartAddress();
+	uint32_t diff;
+
+	return buffer;
 }
 
 int
@@ -75,16 +77,18 @@ main(int argc, char* argv[])
 		usage();
 	
 	ObjFunction mainFunction;
+	uint8_t* binary;
 #if defined(FUNVM_MEM_MANAGER)
 	heapInit();
 #endif
-	initObjPool();
-	initByteCode(&mainFunction.bCode);
-	deserializeByteCode(argv[1]);
+
+	binary = deserializeByteCode(argv[1]);
 
 	initVM();
 	interpret(&mainFunction);
+	
 	freeVM();
-	freeObjPool();
+	FREE(uint8_t, binary);
+
 	return (0);
 }

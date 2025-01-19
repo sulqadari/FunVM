@@ -54,6 +54,7 @@
 		"__tree": "c",
 		"queue": "c",
 		"string": "c",
-		"iosfwd": "c"
+		"iosfwd": "c",
+		"heap.h": "c"
 	},
 }

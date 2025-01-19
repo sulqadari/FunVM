@@ -923,14 +923,14 @@ declaration(void)
 
 /** Sets the current compiler, i.e. a fuction which will go right now. */
 static void
-initCompiler(Compiler* compiler, FuncType type)
+initCompiler(Compiler* cplr, FuncType type)
 {
-	compiler->enclosingCplr = currCplr;
-	compiler->type          = type;
-	compiler->localCount    = 0;
-	compiler->scopeDepth    = 0;
-	compiler->function      = newFunction();
-	currCplr = compiler;
+	cplr->enclosingCplr = currCplr;
+	cplr->type          = type;
+	cplr->localCount    = 0;
+	cplr->scopeDepth    = 0;
+	cplr->function      = newFunction();
+	currCplr            = cplr;
 	
 	// Grab the name of a function we're about to compile. Note that the type_script
 	// can't has its own name, because we want to prevent user from referencing this global script.

@@ -6,6 +6,6 @@
 #include "object_pool.h"
 
 extern VM vm;
-extern ObjectPool objPool;
+extern ObjectPool* objPool;
 
 #endif /* FUNVM_GLOBALS_H */
