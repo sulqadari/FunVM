@@ -71,6 +71,6 @@ main(int argc, char* argv[])
 	
 	freeVM();
 	FREE(uint8_t, mainFunction);
-
+	freeObjPool();
 	return (0);
 }

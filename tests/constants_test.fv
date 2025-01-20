@@ -2,5 +2,5 @@
 	var intVal = 10;
 	var floatVal = 2.7;
 	var result = intVal / floatVal;
-	print(result);
+	// print(result);
 }

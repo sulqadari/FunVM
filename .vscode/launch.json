@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMCexe",
 			"args": [
-				"expr_test.fv",
+				"constants_test.fv",
 				"./tests/",
 				"./tests/bin/"
 			],
@@ -23,7 +23,7 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/FVMexe",
 			"args": [
-				"${workspaceFolder}/tests/bin/expr_test.fvb"
+				"${workspaceFolder}/tests/bin/constants_test.fvb"
 			],
 			"cwd": "${workspaceFolder}",
 			"stopAtEntry": true
