@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "object_pool.h"
 #include "globals.h"
+
 void
 initObjPool(void)
 {
@@ -43,18 +44,16 @@ static void
 updateAddress(uint32_t offset, uint8_t dataType)
 {
 #define AS_FUNC ((ObjFunction*)objPool->values)
-#define AS_UINT8 (uint8_t*)objPool->values
 
 	switch (dataType) {
-		case 0: /* Nothing to update with ObjFunction itself. */				break;
-		case 1: AS_FUNC->bCode.code = AS_UINT8 + offset;						break;
-		case 2: AS_FUNC->bCode.constants.values = (Value*)(AS_UINT8 + offset);	break;
-		case 3: AS_FUNC->name->chars = (char*)(AS_UINT8 + offset);				break;
+		case 0: /* Nothing to update with ObjFunction itself. */	break;
+		case 1: AS_FUNC->bCode.code = (uint8_t*)offset;				break;
+		case 2: AS_FUNC->bCode.constants.values = (Value*)(offset);	break;
+		case 3: AS_FUNC->name->chars = (char*)(offset);				break;
 		default:
 	}
 
 #undef AS_FUNC
-#undef AS_UINT8
 }
 
 static uint32_t

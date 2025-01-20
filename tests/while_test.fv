@@ -1,8 +1,8 @@
 {
 	var i = 0;
-	while (i != 20000000) {
+	while (i != 4000000) {
 		var k = 0;
 		i = i + 1;
 	}
-	print(i);
+	// print(i);
 }
