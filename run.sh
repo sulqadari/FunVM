@@ -7,6 +7,7 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
+
 script_name=$1
 
 source_path=$(pwd)/tests/
@@ -17,6 +18,8 @@ vm_path=$(pwd)/build/bin/FVMexe
 echo "********************************"
 echo "*       FunVM compiler         *"
 echo "********************************"
+
+set -e #halt further execution if compiler returns a non-zero value
 $compiler_path  $script_name $source_path $output_path
 
 echo "********************************"

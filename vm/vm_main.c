@@ -24,7 +24,7 @@ openBinary(FILE** file, const char* path)
 }
 
 static void
-resolveAddresses(ObjFunction* mainFunction, uint32_t cplrAddr)
+resolveAddresses(ObjFunction* mainFunction)
 {
 	uint8_t* bytecode = mainFunction->bCode.code;
 	uint8_t* values = (uint8_t*)mainFunction->bCode.constants.values;
@@ -37,7 +37,6 @@ static ObjFunction*
 deserializeByteCode(const char* path)
 {
 	size_t fileSize;
-	uint32_t cplrAddr = 0x5655efd0;		// must be variable.
 	FILE*  file;
 	uint8_t* mainFunction;
 
@@ -47,8 +46,7 @@ deserializeByteCode(const char* path)
 	fread(mainFunction, sizeof(uint8_t), fileSize, file);
 	fclose(file);
 
-	memcpy(&cplrAddr, mainFunction + fileSize - 4, 4);
-	resolveAddresses((ObjFunction*)mainFunction, cplrAddr);
+	resolveAddresses((ObjFunction*)mainFunction);
 	return (ObjFunction*)mainFunction;
 }
 

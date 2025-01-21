@@ -8,14 +8,43 @@
 #define ALLOCATE_OBJ(objStruct, objType)  \
 	(objStruct*)allocateObject(sizeof(objStruct), objType)
 
+#if(1)
+/** Inserts a new object at the end ObjPool->objList */
+static void
+addToObjList(Obj* newObj, ObjType objType)
+{
+	Obj* last = objPool->objList;
+	
+	newObj->type = objType;
+	newObj->next = NULL;
+	
+	if (objPool->objList == NULL) {
+		objPool->objList = newObj;
+		return;
+	}
+	
+	while (last->next != NULL) {
+		last = last->next;
+	}
+	
+	last->next = newObj;
+}
+#else
+/** Inserts a new object at the front of the ObjPool->objList */
+static void
+addToObjList(Obj* newObj, ObjType objType)
+{
+	newObj->type     = objType;
+	newObj->next     = objPool->objList;
+	objPool->objList = newObj;
+}
+#endif
+
 static Obj*
 allocateObject(size_t size, ObjType objType)
 {
-	Obj* object     = (Obj*)reallocate(NULL, 0 , size);
-	object->type    = objType;
-	
-	object->next    = objPool->objList;
-	objPool->objList = object;
+	Obj* object  = (Obj*)reallocate(NULL, 0 , size);
+	addToObjList(object, objType);
 
 	return object;
 }
