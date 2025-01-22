@@ -29,7 +29,7 @@ freeObject(Obj* object)
 	switch(object->type) {
 		case obj_string: {
 			ObjString* str = (ObjString*)object;
-			writeObjString(str);
+			// writeObjString(str);
 
 			FREE_ARRAY(char, (char*)str->chars, str->len + 1);
 			FREE(ObjString, object);

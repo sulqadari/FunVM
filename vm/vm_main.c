@@ -24,6 +24,26 @@ openBinary(FILE** file, const char* path)
 }
 
 static void
+updateConstants(Value* constPool, uint32_t count, uint32_t startAddr)
+{
+	ObjType type;
+
+	for (uint32_t i = 0; i < count; ++i) {
+
+		type = OBJ_TYPE(constPool[i]);
+		switch (type) {
+			case obj_string: {
+				uint8_t* prevAddr = (uint8_t*)CSTRING_UNPACK(constPool[i]);
+				CSTRING_UNPACK(constPool[i]) = (const char*)(startAddr + (uint32_t)prevAddr);
+			} break;
+			default: {
+
+			} break;
+		}
+	}
+}
+
+static void
 resolveAddresses(ObjFunction* mainFunction)
 {
 	uint8_t* bytecode = mainFunction->bCode.code;
@@ -31,6 +51,7 @@ resolveAddresses(ObjFunction* mainFunction)
 
 	mainFunction->bCode.code             = (uint8_t*)((uint32_t)mainFunction + (uint32_t)bytecode);
 	mainFunction->bCode.constants.values = (Value*)((uint32_t)mainFunction + (uint32_t)values);
+	updateConstants(mainFunction->bCode.constants.values, mainFunction->bCode.constants.count, (uint32_t)mainFunction);
 }
 
 static ObjFunction*
